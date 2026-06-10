@@ -1,73 +1,146 @@
-# React + TypeScript + Vite
+# AI Marketing Agent
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + TypeScript + Vite web application.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Prerequisites
 
-## React Compiler
+Make sure the following are installed before getting started:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- [Node.js](https://nodejs.org/) v18 or higher
+- npm (comes with Node.js)
+- [Git](https://git-scm.com/)
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Verify your installations:
+```bash
+node -v
+npm -v
+git --version
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 1. Create Your Branch on GitHub
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Before cloning, create your personal branch on GitHub:
+
+1. Go to `https://github.com/mbiswas22/AI_Marketing_Agent`
+2. Click the branch dropdown (shows `master`)
+3. Type your branch name (e.g. `feature/your-name`) and click **Create branch**
+
+---
+
+## 2. Clone the Repository
+
+```bash
+git clone https://github.com/mbiswas22/AI_Marketing_Agent.git
+cd AI_Marketing_Agent
 ```
+
+---
+
+## 3. Switch to Your Branch
+
+```bash
+git checkout your-branch-name
+```
+
+Or create and switch in one step if you didn't create it on GitHub:
+```bash
+git checkout -b your-branch-name
+```
+
+---
+
+## 4. Pull Latest Changes
+
+Always pull the latest changes from `master` before starting work:
+
+```bash
+git pull origin master
+```
+
+---
+
+## 5. Install Dependencies
+
+```bash
+npm install
+```
+
+> **Windows users:** If you see a `rolldown` native binding error, run:
+> ```bash
+> npm install @rolldown/binding-win32-x64-msvc
+> ```
+
+---
+
+## 6. Run the App
+
+```bash
+npm run dev
+```
+
+The app will be available at `http://localhost:5173`
+
+Other available scripts:
+```bash
+npm run build    # production build
+npm run preview  # preview production build
+npm run lint     # run ESLint
+```
+
+---
+
+## 7. Making Changes & Committing
+
+### Check status of your changes
+```bash
+git status
+```
+
+### Stage files
+```bash
+# Stage a specific file
+git add src/App.tsx
+
+# Stage all changes
+git add .
+```
+
+### Commit your changes
+```bash
+git commit -m "short description of what you changed"
+```
+
+---
+
+## 8. Push Your Branch
+
+```bash
+git push origin your-branch-name
+```
+
+If it's your first push on this branch:
+```bash
+git push -u origin your-branch-name
+```
+
+---
+
+## 9. Pull Before You Push (stay in sync)
+
+Always pull the latest `master` before pushing to avoid conflicts:
+
+```bash
+git pull origin master
+```
+
+Resolve any merge conflicts, then push your branch as shown in step 8.
+
+---
+
+## 10. Open a Pull Request
+
+Once pushed, go to `https://github.com/mbiswas22/AI_Marketing_Agent` and open a **Pull Request** from your branch into `master`.
