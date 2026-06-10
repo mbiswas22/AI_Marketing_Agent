@@ -1,7 +1,5 @@
 # AI Marketing Agent
 
-kush test
-
 A React + TypeScript + Vite web application.
 
 ---
