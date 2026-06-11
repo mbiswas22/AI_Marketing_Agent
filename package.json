@@ -13,6 +13,7 @@
     "@aws-amplify/ui-react": "^6.15.4",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^9.1.1",
     "@mui/material": "^9.1.0",
     "@rolldown/binding-win32-x64-msvc": "^1.1.0",
     "aws-amplify": "^6.18.0",
