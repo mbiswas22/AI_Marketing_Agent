@@ -1,5 +1,5 @@
 # AI Marketing Agent
-hello world 
+
 A React + TypeScript + Vite web application.
 
 ---
