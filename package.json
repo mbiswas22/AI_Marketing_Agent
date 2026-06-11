@@ -15,7 +15,6 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^9.1.1",
     "@mui/material": "^9.1.0",
-    "@rolldown/binding-win32-x64-msvc": "^1.1.0",
     "aws-amplify": "^6.18.0",
     "axios": "^1.17.0",
     "react": "^19.2.6",
