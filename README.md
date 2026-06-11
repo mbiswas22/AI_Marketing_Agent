@@ -1,6 +1,16 @@
 # AI Marketing Agent
 
-A React + TypeScript + Vite web application.
+A React + TypeScript + Vite web application with AWS Cognito authentication and a multi-page dark UI for AI-powered marketing content generation.
+
+### Pages
+| Route | Description |
+|---|---|
+| `/login` | Sign in / Sign up via AWS Cognito (Amplify UI) |
+| `/welcome` | Landing screen after login with a "Get Started" CTA |
+| `/dashboard` | Generate marketing content via prompt, URL, or image upload |
+| `/history` | Table of past AI-generated content with status indicators |
+
+All routes except `/login` are protected — unauthenticated users are redirected to `/login` automatically.
 
 ---
 
@@ -69,14 +79,57 @@ git pull origin master
 npm install
 ```
 
+This installs all required packages, including:
+
+| Package | Purpose |
+|---|---|
+| `aws-amplify` | AWS Amplify core — Cognito auth integration |
+| `@aws-amplify/ui-react` | Pre-built Authenticator UI component |
+| `@mui/material` | Material UI component library |
+| `@mui/icons-material` | MUI icon set used across all pages |
+| `@emotion/react` / `@emotion/styled` | Required peer deps for MUI |
+| `react-router-dom` | Client-side routing between pages |
+| `axios` | HTTP client for future API calls |
+
 > **Windows users:** If you see a `rolldown` native binding error, run:
 > ```bash
 > npm install @rolldown/binding-win32-x64-msvc
 > ```
 
+> **Note:** You may see peer dependency warnings about `@xstate/react` requiring React 16-18 while this project uses React 19. These warnings are harmless — npm overrides the peer dep and the app works correctly.
+
 ---
 
-## 6. Run the App
+## 6. AWS Cognito Setup
+
+Authentication uses AWS Cognito. The config lives in `src/aws-config.ts`:
+
+```ts
+Amplify.configure({
+  Auth: {
+    Cognito: {
+      userPoolId: "us-east-2_xxxxxxxxx",
+      userPoolClientId: "xxxxxxxxxxxxxxxxxxxxxxxxxx",
+    }
+  }
+});
+```
+
+**Important:** The App Client in Cognito must be a **Public client** with **no client secret**. If your client has a secret, Amplify will throw a `SECRET_HASH was not received` error on sign-up/sign-in. To fix it, create a new App Client in the AWS Console with "Generate a client secret" unchecked, or via CLI:
+
+```bash
+aws cognito-idp create-user-pool-client \
+  --user-pool-id YOUR_POOL_ID \
+  --client-name marketing-ai-public \
+  --no-generate-secret \
+  --region us-east-2
+```
+
+Then update `userPoolClientId` in `src/aws-config.ts` with the new client ID.
+
+---
+
+## 7. Run the App
 
 ```bash
 npm run dev
@@ -93,7 +146,7 @@ npm run lint     # run ESLint
 
 ---
 
-## 7. Making Changes & Committing
+## 8. Making Changes & Committing
 
 ### Check status of your changes
 ```bash
@@ -116,7 +169,7 @@ git commit -m "short description of what you changed"
 
 ---
 
-## 8. Push Your Branch
+## 9. Push Your Branch
 
 ```bash
 git push origin your-branch-name
@@ -129,7 +182,7 @@ git push -u origin your-branch-name
 
 ---
 
-## 9. Pull Before You Push (stay in sync)
+## 10. Pull Before You Push (stay in sync)
 
 Always pull the latest `master` before pushing to avoid conflicts:
 
@@ -137,10 +190,10 @@ Always pull the latest `master` before pushing to avoid conflicts:
 git pull origin master
 ```
 
-Resolve any merge conflicts, then push your branch as shown in step 8.
+Resolve any merge conflicts, then push your branch as shown in step 9.
 
 ---
 
-## 10. Open a Pull Request
+## 11. Open a Pull Request
 
 Once pushed, go to `https://github.com/mbiswas22/AI_Marketing_Agent` and open a **Pull Request** from your branch into `master`.
