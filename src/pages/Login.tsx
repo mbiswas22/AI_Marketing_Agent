@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { Authenticator, useAuthenticator } from "@aws-amplify/ui-react";
 import { useNavigate } from "react-router-dom";
 import { Box, Typography } from "@mui/material";

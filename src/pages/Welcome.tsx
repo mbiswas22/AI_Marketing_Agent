@@ -1,4 +1,3 @@
-import { useAuthenticator } from "@aws-amplify/ui-react";
 import { useNavigate } from "react-router-dom";
 import { Box, Typography, Button } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
