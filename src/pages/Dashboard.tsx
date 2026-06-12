@@ -14,6 +14,9 @@ import HistoryIcon from "@mui/icons-material/History";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
+import ArticleIcon from "@mui/icons-material/Article";
+import StyleIcon from "@mui/icons-material/Style";
+import CheckroomIcon from "@mui/icons-material/Checkroom";
 
 const inputSx = {
   "& .MuiOutlinedInput-root": {
@@ -35,13 +38,42 @@ const cardSx = {
   mb: 3,
 };
 
+const CONTENT_TYPES = [
+  {
+    id: "flyer",
+    label: "Flyer",
+    description: "Eye-catching promotional flyer",
+    icon: <StyleIcon />,
+    placeholder: "e.g. Design a flyer for a weekend sale — 30% off all items, bright colours, bold text...",
+  },
+  {
+    id: "blog",
+    label: "Blog Post",
+    description: "Long-form article or write-up",
+    icon: <ArticleIcon />,
+    placeholder: "e.g. Write a 500-word blog post about the benefits of sustainable fashion for Gen Z...",
+  },
+  {
+    id: "merchandise",
+    label: "Merchandise Concept",
+    description: "Product & merch design ideas",
+    icon: <CheckroomIcon />,
+    placeholder: "e.g. Suggest merchandise concepts for a streetwear brand targeting skaters aged 16–25...",
+  },
+];
+
 export default function Dashboard() {
   const { user, signOut } = useAuthenticator();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
 
   const handleSignOut = () => { signOut(); navigate("/login"); };
+
+  const activePlaceholder =
+    CONTENT_TYPES.find((t) => t.id === selectedType)?.placeholder ??
+    "e.g. Write a Facebook ad for our new summer sneaker collection targeting 18–30 year olds...";
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#0f0f0f" }}>
@@ -102,6 +134,49 @@ export default function Dashboard() {
           Describe what you need or provide a source — AI handles the rest.
         </Typography>
 
+        {/* Content Type Selector */}
+        <Paper elevation={0} sx={{ ...cardSx, mb: 3 }}>
+          <Typography sx={{ color: "#cbd5e1", fontWeight: 600, mb: 2, fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
+            Content Type
+          </Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1.5 }}>
+            {CONTENT_TYPES.map((type) => {
+              const active = selectedType === type.id;
+              return (
+                <Box
+                  key={type.id}
+                  onClick={() => setSelectedType(active ? null : type.id)}
+                  sx={{
+                    border: active ? "1px solid #8b5cf6" : "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 2,
+                    p: 2,
+                    cursor: "pointer",
+                    bgcolor: active ? "rgba(139,92,246,0.12)" : "#0f0f0f",
+                    transition: "all 0.18s",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.75,
+                    "&:hover": {
+                      borderColor: "#8b5cf6",
+                      bgcolor: "rgba(139,92,246,0.07)",
+                    },
+                  }}
+                >
+                  <Box sx={{ color: active ? "#a78bfa" : "#475569", display: "flex" }}>
+                    {type.icon}
+                  </Box>
+                  <Typography sx={{ color: active ? "#e2e8f0" : "#94a3b8", fontWeight: 600, fontSize: 14 }}>
+                    {type.label}
+                  </Typography>
+                  <Typography sx={{ color: "#475569", fontSize: 12, lineHeight: 1.4 }}>
+                    {type.description}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+        </Paper>
+
         {/* Prompt */}
         <Paper elevation={0} sx={cardSx}>
           <Typography sx={{ color: "#cbd5e1", fontWeight: 600, mb: 1.5, fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
@@ -111,7 +186,7 @@ export default function Dashboard() {
             multiline
             rows={4}
             fullWidth
-            placeholder="e.g. Write a Facebook ad for our new summer sneaker collection targeting 18–30 year olds..."
+            placeholder={activePlaceholder}
             variant="outlined"
             sx={inputSx}
           />
