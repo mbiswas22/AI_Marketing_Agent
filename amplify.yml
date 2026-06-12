@@ -3,7 +3,8 @@ frontend:
   phases:
     preBuild:
       commands:
-        - npm ci
+        - npm ci --legacy-peer-deps
+        - npm install @rollup/rollup-linux-x64-gnu --no-save
     build:
       commands:
         - npm run build
