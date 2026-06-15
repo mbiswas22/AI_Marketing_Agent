@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useAuthenticator } from "@aws-amplify/ui-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -11,25 +12,29 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Chip,
+  CircularProgress,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LogoutIcon from "@mui/icons-material/Logout";
 import DashboardIcon from "@mui/icons-material/Dashboard";
-
-const DUMMY_HISTORY = [
-  { id: 1, date: "2026-06-10", prompt: "Summer sneaker Facebook ad targeting 18–30 year olds", status: "Completed", color: "#7c3aed" },
-  { id: 2, date: "2026-06-09", prompt: "Email campaign for new product launch with discount code", status: "Completed", color: "#0ea5e9" },
-  { id: 3, date: "2026-06-08", prompt: "Instagram story for 24-hour flash sale", status: "Completed", color: "#ec4899" },
-  { id: 4, date: "2026-06-07", prompt: "Google Ads copy for SaaS productivity tool", status: "Failed",    color: "#374151" },
-  { id: 5, date: "2026-06-06", prompt: "LinkedIn post announcing product update v2.4", status: "Completed", color: "#10b981" },
-];
+import { getHistory } from "../services/api";
+import type { HistoryItem } from "../services/api";
 
 export default function History() {
   const { user, signOut } = useAuthenticator();
   const navigate = useNavigate();
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSignOut = () => { signOut(); navigate("/login"); };
+
+  useEffect(() => {
+    getHistory()
+      .then(setHistory)
+      .catch(() => setError("Failed to load history."))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#0f0f0f" }}>
@@ -90,91 +95,99 @@ export default function History() {
           Your past AI-generated marketing content.
         </Typography>
 
-        <TableContainer
-          component={Paper}
-          elevation={0}
-          sx={{
-            bgcolor: "#161616",
-            border: "1px solid rgba(255,255,255,0.07)",
-            borderRadius: 3,
-            overflow: "hidden",
-          }}
-        >
-          <Table>
-            <TableHead>
-              <TableRow>
-                {["Preview", "Date", "Prompt", "Status"].map((h) => (
-                  <TableCell
-                    key={h}
-                    sx={{
-                      color: "#475569",
-                      borderColor: "rgba(255,255,255,0.06)",
-                      fontWeight: 600,
-                      fontSize: 12,
-                      textTransform: "uppercase",
-                      letterSpacing: 0.8,
-                      bgcolor: "#111",
-                    }}
-                  >
-                    {h}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {DUMMY_HISTORY.map((row) => (
-                <TableRow
-                  key={row.id}
-                  sx={{
-                    "&:hover": { bgcolor: "rgba(255,255,255,0.025)" },
-                    "& td": { borderColor: "rgba(255,255,255,0.05)" },
-                  }}
-                >
-                  <TableCell>
-                    <Box
+        {loading && (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+            <CircularProgress sx={{ color: "#8b5cf6" }} />
+          </Box>
+        )}
+
+        {error && (
+          <Typography sx={{ color: "#ef4444", fontSize: 14 }}>{error}</Typography>
+        )}
+
+        {!loading && !error && (
+          <TableContainer
+            component={Paper}
+            elevation={0}
+            sx={{
+              bgcolor: "#161616",
+              border: "1px solid rgba(255,255,255,0.07)",
+              borderRadius: 3,
+              overflow: "hidden",
+            }}
+          >
+            <Table>
+              <TableHead>
+                <TableRow>
+                  {["Preview", "Date", "Prompt", "Caption"].map((h) => (
+                    <TableCell
+                      key={h}
                       sx={{
-                        width: 56,
-                        height: 38,
-                        borderRadius: 1.5,
-                        bgcolor: row.color,
-                        opacity: 0.85,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <AutoAwesomeIcon sx={{ color: "#fff", fontSize: 16 }} />
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ color: "#475569", fontSize: 13, whiteSpace: "nowrap" }}>
-                    {row.date}
-                  </TableCell>
-                  <TableCell sx={{ maxWidth: 420 }}>
-                    <Typography noWrap sx={{ color: "#cbd5e1", fontSize: 14 }}>
-                      {row.prompt}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={row.status}
-                      size="small"
-                      sx={{
-                        bgcolor:
-                          row.status === "Completed"
-                            ? "rgba(34,197,94,0.12)"
-                            : "rgba(239,68,68,0.12)",
-                        color: row.status === "Completed" ? "#22c55e" : "#ef4444",
-                        border: `1px solid ${row.status === "Completed" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+                        color: "#475569",
+                        borderColor: "rgba(255,255,255,0.06)",
                         fontWeight: 600,
                         fontSize: 12,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.8,
+                        bgcolor: "#111",
                       }}
-                    />
-                  </TableCell>
+                    >
+                      {h}
+                    </TableCell>
+                  ))}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {history.map((item) => (
+                  <TableRow
+                    key={item.action_id}
+                    sx={{
+                      "&:hover": { bgcolor: "rgba(255,255,255,0.025)" },
+                      "& td": { borderColor: "rgba(255,255,255,0.05)" },
+                    }}
+                  >
+                    <TableCell>
+                      <Box
+                        sx={{
+                          width: 56,
+                          height: 38,
+                          borderRadius: 1.5,
+                          bgcolor: "#7c3aed",
+                          opacity: 0.85,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <AutoAwesomeIcon sx={{ color: "#fff", fontSize: 16 }} />
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ color: "#475569", fontSize: 13, whiteSpace: "nowrap" }}>
+                      {new Date(item.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell sx={{ maxWidth: 280 }}>
+                      <Typography noWrap sx={{ color: "#cbd5e1", fontSize: 14 }}>
+                        {item.input_value}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ maxWidth: 320 }}>
+                      <Typography noWrap sx={{ color: "#94a3b8", fontSize: 13 }}>
+                        {item.caption}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {history.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} sx={{ textAlign: "center", color: "#475569", py: 6 }}>
+                      No history yet.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
       </Box>
     </Box>
   );
