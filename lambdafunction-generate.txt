@@ -1,0 +1,257 @@
+MAIN 2 LINES NEEDED TO SWITCH BETWEEN 
+AI AND MOCKUP
+
+"USE_REAL_AI_TEXT = True    # False = mock captions
+USE_REAL_AI_IMAGE = True   # False = placeholder image"
+__________________________________________________________________
+----------------------GENERATE CAPTION LAMBDA-----------------------------
+__________________________________________________________________
+
+
+import json
+import uuid
+import boto3
+from datetime import datetime
+
+# ============================================================
+# CONFIGURATION — toggle to switch between mock and real
+# ============================================================
+USE_REAL_AI_TEXT = True        # Set False to use mock captions
+# ============================================================
+
+dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
+table = dynamodb.Table('kushtest-MarketingActions')
+
+bedrock_text = boto3.client('bedrock-runtime', region_name='us-east-2')
+
+
+def generate_text_content(prompt, business, content_type, platforms):
+
+    if not USE_REAL_AI_TEXT:
+        # --- MOCK TEXT (free, for testing) ---
+        return {
+            "caption": f"🔥 {prompt} is here! Don't miss this limited-time offer from {business}.",
+            "hashtags": ["#Marketing", "#Promotion", "#Sale", "#Business", "#ShopNow"],
+            "call_to_action": "Shop now!"
+        }
+
+    # --- REAL AI TEXT (Nova 2 Lite via Bedrock) ---
+    platforms_str = ', '.join(platforms) if platforms else 'social media'
+
+    system_prompt = """You are an expert marketing copywriter. You create compelling,
+    professional marketing content that drives engagement and conversions.
+    Always respond with valid JSON only, no extra text."""
+
+    user_prompt = f"""Create marketing content for the following:
+
+Business: {business}
+Content Type: {content_type}
+Target Platforms: {platforms_str}
+Campaign Details: {prompt}
+
+Respond with ONLY this JSON format, nothing else:
+{{
+    "caption": "A compelling 2-3 sentence marketing caption that grabs attention and drives action",
+    "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"],
+    "call_to_action": "A short call to action phrase"
+}}"""
+
+    response = bedrock_text.converse(
+        modelId='us.amazon.nova-2-lite-v1:0',
+        system=[{'text': system_prompt}],
+        messages=[{'role': 'user', 'content': [{'text': user_prompt}]}],
+        inferenceConfig={'maxTokens': 500, 'temperature': 0.7}
+    )
+
+    response_text = response['output']['message']['content'][0]['text'].strip()
+    if '```json' in response_text:
+        response_text = response_text.split('```json')[1].split('```')[0].strip()
+    elif '```' in response_text:
+        response_text = response_text.split('```')[1].split('```')[0].strip()
+
+    return json.loads(response_text)
+
+
+def lambda_handler(event, context):
+    try:
+        body = json.loads(event['body'])
+        prompt = body.get('prompt', '')
+        business = body.get('business', 'My Business')
+        content_type = body.get('contentType', 'flyer')
+        platforms = body.get('platforms', [])
+
+        result = generate_text_content(prompt, business, content_type, platforms)
+        action_id = str(uuid.uuid4())
+
+        table.put_item(
+            Item={
+                "action_id": action_id,
+                "business": business,
+                "content_type": content_type,
+                "platforms": platforms,
+                "input_type": "text",
+                "input_value": prompt,
+                "caption": result.get("caption", ""),
+                "hashtags": result.get("hashtags", []),
+                "call_to_action": result.get("call_to_action", ""),
+                "status": "draft",
+                "created_at": datetime.utcnow().isoformat()
+            }
+        )
+
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "*"
+            },
+            "body": json.dumps(result)
+        }
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return {
+            "statusCode": 500,
+            "headers": {"Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({"error": str(e)})
+        }
+
+___________________________________________________________________________________
+----------------------GET HISTORY LAMBDA-----------------------------
+___________________________________________________________________________________
+
+
+import boto3
+import json
+
+dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
+table = dynamodb.Table('kushtest-MarketingActions')
+
+def lambda_handler(event, context):
+    response = table.scan()
+    items = response["Items"]
+    
+    # Sort by most recent first
+    items.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+    
+    return {
+        "statusCode": 200,
+        "headers": {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*"
+        },
+        "body": json.dumps(items)
+    }
+___________________________________________________________________________________
+----------------------Generate Marketing Asset LAMBDA-----------------------------
+___________________________________________________________________________________
+
+import json
+import uuid
+import boto3
+import base64
+from datetime import datetime
+
+# ============================================================
+# CONFIGURATION — toggle to switch between mock and real
+# ============================================================
+USE_REAL_AI_IMAGE = True       # Set False to use placeholder image
+# ============================================================
+
+dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
+table = dynamodb.Table('kushtest-MarketingActions')
+
+# Bedrock client for IMAGES (us-west-2 — Stability AI)
+bedrock_image = boto3.client('bedrock-runtime', region_name='us-west-2')
+
+# S3 client
+s3 = boto3.client('s3', region_name='us-east-2')
+S3_BUCKET = 'kushtest-marketing-ai-assets'
+
+
+def generate_image(image_prompt, action_id):
+
+    if not USE_REAL_AI_IMAGE:
+        # --- MOCK IMAGE (free, for testing) ---
+        return "https://placehold.co/1024x1024/7c3aed/ffffff?text=AI+Generated+Flyer"
+
+    # --- REAL AI IMAGE (Stability AI via Bedrock us-west-2) ---
+    response = bedrock_image.invoke_model(
+        modelId='stability.stable-image-core-v1:1',
+        body=json.dumps({
+            "prompt": image_prompt,
+            "aspect_ratio": "1:1",
+            "output_format": "png"
+        }),
+        accept='application/json',
+        contentType='application/json'
+    )
+
+    response_body = json.loads(response['body'].read())
+    image_base64 = response_body['images'][0]
+    image_bytes = base64.b64decode(image_base64)
+
+    # Save to S3
+    s3_key = f"generated/{action_id}.png"
+    s3.put_object(
+        Bucket=S3_BUCKET,
+        Key=s3_key,
+        Body=image_bytes,
+        ContentType='image/png'
+    )
+
+    image_url = f"https://{S3_BUCKET}.s3.us-east-2.amazonaws.com/{s3_key}"
+    return image_url
+
+
+def lambda_handler(event, context):
+    try:
+        body = json.loads(event['body'])
+        action_id = body.get('action_id', str(uuid.uuid4()))
+        prompt = body.get('prompt', '')
+        business = body.get('business', 'My Business')
+        content_type = body.get('contentType', 'flyer')
+        platforms = body.get('platforms', [])
+        caption = body.get('caption', '')
+
+        # Build a detailed image prompt
+        platforms_str = ', '.join(platforms) if platforms else 'social media'
+        image_prompt = f"""Professional marketing {content_type} for {business}.
+Campaign: {prompt}.
+Style: Modern, clean, vibrant colors, professional typography, high quality.
+Platform: {platforms_str}.
+Include relevant visuals, branding elements, and make it visually striking."""
+
+        # Generate the image
+        image_url = generate_image(image_prompt, action_id)
+
+        # Update the DynamoDB record with the image URL
+        table.update_item(
+            Key={"action_id": action_id},
+            UpdateExpression="SET image_url = :url, #s = :status",
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={
+                ":url": image_url,
+                ":status": "draft"
+            }
+        )
+
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "*"
+            },
+            "body": json.dumps({
+                "imageUrl": image_url,
+                "action_id": action_id
+            })
+        }
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return {
+            "statusCode": 500,
+            "headers": {"Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({"error": str(e)})
+        }

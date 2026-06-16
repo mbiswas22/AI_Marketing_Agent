@@ -126,7 +126,7 @@ export default function Dashboard() {
     setHashtags([]);
     const fullPrompt = `Business: ${effectiveBusiness}. Content type: ${contentType}. ${prompt}`;
     try {
-      const response = await generateCaption(fullPrompt);
+      const response = await generateCaption(fullPrompt, effectiveBusiness, contentType, platforms);
       setCaption(response.data.caption);
       setHashtags(response.data.hashtags ?? []);
     } catch {
@@ -210,7 +210,7 @@ export default function Dashboard() {
                 "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#8b5cf6" },
                 "& .MuiSvgIcon-root": { color: "#64748b" },
               }}
-              MenuProps={{ PaperProps: { sx: { bgcolor: "#1e1e1e", color: "#fff" } } }}
+              MenuProps={{ slotProps: { paper: { sx: { bgcolor: "#1e1e1e", color: "#fff" } } } }}
             >
               {DEMO_BUSINESSES.map((b) => (
                 <MenuItem key={b} value={b} sx={{ "&:hover": { bgcolor: "rgba(139,92,246,0.1)" } }}>{b}</MenuItem>
