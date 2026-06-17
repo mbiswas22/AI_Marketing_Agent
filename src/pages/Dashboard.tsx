@@ -22,6 +22,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
+import CheckroomIcon from "@mui/icons-material/Checkroom";
 import ArticleIcon from "@mui/icons-material/Article";
 import ImageIcon from "@mui/icons-material/Image";
 import CampaignIcon from "@mui/icons-material/Campaign";
@@ -43,6 +44,7 @@ const DEMO_BUSINESSES = ["My Business", "Acme Corp", "Green Leaf Cafe"];
 const CONTENT_TYPES = [
   { value: "flyer", label: "Flyer", icon: <CampaignIcon fontSize="small" /> },
   { value: "blog", label: "Blog", icon: <ArticleIcon fontSize="small" /> },
+  { value: "merchandise", label: "Merchandise", icon: <CheckroomIcon fontSize="small" /> },
   { value: "image", label: "Image", icon: <ImageIcon fontSize="small" /> },
   { value: "email", label: "Email", icon: <EmailIcon fontSize="small" /> },
   { value: "video", label: "Video", icon: <VideoLibraryIcon fontSize="small" /> },
