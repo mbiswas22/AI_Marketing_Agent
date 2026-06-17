@@ -41,7 +41,9 @@ export interface HistoryItem {
 }
 
 export const getHistory = async (): Promise<HistoryItem[]> => {
-  const res = await axios.get(`${API_URL}/history`);
+  const res = await axios.get(`${API_URL}/history`, {
+    params: { userId: "test-user" }
+  });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return Array.isArray(data) ? data : [];
 };
