@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "https://1su2sey48c.execute-api.us-east-2.amazonaws.com";
+const API_URL = "https://3xw44p0uke.execute-api.us-east-2.amazonaws.com";
 
 export interface GenerateCaptionResponse {
   caption: string;
