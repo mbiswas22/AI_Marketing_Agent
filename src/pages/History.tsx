@@ -265,7 +265,8 @@ export default function History() {
   const handleSignOut = () => { signOut(); navigate("/login"); };
 
   useEffect(() => {
-    getHistory()
+    const userId = user?.userId ?? user?.username ?? "unknown";
+    getHistory(userId)
       .then((items) =>
         setHistory(
           [...items].sort(
@@ -275,7 +276,7 @@ export default function History() {
       )
       .catch(() => setError("Failed to load history."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [user]);
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#0f0f0f" }}>

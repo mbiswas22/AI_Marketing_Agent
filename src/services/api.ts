@@ -16,13 +16,15 @@ export const generateCaption = async (
   prompt: string,
   business: string,
   contentType: string,
-  platforms: string[]
+  platforms: string[],
+  userId: string
 ) => {
   return axios.post<GenerateCaptionResponse>(`${API_URL}/generate`, {
     prompt,
     business,
     contentType,
     platforms,
+    userId,
   }, {
     headers: { "Content-Type": "application/json" },
   });
@@ -40,9 +42,9 @@ export interface HistoryItem {
   status?: string;
 }
 
-export const getHistory = async (): Promise<HistoryItem[]> => {
+export const getHistory = async (userId: string): Promise<HistoryItem[]> => {
   const res = await axios.get(`${API_URL}/history`, {
-    params: { userId: "test-user" }
+    params: { userId }
   });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return Array.isArray(data) ? data : [];

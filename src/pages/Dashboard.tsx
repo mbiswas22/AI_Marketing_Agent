@@ -128,7 +128,7 @@ export default function Dashboard() {
     setHashtags([]);
     const fullPrompt = `Business: ${effectiveBusiness}. Content type: ${contentType}. ${prompt}`;
     try {
-      const response = await generateCaption(fullPrompt, effectiveBusiness, contentType, platforms);
+      const response = await generateCaption(fullPrompt, effectiveBusiness, contentType, platforms, user?.userId ?? user?.username ?? "unknown");
       setCaption(response.data.result.caption);
       setHashtags(response.data.result.hashtags ?? []);
     } catch {
