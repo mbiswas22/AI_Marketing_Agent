@@ -37,7 +37,7 @@ import FacebookIcon from "@mui/icons-material/Facebook";
 import InstagramIcon from "@mui/icons-material/Instagram";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
-import { generateCaption } from "../services/api";
+import { generateCaption, generateImage } from "../services/api";
 
 const DEMO_BUSINESSES = ["My Business", "Acme Corp", "Green Leaf Cafe"];
 
@@ -111,6 +111,7 @@ export default function Dashboard() {
   const [outputFormat, setOutputFormat] = useState("txt");
   const [prompt, setPrompt] = useState("");
   const [caption, setCaption] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,12 +126,18 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     setCaption(null);
+    setImageUrl(null);
     setHashtags([]);
     const fullPrompt = `Business: ${effectiveBusiness}. Content type: ${contentType}. ${prompt}`;
     try {
-      const response = await generateCaption(fullPrompt, effectiveBusiness, contentType, platforms, user?.userId ?? user?.username ?? "unknown");
-      setCaption(response.data.result.caption);
-      setHashtags(response.data.result.hashtags ?? []);
+      if (contentType === "image") {
+        const url = await generateImage(prompt);
+        setImageUrl(url);
+      } else {
+        const response = await generateCaption(fullPrompt, effectiveBusiness, contentType, platforms, user?.userId ?? user?.username ?? "unknown");
+        setCaption(response.data.result.caption);
+        setHashtags(response.data.result.hashtags ?? []);
+      }
     } catch {
       setError("Failed to generate content. Please try again.");
     } finally {
@@ -444,6 +451,32 @@ export default function Dashboard() {
         {error && (
           <Paper elevation={0} sx={{ ...cardSx, mt: 3, borderColor: "rgba(239,68,68,0.3)" }}>
             <Typography sx={{ color: "#ef4444", fontSize: 14 }}>{error}</Typography>
+          </Paper>
+        )}
+        {imageUrl && (
+          <Paper elevation={0} sx={{ ...cardSx, mt: 3, borderColor: "rgba(139,92,246,0.3)" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+              <AutoAwesomeIcon sx={{ color: "#8b5cf6", fontSize: 18 }} />
+              <Typography sx={{ color: "#cbd5e1", fontWeight: 600, fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
+                Generated Image
+              </Typography>
+            </Box>
+            <Box
+              component="img"
+              src={imageUrl}
+              alt="Generated"
+              sx={{ width: "100%", borderRadius: 2, mt: 1 }}
+            />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<DownloadIcon />}
+              href={imageUrl}
+              download="generated-image.png"
+              sx={{ mt: 2, color: "#8b5cf6", borderColor: "#8b5cf6", textTransform: "none", borderRadius: 2 }}
+            >
+              Download Image
+            </Button>
           </Paper>
         )}
         {caption && (

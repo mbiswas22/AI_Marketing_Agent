@@ -42,7 +42,16 @@ export interface HistoryItem {
   status?: string;
 }
 
-export const getHistory = async (userId: string): Promise<HistoryItem[]> => {
+export interface GenerateImageResponse {
+  imageUrl: string;
+}
+
+export const generateImage = async (prompt: string): Promise<string> => {
+  const res = await axios.post<GenerateImageResponse>(`${API_URL}/generate-image`, { prompt }, {
+    headers: { "Content-Type": "application/json" },
+  });
+  return res.data.imageUrl;
+};
   const res = await axios.get(`${API_URL}/history`, {
     params: { userId }
   });
