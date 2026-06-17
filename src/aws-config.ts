@@ -8,3 +8,4 @@ Amplify.configure({
    }
  }
 });
+
