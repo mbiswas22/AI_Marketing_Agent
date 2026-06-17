@@ -3,8 +3,13 @@ import axios from "axios";
 const API_URL = "https://3xw44p0uke.execute-api.us-east-2.amazonaws.com";
 
 export interface GenerateCaptionResponse {
-  caption: string;
-  hashtags: string[];
+  action_id: string;
+  userId: string;
+  result: {
+    caption: string;
+    hashtags: string[];
+    call_to_action: string;
+  };
 }
 
 export const generateCaption = async (

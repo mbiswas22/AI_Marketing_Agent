@@ -129,8 +129,8 @@ export default function Dashboard() {
     const fullPrompt = `Business: ${effectiveBusiness}. Content type: ${contentType}. ${prompt}`;
     try {
       const response = await generateCaption(fullPrompt, effectiveBusiness, contentType, platforms);
-      setCaption(response.data.caption);
-      setHashtags(response.data.hashtags ?? []);
+      setCaption(response.data.result.caption);
+      setHashtags(response.data.result.hashtags ?? []);
     } catch {
       setError("Failed to generate content. Please try again.");
     } finally {
