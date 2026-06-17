@@ -200,7 +200,13 @@ def generate_image(image_prompt, action_id):
         ContentType='image/png'
     )
 
-    image_url = f"https://{S3_BUCKET}.s3.us-east-2.amazonaws.com/{s3_key}"
+    # Generate presigned URL valid for 24 hours
+    image_url = s3.generate_presigned_url(
+        'get_object',
+        Params={'Bucket': S3_BUCKET, 'Key': s3_key},
+        ExpiresIn=86400
+    )
+
     return image_url
 
 
@@ -212,7 +218,6 @@ def lambda_handler(event, context):
         business = body.get('business', 'My Business')
         content_type = body.get('contentType', 'flyer')
         platforms = body.get('platforms', [])
-        caption = body.get('caption', '')
 
         # Build a detailed image prompt
         platforms_str = ', '.join(platforms) if platforms else 'social media'
