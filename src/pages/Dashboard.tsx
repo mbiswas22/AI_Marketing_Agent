@@ -23,6 +23,8 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ArticleIcon from "@mui/icons-material/Article";
+import StyleIcon from "@mui/icons-material/Style";
+import CheckroomIcon from "@mui/icons-material/Checkroom";
 import ImageIcon from "@mui/icons-material/Image";
 import CampaignIcon from "@mui/icons-material/Campaign";
 import EmailIcon from "@mui/icons-material/Email";
@@ -36,32 +38,75 @@ import FacebookIcon from "@mui/icons-material/Facebook";
 import InstagramIcon from "@mui/icons-material/Instagram";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
-import { generateCaption } from "../services/api";
 
 const DEMO_BUSINESSES = ["My Business", "Acme Corp", "Green Leaf Cafe"];
 
 const CONTENT_TYPES = [
-  { value: "flyer", label: "Flyer", icon: <CampaignIcon fontSize="small" /> },
-  { value: "blog", label: "Blog", icon: <ArticleIcon fontSize="small" /> },
-  { value: "image", label: "Image", icon: <ImageIcon fontSize="small" /> },
-  { value: "email", label: "Email", icon: <EmailIcon fontSize="small" /> },
-  { value: "video", label: "Video", icon: <VideoLibraryIcon fontSize="small" /> },
+  {
+    id: "flyer",
+    label: "Flyer",
+    description: "Eye-catching promotional flyer",
+    icon: <StyleIcon />,
+    placeholder: "e.g. Design a flyer for a weekend sale — 30% off all items, bright colours, bold text...",
+  },
+  {
+    id: "blog",
+    label: "Blog Post",
+    description: "Long-form article or write-up",
+    icon: <ArticleIcon />,
+    placeholder: "e.g. Write a 500-word blog post about the benefits of sustainable fashion for Gen Z...",
+  },
+  {
+    id: "merchandise",
+    label: "Merchandise Concept",
+    description: "Product & merch design ideas",
+    icon: <CheckroomIcon />,
+    placeholder: "e.g. Suggest merchandise concepts for a streetwear brand targeting skaters aged 16–25...",
+  },
+  {
+    id: "image",
+    label: "Image",
+    description: "AI-generated marketing image",
+    icon: <ImageIcon />,
+    placeholder: "e.g. Generate a vibrant product image for a new energy drink targeting athletes...",
+  },
+  {
+    id: "email",
+    label: "Email",
+    description: "Email campaign copy",
+    icon: <EmailIcon />,
+    placeholder: "e.g. Write a promotional email for a 48-hour flash sale with a 20% discount code...",
+  },
+  {
+    id: "video",
+    label: "Video Script",
+    description: "Video or reel script",
+    icon: <VideoLibraryIcon />,
+    placeholder: "e.g. Write a 30-second video script for an Instagram reel promoting a new coffee blend...",
+  },
+  {
+    id: "campaign",
+    label: "Ad Campaign",
+    description: "Full ad campaign copy",
+    icon: <CampaignIcon />,
+    placeholder: "e.g. Create a Facebook ad campaign for a new summer sneaker collection targeting 18–30 year olds...",
+  },
 ];
 
 const OUTPUT_FORMATS = [
-  { value: "pdf",      label: "PDF",      icon: <PictureAsPdfIcon fontSize="small" /> },
-  { value: "docx",    label: "Word",     icon: <TextSnippetIcon fontSize="small" /> },
-  { value: "txt",     label: "Plain Text", icon: <TextSnippetIcon fontSize="small" /> },
-  { value: "html",    label: "HTML",     icon: <CodeIcon fontSize="small" /> },
-  { value: "csv",     label: "CSV",      icon: <TableChartIcon fontSize="small" /> },
-  { value: "jpeg",    label: "JPEG",     icon: <ImageIcon fontSize="small" /> },
+  { value: "pdf",  label: "PDF",        icon: <PictureAsPdfIcon fontSize="small" /> },
+  { value: "docx", label: "Word",       icon: <TextSnippetIcon fontSize="small" /> },
+  { value: "txt",  label: "Plain Text", icon: <TextSnippetIcon fontSize="small" /> },
+  { value: "html", label: "HTML",       icon: <CodeIcon fontSize="small" /> },
+  { value: "csv",  label: "CSV",        icon: <TableChartIcon fontSize="small" /> },
+  { value: "jpeg", label: "JPEG",       icon: <ImageIcon fontSize="small" /> },
 ];
 
 const SOCIAL_PLATFORMS = [
-  { value: "facebook", label: "Facebook", icon: <FacebookIcon />, color: "#1877f2" },
+  { value: "facebook",  label: "Facebook",  icon: <FacebookIcon />,  color: "#1877f2" },
   { value: "instagram", label: "Instagram", icon: <InstagramIcon />, color: "#e1306c" },
-  { value: "youtube", label: "YouTube", icon: <YouTubeIcon />, color: "#ff0000" },
-  { value: "linkedin", label: "LinkedIn", icon: <LinkedInIcon />, color: "#0a66c2" },
+  { value: "youtube",   label: "YouTube",   icon: <YouTubeIcon />,   color: "#ff0000" },
+  { value: "linkedin",  label: "LinkedIn",  icon: <LinkedInIcon />,  color: "#0a66c2" },
 ];
 
 const inputSx = {
@@ -104,9 +149,9 @@ export default function Dashboard() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [business, setBusiness] = useState(DEMO_BUSINESSES[0]);
   const [customBusiness, setCustomBusiness] = useState("");
-  const [contentType, setContentType] = useState("flyer");
-  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
   const [outputFormat, setOutputFormat] = useState("txt");
+  const [platforms, setPlatforms] = useState<string[]>([]);
   const [prompt, setPrompt] = useState("");
   const [caption, setCaption] = useState<string | null>(null);
   const [hashtags, setHashtags] = useState<string[]>([]);
@@ -116,6 +161,10 @@ export default function Dashboard() {
   const isCustom = business === "__custom__";
   const effectiveBusiness = isCustom ? customBusiness : business;
 
+  const activePlaceholder =
+    CONTENT_TYPES.find((t) => t.id === selectedType)?.placeholder ??
+    "e.g. Write a Facebook ad for our new summer sneaker collection targeting 18–30 year olds...";
+
   const handleSignOut = () => { signOut(); navigate("/login"); };
 
   const handleGenerate = async () => {
@@ -124,11 +173,11 @@ export default function Dashboard() {
     setError(null);
     setCaption(null);
     setHashtags([]);
-    const fullPrompt = `Business: ${effectiveBusiness}. Content type: ${contentType}. ${prompt}`;
     try {
-      const response = await generateCaption(fullPrompt, effectiveBusiness, contentType, platforms);
-      setCaption(response.data.caption);
-      setHashtags(response.data.hashtags ?? []);
+      // Replace with real API call
+      await new Promise((res) => setTimeout(res, 1500));
+      setCaption(`Generated content for "${effectiveBusiness}" — ${selectedType ?? "general"} type.\n\n${prompt}`);
+      setHashtags(["#marketing", "#AI", "#content"]);
     } catch {
       setError("Failed to generate content. Please try again.");
     } finally {
@@ -204,7 +253,8 @@ export default function Dashboard() {
               value={business}
               label="Select your business"
               onChange={(e) => setBusiness(e.target.value)}
-              sx={{ color: "#fff", bgcolor: "#0f0f0f", borderRadius: 2,
+              sx={{
+                color: "#fff", bgcolor: "#0f0f0f", borderRadius: 2,
                 "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.1)" },
                 "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#8b5cf6" },
                 "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#8b5cf6" },
@@ -234,38 +284,40 @@ export default function Dashboard() {
 
         {/* Content Type */}
         <Paper elevation={0} sx={cardSx}>
-          <Typography sx={labelSx}>What do you want to generate?</Typography>
-          <ToggleButtonGroup
-            value={contentType}
-            exclusive
-            onChange={(_, val) => { if (val) setContentType(val); }}
-            sx={{ flexWrap: "wrap", gap: 1 }}
-          >
-            {CONTENT_TYPES.map(({ value, label, icon }) => (
-              <ToggleButton
-                key={value}
-                value={value}
-                sx={{
-                  color: "#64748b",
-                  border: "1px solid rgba(255,255,255,0.1) !important",
-                  borderRadius: "8px !important",
-                  px: 2,
-                  py: 1,
-                  gap: 0.75,
-                  textTransform: "none",
-                  fontSize: 14,
-                  "&.Mui-selected": {
-                    color: "#a78bfa",
-                    bgcolor: "rgba(139,92,246,0.15) !important",
-                    border: "1px solid rgba(139,92,246,0.5) !important",
-                  },
-                  "&:hover": { bgcolor: "rgba(255,255,255,0.04)" },
-                }}
-              >
-                {icon}{label}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
+          <Typography sx={labelSx}>Content Type</Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1.5 }}>
+            {CONTENT_TYPES.map((type) => {
+              const active = selectedType === type.id;
+              return (
+                <Box
+                  key={type.id}
+                  onClick={() => setSelectedType(active ? null : type.id)}
+                  sx={{
+                    border: active ? "1px solid #8b5cf6" : "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 2,
+                    p: 2,
+                    cursor: "pointer",
+                    bgcolor: active ? "rgba(139,92,246,0.12)" : "#0f0f0f",
+                    transition: "all 0.18s",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.75,
+                    "&:hover": { borderColor: "#8b5cf6", bgcolor: "rgba(139,92,246,0.07)" },
+                  }}
+                >
+                  <Box sx={{ color: active ? "#a78bfa" : "#475569", display: "flex" }}>
+                    {type.icon}
+                  </Box>
+                  <Typography sx={{ color: active ? "#e2e8f0" : "#94a3b8", fontWeight: 600, fontSize: 14 }}>
+                    {type.label}
+                  </Typography>
+                  <Typography sx={{ color: "#475569", fontSize: 12, lineHeight: 1.4 }}>
+                    {type.description}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
         </Paper>
 
         {/* Output Format */}
@@ -285,9 +337,7 @@ export default function Dashboard() {
                   color: "#64748b",
                   border: "1px solid rgba(255,255,255,0.1) !important",
                   borderRadius: "8px !important",
-                  px: 2,
-                  py: 1,
-                  gap: 0.75,
+                  px: 2, py: 1, gap: 0.75,
                   textTransform: "none",
                   fontSize: 14,
                   "&.Mui-selected": {
@@ -311,7 +361,7 @@ export default function Dashboard() {
             multiline
             rows={4}
             fullWidth
-            placeholder="e.g. Write a Facebook ad for our new summer sneaker collection targeting 18–30 year olds..."
+            placeholder={activePlaceholder}
             variant="outlined"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -449,7 +499,7 @@ export default function Dashboard() {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
               <AutoAwesomeIcon sx={{ color: "#8b5cf6", fontSize: 18 }} />
               <Typography sx={{ color: "#cbd5e1", fontWeight: 600, fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>
-                Generated Caption
+                Generated Content
               </Typography>
             </Box>
             <Typography sx={{ color: "#e2e8f0", fontSize: 15, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
@@ -481,8 +531,10 @@ export default function Dashboard() {
                   a.click();
                   URL.revokeObjectURL(url);
                 }}
-                sx={{ color: "#8b5cf6", borderColor: "#8b5cf6", textTransform: "none", borderRadius: 2,
-                  "&:hover": { bgcolor: "rgba(139,92,246,0.08)" } }}
+                sx={{
+                  color: "#8b5cf6", borderColor: "#8b5cf6", textTransform: "none", borderRadius: 2,
+                  "&:hover": { bgcolor: "rgba(139,92,246,0.08)" },
+                }}
               >
                 Download as .{outputFormat}
               </Button>
@@ -490,8 +542,10 @@ export default function Dashboard() {
                 <Button
                   variant="outlined"
                   size="small"
-                  sx={{ color: "#22c55e", borderColor: "#22c55e", textTransform: "none", borderRadius: 2,
-                    "&:hover": { bgcolor: "rgba(34,197,94,0.08)" } }}
+                  sx={{
+                    color: "#22c55e", borderColor: "#22c55e", textTransform: "none", borderRadius: 2,
+                    "&:hover": { bgcolor: "rgba(34,197,94,0.08)" },
+                  }}
                 >
                   Publish to {platforms.join(", ")}
                 </Button>
