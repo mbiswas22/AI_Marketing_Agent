@@ -47,8 +47,10 @@ const PLATFORM_INFO: Record<string, { icon: ReactElement; color: string; label: 
 const formatDate = (dateStr: string) =>
   new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
-const truncate = (text: string, max = 40) =>
-  text.length > max ? `${text.slice(0, max).trimEnd()}...` : text;
+const truncate = (text: string | undefined, max = 40) => {
+  if (!text) return "—";
+  return text.length > max ? `${text.slice(0, max).trimEnd()}...` : text;
+};
 
 const colHeadSx = {
   color: "#475569",

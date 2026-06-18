@@ -11,13 +11,15 @@ export const generateCaption = async (
   prompt: string,
   business: string,
   contentType: string,
-  platforms: string[]
+  platforms: string[],
+  modelId: string
 ) => {
   return axios.post<GenerateCaptionResponse>(`${API_URL}/generate`, {
     prompt,
     business,
     contentType,
     platforms,
+    modelId,
   }, {
     headers: { "Content-Type": "application/json" },
   });
@@ -25,8 +27,8 @@ export const generateCaption = async (
 
 export interface HistoryItem {
   action_id: string;
-  input_value: string;
-  caption: string;
+  input_value?: string;
+  caption?: string;
   created_at: string;
   business?: string;
   content_type?: string;
@@ -34,6 +36,19 @@ export interface HistoryItem {
   hashtags?: string[];
   status?: string;
 }
+
+export interface BedrockModel {
+  modelId: string;
+  label: string;
+  description: string;
+}
+
+export const getModels = async (category: string): Promise<BedrockModel[]> => {
+  const res = await axios.get<BedrockModel[]>(`${API_URL}/models`, {
+    params: { category },
+  });
+  return Array.isArray(res.data) ? res.data : [];
+};
 
 export const getHistory = async (): Promise<HistoryItem[]> => {
   const res = await axios.get(`${API_URL}/history`);
