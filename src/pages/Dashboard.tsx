@@ -269,6 +269,16 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  const [inputMode, setInputMode] = useState<"text" | "website" | "image">("text");
+
+  const handleInputModeChange = (mode: "text" | "website" | "image") => {
+    setInputMode(mode);
+    setPrompt("");
+    setUrl("");
+    setUploadedFile(null);
+    setFileName(null);
+  };
+
   const isCustom = business === "__custom__";
   const effectiveBusiness = isCustom ? customBusiness : business;
   const currentModels =
@@ -318,18 +328,12 @@ export default function Dashboard() {
 
   const handleGenerate = async () => {
     // Determine input_type and input_value
-    let input_type: "text" | "website" | "image" = "text";
-    let input_value = prompt.trim();
+    let input_type: "text" | "website" | "image" = inputMode;
+    let input_value = inputMode === "text" ? prompt.trim()
+      : inputMode === "website" ? url.trim()
+      : uploadedFile?.name ?? "";
 
-    if (uploadedFile) {
-      input_type = "image";
-      input_value = uploadedFile.name;
-    } else if (url.trim()) {
-      input_type = "website";
-      input_value = url.trim();
-    } else if (!prompt.trim()) {
-      return;
-    }
+    if (!input_value) return;
 
     setLoading(true);
     setError(null);
@@ -580,76 +584,92 @@ export default function Dashboard() {
     </Paper>
   );
 
-  const PromptSection = (
+  const InputSection = (
     <Paper elevation={0} sx={cardSx}>
-      <Typography sx={labelSx}>Prompt</Typography>
-      <TextField
-        multiline
-        rows={isDesktop ? 6 : 4}
-        fullWidth
-        placeholder="e.g. Write a Facebook ad for our new summer sneaker collection targeting 18–30 year olds..."
-        variant="outlined"
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        sx={inputSx}
-      />
-    </Paper>
-  );
-
-  const UrlSection = (
-    <Paper elevation={0} sx={cardSx}>
-      <Typography sx={labelSx}>Website URL</Typography>
-      <TextField
-        fullWidth
-        placeholder="https://yourwebsite.com"
-        variant="outlined"
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        sx={inputSx}
-      />
-    </Paper>
-  );
-
-  const UploadSection = (
-    <Paper elevation={0} sx={cardSx}>
-      <Typography sx={labelSx}>Upload Image</Typography>
-      <Box
-        onClick={() => fileRef.current?.click()}
-        sx={{
-          border: "1px dashed rgba(139,92,246,0.4)",
-          borderRadius: 2,
-          p: 2.5,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 1,
-          cursor: "pointer",
-          transition: "border-color 0.2s, background 0.2s",
-          "&:hover": {
-            borderColor: "#8b5cf6",
-            bgcolor: "rgba(139,92,246,0.05)",
-          },
-        }}
-      >
-        {fileName ? (
-          <>
-            <InsertDriveFileIcon sx={{ color: "#8b5cf6", fontSize: 26 }} />
-            <Typography sx={{ color: "#a78bfa", fontSize: 13 }}>
-              {fileName}
-            </Typography>
-          </>
-        ) : (
-          <>
-            <UploadFileIcon sx={{ color: "#8b5cf6", fontSize: 26 }} />
-            <Typography sx={{ color: "#64748b", fontSize: 13 }}>
-              Click to upload or drag & drop
-            </Typography>
-            <Typography sx={{ color: "#334155", fontSize: 12 }}>
-              PNG, JPG, WEBP up to 10MB
-            </Typography>
-          </>
-        )}
+      {/* Tab selectors */}
+      <Box sx={{ display: "flex", gap: 1, mb: 2.5 }}>
+        {([
+          { mode: "text",    label: "Prompt",      icon: <TextSnippetIcon fontSize="small" /> },
+          { mode: "website", label: "Website URL",  icon: <CodeIcon fontSize="small" /> },
+          { mode: "image",   label: "Upload Image", icon: <UploadFileIcon fontSize="small" /> },
+        ] as const).map(({ mode, label, icon }) => (
+          <Button
+            key={mode}
+            onClick={() => handleInputModeChange(mode)}
+            startIcon={icon}
+            size="small"
+            variant={inputMode === mode ? "contained" : "outlined"}
+            sx={{
+              textTransform: "none", fontSize: 13, borderRadius: 2, flex: 1,
+              borderColor: inputMode === mode ? "#8b5cf6" : "rgba(255,255,255,0.12)",
+              color: inputMode === mode ? "#fff" : "#64748b",
+              bgcolor: inputMode === mode ? "#7c3aed" : "transparent",
+              "&:hover": {
+                bgcolor: inputMode === mode ? "#6d28d9" : "rgba(139,92,246,0.08)",
+                borderColor: "#8b5cf6",
+              },
+            }}
+          >
+            {label}
+          </Button>
+        ))}
       </Box>
+
+      {/* Prompt */}
+      {inputMode === "text" && (
+        <TextField
+          multiline
+          rows={isDesktop ? 6 : 4}
+          fullWidth
+          placeholder="e.g. Write a Facebook ad for our summer sneaker collection targeting 18–30 year olds..."
+          variant="outlined"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          sx={inputSx}
+        />
+      )}
+
+      {/* Website URL */}
+      {inputMode === "website" && (
+        <TextField
+          fullWidth
+          placeholder="https://yourwebsite.com"
+          variant="outlined"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          sx={inputSx}
+        />
+      )}
+
+      {/* Upload Image */}
+      {inputMode === "image" && (
+        <Box
+          onClick={() => fileRef.current?.click()}
+          sx={{
+            border: `1px dashed ${ fileName ? "#8b5cf6" : "rgba(139,92,246,0.4)"}`,
+            borderRadius: 2, p: 3,
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 1,
+            cursor: "pointer", transition: "border-color 0.2s, background 0.2s",
+            bgcolor: fileName ? "rgba(139,92,246,0.06)" : "transparent",
+            "&:hover": { borderColor: "#8b5cf6", bgcolor: "rgba(139,92,246,0.05)" },
+          }}
+        >
+          {fileName ? (
+            <>
+              <InsertDriveFileIcon sx={{ color: "#8b5cf6", fontSize: 28 }} />
+              <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600 }}>{fileName}</Typography>
+              <Typography sx={{ color: "#475569", fontSize: 12 }}>Click to change</Typography>
+            </>
+          ) : (
+            <>
+              <UploadFileIcon sx={{ color: "#8b5cf6", fontSize: 28 }} />
+              <Typography sx={{ color: "#64748b", fontSize: 13 }}>Click to upload or drag & drop</Typography>
+              <Typography sx={{ color: "#334155", fontSize: 12 }}>PNG, JPG, WEBP up to 10MB</Typography>
+            </>
+          )}
+        </Box>
+      )}
+
       <input
         ref={fileRef}
         type="file"
@@ -705,8 +725,11 @@ export default function Dashboard() {
     </Paper>
   );
 
-  const isGenerateDisabled =
-    loading || (!prompt.trim() && !url.trim() && !uploadedFile);
+  const isGenerateDisabled = loading || (
+    inputMode === "text" ? !prompt.trim() :
+    inputMode === "website" ? !url.trim() :
+    !uploadedFile
+  );
 
   const GenerateButton = (
     <Button
@@ -1114,9 +1137,7 @@ export default function Dashboard() {
               {ContentTypeSection}
               {ModelSection}
               {OutputFormatSection}
-              {PromptSection}
-              {UrlSection}
-              {UploadSection}
+              {InputSection}
               {SocialSection}
               {GenerateButton}
             </Box>
@@ -1173,9 +1194,7 @@ export default function Dashboard() {
             {ContentTypeSection}
             {ModelSection}
             {OutputFormatSection}
-            {PromptSection}
-            {UrlSection}
-            {UploadSection}
+            {InputSection}
             {SocialSection}
             {GenerateButton}
 
