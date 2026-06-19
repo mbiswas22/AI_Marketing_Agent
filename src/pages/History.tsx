@@ -44,6 +44,40 @@ const PLATFORM_INFO: Record<string, { icon: ReactElement; color: string; label: 
   linkedin: { icon: <LinkedInIcon sx={{ fontSize: 14 }} />, color: "#0a66c2", label: "LinkedIn" },
 };
 
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  marketing: "Marketing",
+  flyer: "Flyer",
+  blog: "Blog",
+  email: "Email",
+  video_script: "Video Script",
+  product_description: "Product Desc.",
+  social_caption: "Social Caption",
+  image: "Image",
+  merchandise: "Merchandise",
+  whatsapp_sms: "WhatsApp/SMS",
+};
+
+const getContentTypeLabel = (ct: string | undefined): string => {
+  if (!ct) return "—";
+  const key = ct.toLowerCase();
+  return CONTENT_TYPE_LABELS[key] ?? (ct.charAt(0).toUpperCase() + ct.slice(1));
+};
+
+const getDisplayPrompt = (item: HistoryItem): string => {
+  const trunc = (s: string) => (s.length > 120 ? `${s.slice(0, 120)}...` : s);
+  if (item.prompt) {
+    if (!item.prompt.startsWith("Business:")) return trunc(item.prompt);
+    const lastDot = item.prompt.lastIndexOf(". ");
+    return trunc(lastDot !== -1 ? item.prompt.slice(lastDot + 2) : item.prompt);
+  }
+  if (item.input_value) {
+    const v = item.input_value;
+    if (!v.includes("/") && !v.endsWith(".png") && !v.endsWith(".jpg")) return trunc(v);
+    return "Image upload";
+  }
+  return "—";
+};
+
 const formatDate = (dateStr: string) =>
   new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
@@ -71,7 +105,15 @@ const detailLabelSx = {
 
 function HistoryRow({ item }: { item: HistoryItem }) {
   const [expanded, setExpanded] = useState(false);
-  const isPublished = item.status === "published";
+  const navigate = useNavigate();
+  const statusConfig =
+    item.status === "generated"
+      ? { label: "Generated", bgcolor: "#0f3d2a", color: "#4caf7d", border: "#1a5c3a" }
+      : item.status === "published"
+      ? { label: "Published", bgcolor: "#0f3d2a", color: "#4caf7d", border: "#1a5c3a" }
+      : item.status === "draft"
+      ? { label: "Draft", bgcolor: "#1a1a1a", color: "#888", border: "#333" }
+      : null;
   const contentIcon =
     CONTENT_TYPE_ICONS[(item.content_type ?? "").toLowerCase()] ?? (
       <TextSnippetIcon sx={{ fontSize: 14 }} />
@@ -122,21 +164,25 @@ function HistoryRow({ item }: { item: HistoryItem }) {
         >
           {item.business || "—"}
         </Typography>
-        <Chip
-          size="small"
-          icon={contentIcon}
-          label={item.content_type || "—"}
-          sx={{
-            bgcolor: "rgba(139,92,246,0.12)",
-            color: "#a78bfa",
-            border: "1px solid rgba(139,92,246,0.3)",
-            fontSize: 12,
-            fontWeight: 600,
-            textTransform: "capitalize",
-            flexShrink: 0,
-            "& .MuiChip-icon": { color: "#a78bfa" },
-          }}
-        />
+        {item.content_type ? (
+          <Chip
+            size="small"
+            icon={contentIcon}
+            label={getContentTypeLabel(item.content_type)}
+            sx={{
+              bgcolor: "rgba(139,92,246,0.12)",
+              color: "#a78bfa",
+              border: "1px solid rgba(139,92,246,0.3)",
+              fontSize: 12,
+              fontWeight: 600,
+              textTransform: "capitalize",
+              flexShrink: 0,
+              "& .MuiChip-icon": { color: "#a78bfa" },
+            }}
+          />
+        ) : (
+          <Typography sx={{ color: "#475569", fontSize: 12, width: 110, flexShrink: 0 }}>—</Typography>
+        )}
         <Typography
           sx={{
             color: "#94a3b8",
@@ -151,18 +197,20 @@ function HistoryRow({ item }: { item: HistoryItem }) {
         >
           {truncate(item.input_value, 40)}
         </Typography>
-        <Chip
-          size="small"
-          label={isPublished ? "Published" : "Draft"}
-          sx={{
-            bgcolor: isPublished ? "rgba(34,197,94,0.12)" : "rgba(100,116,139,0.15)",
-            color: isPublished ? "#22c55e" : "#94a3b8",
-            border: `1px solid ${isPublished ? "rgba(34,197,94,0.3)" : "rgba(100,116,139,0.3)"}`,
-            fontSize: 12,
-            fontWeight: 600,
-            flexShrink: 0,
-          }}
-        />
+        {statusConfig && (
+          <Chip
+            size="small"
+            label={statusConfig.label}
+            sx={{
+              background: statusConfig.bgcolor,
+              color: statusConfig.color,
+              border: `1px solid ${statusConfig.border}`,
+              fontSize: 12,
+              fontWeight: 600,
+              flexShrink: 0,
+            }}
+          />
+        )}
         <IconButton
           size="small"
           onClick={(e) => {
@@ -189,67 +237,132 @@ function HistoryRow({ item }: { item: HistoryItem }) {
             pt: 2,
             bgcolor: "rgba(0,0,0,0.18)",
             borderTop: "1px solid rgba(255,255,255,0.06)",
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1.3fr 1fr" },
-            gap: 3,
           }}
         >
-          <Box>
-            <Typography sx={detailLabelSx}>Prompt</Typography>
-            <Typography sx={{ color: "#cbd5e1", fontSize: 13.5, lineHeight: 1.6, mb: 2 }}>
-              {item.input_value}
-            </Typography>
-            <Typography sx={detailLabelSx}>Generated Caption</Typography>
-            <Typography sx={{ color: "#cbd5e1", fontSize: 13.5, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
-              {item.caption || "—"}
-            </Typography>
-          </Box>
-          <Box>
-            <Typography sx={detailLabelSx}>Hashtags</Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 2 }}>
-              {item.hashtags?.length ? (
-                item.hashtags.map((tag) => (
-                  <Chip
-                    key={tag}
-                    label={tag}
-                    size="small"
-                    sx={{
-                      bgcolor: "rgba(139,92,246,0.12)",
-                      color: "#a78bfa",
-                      border: "1px solid rgba(139,92,246,0.25)",
-                      fontSize: 11.5,
-                    }}
-                  />
-                ))
-              ) : (
-                <Typography sx={{ color: "#475569", fontSize: 13 }}>None</Typography>
-              )}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                md: (item.image_url || (item as any).image_key || (item as any).s3_key) ? "1.3fr 1fr auto" : "1.3fr 1fr",
+              },
+              gap: 3,
+              mb: 2,
+            }}
+          >
+            <Box>
+              <Typography sx={detailLabelSx}>Prompt</Typography>
+              <Typography sx={{ color: "#cbd5e1", fontSize: 13.5, lineHeight: 1.6, mb: 2 }}>
+                {getDisplayPrompt(item)}
+              </Typography>
+              <Typography sx={detailLabelSx}>Generated Caption</Typography>
+              <Typography sx={{ color: "#cbd5e1", fontSize: 13.5, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                {item.caption || "—"}
+              </Typography>
             </Box>
-            <Typography sx={detailLabelSx}>Platforms</Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-              {item.platforms?.length ? (
-                item.platforms.map((p) => {
-                  const info = PLATFORM_INFO[p.toLowerCase()];
-                  return (
+            <Box>
+              <Typography sx={detailLabelSx}>Hashtags</Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 2 }}>
+                {item.hashtags?.length ? (
+                  item.hashtags.map((tag) => (
                     <Chip
-                      key={p}
-                      icon={info?.icon}
-                      label={info?.label ?? p}
+                      key={tag}
+                      label={tag}
                       size="small"
                       sx={{
-                        bgcolor: info ? `${info.color}22` : "rgba(100,116,139,0.15)",
-                        color: info?.color ?? "#94a3b8",
-                        border: `1px solid ${info ? `${info.color}55` : "rgba(100,116,139,0.3)"}`,
-                        fontSize: 12,
-                        "& .MuiChip-icon": { color: info?.color ?? "#94a3b8" },
+                        bgcolor: "rgba(139,92,246,0.12)",
+                        color: "#a78bfa",
+                        border: "1px solid rgba(139,92,246,0.25)",
+                        fontSize: 11.5,
                       }}
                     />
-                  );
-                })
-              ) : (
-                <Typography sx={{ color: "#475569", fontSize: 13 }}>Not shared</Typography>
-              )}
+                  ))
+                ) : (
+                  <Typography sx={{ color: "#475569", fontSize: 13 }}>None</Typography>
+                )}
+              </Box>
+              <Typography sx={detailLabelSx}>Platforms</Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                {item.platforms?.length ? (
+                  item.platforms.map((p) => {
+                    const info = PLATFORM_INFO[p.toLowerCase()];
+                    return (
+                      <Chip
+                        key={p}
+                        icon={info?.icon}
+                        label={info?.label ?? p}
+                        size="small"
+                        sx={{
+                          bgcolor: info ? `${info.color}22` : "rgba(100,116,139,0.15)",
+                          color: info?.color ?? "#94a3b8",
+                          border: `1px solid ${info ? `${info.color}55` : "rgba(100,116,139,0.3)"}`,
+                          fontSize: 12,
+                          "& .MuiChip-icon": { color: info?.color ?? "#94a3b8" },
+                        }}
+                      />
+                    );
+                  })
+                ) : (
+                  <Typography sx={{ color: "#475569", fontSize: 13 }}>Not shared</Typography>
+                )}
+              </Box>
             </Box>
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {(item.image_url || (item as any).image_key || (item as any).s3_key) && (
+              <Box>
+                <Typography sx={detailLabelSx}>Generated Image</Typography>
+                {item.image_url ? (
+                  <Box
+                    component="img"
+                    src={item.image_url}
+                    alt="Generated"
+                    sx={{
+                      maxHeight: 180,
+                      maxWidth: 260,
+                      objectFit: "contain",
+                      borderRadius: "6px",
+                      display: "block",
+                    }}
+                  />
+                ) : (
+                  <Typography sx={{ color: "#64748b", fontSize: 12, fontStyle: "italic" }}>
+                    Image stored in S3
+                  </Typography>
+                )}
+              </Box>
+            )}
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <button
+              onClick={() =>
+                navigate("/dashboard", {
+                  state: {
+                    fromHistory: {
+                      business: item.business,
+                      input_value: item.input_value,
+                      prompt: item.prompt,
+                      content_type: item.content_type,
+                      platforms: item.platforms,
+                      image_url: item.image_url,
+                      caption: item.caption,
+                      hashtags: item.hashtags,
+                    },
+                  },
+                })
+              }
+              style={{
+                background: "#5a4fd0",
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                padding: "6px 14px",
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              ↩ Use Again
+            </button>
           </Box>
         </Box>
       </Collapse>
