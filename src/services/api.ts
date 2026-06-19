@@ -3,8 +3,12 @@ import axios from "axios";
 const API_URL = "https://l9k0b4he7h.execute-api.us-east-2.amazonaws.com/dev";
 
 export interface GenerateCaptionResponse {
-  caption: string;
-  hashtags: string[];
+  caption?: string;
+  hashtags?: string[];
+  image_url?: string;
+  title?: string;
+  offer?: string;
+  call_to_action?: string;
 }
 
 export const generateCaption = async (
@@ -19,7 +23,7 @@ export const generateCaption = async (
     business,
     contentType,
     platforms,
-    modelId,
+    modelId: 'us.' + modelId,
   }, {
     headers: { "Content-Type": "application/json" },
   });

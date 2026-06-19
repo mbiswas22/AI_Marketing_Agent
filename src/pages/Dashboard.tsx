@@ -265,11 +265,16 @@ export default function Dashboard() {
   const [caption, setCaption] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [hashtags, setHashtags] = useState<string[]>([]);
+  const [title, setTitle] = useState<string | null>(null);
+  const [offer, setOffer] = useState<string | null>(null);
+  const [callToAction, setCallToAction] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const [inputMode, setInputMode] = useState<"text" | "website" | "image">("text");
+  const [inputMode, setInputMode] = useState<"text" | "website" | "image">(
+    "text",
+  );
 
   const handleInputModeChange = (mode: "text" | "website" | "image") => {
     setInputMode(mode);
@@ -329,9 +334,12 @@ export default function Dashboard() {
   const handleGenerate = async () => {
     // Determine input_type and input_value
     let input_type: "text" | "website" | "image" = inputMode;
-    let input_value = inputMode === "text" ? prompt.trim()
-      : inputMode === "website" ? url.trim()
-      : uploadedFile?.name ?? "";
+    let input_value =
+      inputMode === "text"
+        ? prompt.trim()
+        : inputMode === "website"
+          ? url.trim()
+          : (uploadedFile?.name ?? "");
 
     if (!input_value) return;
 
@@ -340,6 +348,9 @@ export default function Dashboard() {
     setCaption(null);
     setImageUrl(null);
     setHashtags([]);
+    setTitle(null);
+    setOffer(null);
+    setCallToAction(null);
 
     try {
       // modelId: selectedModel,
@@ -348,7 +359,7 @@ export default function Dashboard() {
           business: effectiveBusiness,
           contentType,
           platforms,
-          modelId: "stability.stable-image-ultra-v1:1",
+          modelId: "stability.stable-image-core-v1:1",
           input_type,
           input_value,
         });
@@ -373,8 +384,12 @@ export default function Dashboard() {
           platforms,
           selectedModel,
         );
-        setCaption(response.data.caption);
+        setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
+        setImageUrl(response.data.image_url ?? null);
+        setTitle(response.data.title ?? null);
+        setOffer(response.data.offer ?? null);
+        setCallToAction(response.data.call_to_action ?? null);
       }
     } catch {
       setError("Failed to generate content. Please try again.");
@@ -588,11 +603,25 @@ export default function Dashboard() {
     <Paper elevation={0} sx={cardSx}>
       {/* Tab selectors */}
       <Box sx={{ display: "flex", gap: 1, mb: 2.5 }}>
-        {([
-          { mode: "text",    label: "Prompt",      icon: <TextSnippetIcon fontSize="small" /> },
-          { mode: "website", label: "Website URL",  icon: <CodeIcon fontSize="small" /> },
-          { mode: "image",   label: "Upload Image", icon: <UploadFileIcon fontSize="small" /> },
-        ] as const).map(({ mode, label, icon }) => (
+        {(
+          [
+            {
+              mode: "text",
+              label: "Prompt",
+              icon: <TextSnippetIcon fontSize="small" />,
+            },
+            {
+              mode: "website",
+              label: "Website URL",
+              icon: <CodeIcon fontSize="small" />,
+            },
+            {
+              mode: "image",
+              label: "Upload Image",
+              icon: <UploadFileIcon fontSize="small" />,
+            },
+          ] as const
+        ).map(({ mode, label, icon }) => (
           <Button
             key={mode}
             onClick={() => handleInputModeChange(mode)}
@@ -600,12 +629,17 @@ export default function Dashboard() {
             size="small"
             variant={inputMode === mode ? "contained" : "outlined"}
             sx={{
-              textTransform: "none", fontSize: 13, borderRadius: 2, flex: 1,
-              borderColor: inputMode === mode ? "#8b5cf6" : "rgba(255,255,255,0.12)",
+              textTransform: "none",
+              fontSize: 13,
+              borderRadius: 2,
+              flex: 1,
+              borderColor:
+                inputMode === mode ? "#8b5cf6" : "rgba(255,255,255,0.12)",
               color: inputMode === mode ? "#fff" : "#64748b",
               bgcolor: inputMode === mode ? "#7c3aed" : "transparent",
               "&:hover": {
-                bgcolor: inputMode === mode ? "#6d28d9" : "rgba(139,92,246,0.08)",
+                bgcolor:
+                  inputMode === mode ? "#6d28d9" : "rgba(139,92,246,0.08)",
                 borderColor: "#8b5cf6",
               },
             }}
@@ -646,25 +680,43 @@ export default function Dashboard() {
         <Box
           onClick={() => fileRef.current?.click()}
           sx={{
-            border: `1px dashed ${ fileName ? "#8b5cf6" : "rgba(139,92,246,0.4)"}`,
-            borderRadius: 2, p: 3,
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 1,
-            cursor: "pointer", transition: "border-color 0.2s, background 0.2s",
+            border: `1px dashed ${fileName ? "#8b5cf6" : "rgba(139,92,246,0.4)"}`,
+            borderRadius: 2,
+            p: 3,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1,
+            cursor: "pointer",
+            transition: "border-color 0.2s, background 0.2s",
             bgcolor: fileName ? "rgba(139,92,246,0.06)" : "transparent",
-            "&:hover": { borderColor: "#8b5cf6", bgcolor: "rgba(139,92,246,0.05)" },
+            "&:hover": {
+              borderColor: "#8b5cf6",
+              bgcolor: "rgba(139,92,246,0.05)",
+            },
           }}
         >
           {fileName ? (
             <>
               <InsertDriveFileIcon sx={{ color: "#8b5cf6", fontSize: 28 }} />
-              <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600 }}>{fileName}</Typography>
-              <Typography sx={{ color: "#475569", fontSize: 12 }}>Click to change</Typography>
+              <Typography
+                sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600 }}
+              >
+                {fileName}
+              </Typography>
+              <Typography sx={{ color: "#475569", fontSize: 12 }}>
+                Click to change
+              </Typography>
             </>
           ) : (
             <>
               <UploadFileIcon sx={{ color: "#8b5cf6", fontSize: 28 }} />
-              <Typography sx={{ color: "#64748b", fontSize: 13 }}>Click to upload or drag & drop</Typography>
-              <Typography sx={{ color: "#334155", fontSize: 12 }}>PNG, JPG, WEBP up to 10MB</Typography>
+              <Typography sx={{ color: "#64748b", fontSize: 13 }}>
+                Click to upload or drag & drop
+              </Typography>
+              <Typography sx={{ color: "#334155", fontSize: 12 }}>
+                PNG, JPG, WEBP up to 10MB
+              </Typography>
             </>
           )}
         </Box>
@@ -725,11 +777,13 @@ export default function Dashboard() {
     </Paper>
   );
 
-  const isGenerateDisabled = loading || (
-    inputMode === "text" ? !prompt.trim() :
-    inputMode === "website" ? !url.trim() :
-    !uploadedFile
-  );
+  const isGenerateDisabled =
+    loading ||
+    (inputMode === "text"
+      ? !prompt.trim()
+      : inputMode === "website"
+        ? !url.trim()
+        : !uploadedFile);
 
   const GenerateButton = (
     <Button
@@ -764,7 +818,7 @@ export default function Dashboard() {
     </Button>
   );
 
-  const hasResult = caption || imageUrl;
+  const hasResult = !!(caption || imageUrl || title || offer || callToAction);
 
   const ResultPanel = (
     <Box sx={{ height: "100%" }}>
@@ -877,56 +931,62 @@ export default function Dashboard() {
 
           <Divider sx={{ borderColor: "rgba(255,255,255,0.06)", mb: 2 }} />
 
-          {/* Image result */}
+          {/* Image */}
           {imageUrl && (
-            <Box sx={{ mb: 2 }}>
-              <Box
-                component="img"
-                src={imageUrl}
-                alt="Generated marketing image"
-                sx={{
-                  width: "100%",
-                  borderRadius: 2,
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
-              />
-            </Box>
+            <Box
+              component="img"
+              src={imageUrl}
+              alt="Generated"
+              sx={{ width: "100%", borderRadius: 2, mb: 2,
+                border: "1px solid rgba(255,255,255,0.08)" }}
+            />
           )}
 
-          {/* Text result */}
+          {/* Title */}
+          {title && (
+            <Typography sx={{ color: "#fff", fontSize: 18, fontWeight: 700, mb: 1 }}>
+              {title}
+            </Typography>
+          )}
+
+          {/* Caption */}
           {caption && (
-            <Typography
-              sx={{
-                color: "#e2e8f0",
-                fontSize: 14,
-                lineHeight: 1.8,
-                whiteSpace: "pre-wrap",
-                mb: 2,
-              }}
-            >
+            <Typography sx={{ color: "#e2e8f0", fontSize: 14, lineHeight: 1.8,
+              whiteSpace: "pre-wrap", mb: offer ? 1.5 : 2 }}>
               {caption}
             </Typography>
           )}
 
+          {/* Offer */}
+          {offer && (
+            <Box sx={{ bgcolor: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.3)",
+              borderRadius: 2, px: 2, py: 1.25, mb: 2 }}>
+              <Typography sx={{ color: "#94a3b8", fontSize: 11, fontWeight: 600,
+                textTransform: "uppercase", letterSpacing: 1, mb: 0.5 }}>Offer</Typography>
+              <Typography sx={{ color: "#a78bfa", fontSize: 14 }}>{offer}</Typography>
+            </Box>
+          )}
+
+          {/* Call to action */}
+          {callToAction && (
+            <Box sx={{ bgcolor: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)",
+              borderRadius: 2, px: 2, py: 1.25, mb: 2 }}>
+              <Typography sx={{ color: "#94a3b8", fontSize: 11, fontWeight: 600,
+                textTransform: "uppercase", letterSpacing: 1, mb: 0.5 }}>Call to Action</Typography>
+              <Typography sx={{ color: "#22c55e", fontSize: 14 }}>{callToAction}</Typography>
+            </Box>
+          )}
+
+          {/* Hashtags */}
           {hashtags.length > 0 && (
             <>
-              <Typography sx={{ ...labelSx, mb: 1 }}>Hashtags</Typography>
-              <Box
-                sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 2.5 }}
-              >
+              <Typography sx={{ color: "#94a3b8", fontWeight: 600, fontSize: 11,
+                textTransform: "uppercase", letterSpacing: 1.2, mb: 1 }}>Hashtags</Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 2 }}>
                 {hashtags.map((tag) => (
-                  <Typography
-                    key={tag}
-                    sx={{
-                      color: "#8b5cf6",
-                      fontSize: 12,
-                      bgcolor: "rgba(139,92,246,0.1)",
-                      px: 1.25,
-                      py: 0.4,
-                      borderRadius: 4,
-                      border: "1px solid rgba(139,92,246,0.25)",
-                    }}
-                  >
+                  <Typography key={tag} sx={{ color: "#8b5cf6", fontSize: 12,
+                    bgcolor: "rgba(139,92,246,0.1)", px: 1.25, py: 0.4, borderRadius: 4,
+                    border: "1px solid rgba(139,92,246,0.25)" }}>
                     {tag}
                   </Typography>
                 ))}
