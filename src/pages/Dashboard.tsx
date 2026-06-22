@@ -362,15 +362,16 @@ export default function Dashboard() {
       </Box>
 
       {/* Body */}
-      <Box sx={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <Box sx={{ flex: 1, display: "flex", overflow: { xs: "auto", md: "hidden" }, flexDirection: { xs: "column", md: "row" } }}>
 
-        {/* Left panel — 67% */}
+        {/* Left panel — full width mobile, 67% desktop */}
         <Box sx={{
-          width: "67%",
+          width: { xs: "100%", md: "67%" },
           flexShrink: 0,
-          overflowY: "auto",
-          borderRight: "1px solid #2a2a35",
-          px: "18px",
+          overflowY: { xs: "unset", md: "auto" },
+          borderRight: { xs: "none", md: "1px solid #2a2a35" },
+          borderBottom: { xs: "1px solid #2a2a35", md: "none" },
+          px: { xs: "12px", sm: "18px" },
           py: "12px",
           display: "flex",
           flexDirection: "column",
@@ -446,12 +447,12 @@ export default function Dashboard() {
                       background: isSelected ? "#1a1730" : "#0d0d0f",
                       border: `0.5px solid ${isSelected ? "#7c6df0" : "#2a2a35"}`,
                       borderRadius: "8px",
-                      py: "12px",
-                      px: "8px",
+                      py: { xs: "8px", sm: "12px" },
+                      px: { xs: "4px", sm: "8px" },
                       cursor: tile.disabled ? "not-allowed" : "pointer",
                       opacity: tile.disabled ? 0.5 : 1,
                       textAlign: "center",
-                      flex: "0 0 calc(20% - 5px)",
+                      flex: { xs: "0 0 calc(33.33% - 5px)", sm: "0 0 calc(20% - 5px)" },
                       boxSizing: "border-box",
                       "&:hover": !tile.disabled ? { borderColor: "#7c6df0" } : {},
                       transition: "border-color 0.15s, background 0.15s",
@@ -469,12 +470,12 @@ export default function Dashboard() {
                     )}
                     <i
                       className={`ti ${tile.icon}`}
-                      style={{ fontSize: 20, color: isSelected ? "#7c6df0" : "#555", display: "block", marginBottom: 6 }}
+                      style={{ fontSize: 20, color: isSelected ? "#7c6df0" : "#555", display: "block", marginBottom: 4 }}
                     />
-                    <Typography sx={{ fontSize: "12px", fontWeight: 600, color: "#e0dcf8", lineHeight: 1.3, mb: "3px" }}>
+                    <Typography sx={{ fontSize: { xs: "10px", sm: "12px" }, fontWeight: 600, color: "#e0dcf8", lineHeight: 1.3, mb: "2px" }}>
                       {tile.name}
                     </Typography>
-                    <Typography sx={{ fontSize: "10px", color: "#666", lineHeight: 1.4 }}>
+                    <Typography sx={{ fontSize: "10px", color: "#666", lineHeight: 1.4, display: { xs: "none", sm: "block" } }}>
                       {tile.desc}
                     </Typography>
                   </Box>
@@ -505,12 +506,12 @@ export default function Dashboard() {
                         background: isSelected ? "#1a1730" : "#0d0d0f",
                         border: `0.5px solid ${isSelected ? "#7c6df0" : "#2a2a35"}`,
                         borderRadius: "8px",
-                        py: "12px",
-                        px: "8px",
+                        py: { xs: "8px", sm: "12px" },
+                        px: { xs: "4px", sm: "8px" },
                         cursor: isAuto ? "default" : "pointer",
                         opacity: isAuto ? 0.7 : 1,
                         textAlign: "center",
-                        flex: "0 0 calc(20% - 5px)",
+                        flex: { xs: "0 0 calc(33.33% - 5px)", sm: "0 0 calc(20% - 5px)" },
                         boxSizing: "border-box",
                         "&:hover": !isAuto ? { borderColor: "#7c6df0" } : {},
                         transition: "border-color 0.15s, background 0.15s",
@@ -518,12 +519,12 @@ export default function Dashboard() {
                     >
                       <i
                         className={`ti ${def.icon}`}
-                        style={{ fontSize: 20, color: isSelected ? "#7c6df0" : "#555", display: "block", marginBottom: 6 }}
+                        style={{ fontSize: 20, color: isSelected ? "#7c6df0" : "#555", display: "block", marginBottom: 4 }}
                       />
-                      <Typography sx={{ fontSize: "12px", fontWeight: 600, color: "#e0dcf8", lineHeight: 1.3, mb: "3px" }}>
+                      <Typography sx={{ fontSize: { xs: "10px", sm: "12px" }, fontWeight: 600, color: "#e0dcf8", lineHeight: 1.3, mb: "2px" }}>
                         {def.name}
                       </Typography>
-                      <Typography sx={{ fontSize: "10px", color: "#666", lineHeight: 1.4 }}>
+                      <Typography sx={{ fontSize: "10px", color: "#666", lineHeight: 1.4, display: { xs: "none", sm: "block" } }}>
                         {def.desc}
                       </Typography>
                     </Box>
@@ -613,9 +614,9 @@ export default function Dashboard() {
                       background: isActive ? "#2d2460" : "#1e1e2e",
                       border: `0.5px solid ${isActive ? "#7c6df0" : "#3a3a4a"}`,
                       borderRadius: "8px",
-                      padding: "7px 14px",
+                      padding: { xs: "7px 8px", sm: "7px 14px" },
                       color: isActive ? "#e0dcf8" : "#aaa",
-                      fontSize: "12px",
+                      fontSize: { xs: "11px", sm: "12px" },
                       fontWeight: 500,
                       cursor: "pointer",
                       display: "flex",
@@ -623,12 +624,14 @@ export default function Dashboard() {
                       gap: "6px",
                       outline: "none",
                       fontFamily: "inherit",
+                      flex: 1,
+                      justifyContent: "center",
                       transition: "border-color 0.15s, background 0.15s, color 0.15s",
                       "&:hover": !isActive ? { borderColor: "#7c6df0", color: "#c4bef8", background: "#1a1730" } : {},
                     }}
                   >
                     <i className={`ti ${tab.icon}`} style={{ fontSize: 14, color: "#7c6df0" }} />
-                    {tab.label}
+                    <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>{tab.label}</Box>
                   </Box>
                 );
               })}
