@@ -39,11 +39,9 @@ def lambda_handler(event, context):
 
         keywords = CATEGORY_FILTERS[category]["keywords"]
 
-        # Fetch all foundation models available in the account
-        paginator = bedrock.get_paginator('list_foundation_models')
-        all_models = []
-        for page in paginator.paginate():
-            all_models.extend(page.get("modelSummaries", []))
+        response = bedrock.list_foundation_models()
+
+        all_models = response.get("modelSummaries", [])
 
         # Filter to active models matching the category keywords
         matched = [

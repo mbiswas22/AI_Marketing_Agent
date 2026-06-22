@@ -159,6 +159,8 @@ export default function Dashboard() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [fileName, setFileName] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [url, setUrl] = useState("");
   const [business, setBusiness] = useState(DEMO_BUSINESSES[0]);
   const [customBusiness, setCustomBusiness] = useState("");
   const [contentType, setContentType] = useState("flyer");
@@ -170,7 +172,11 @@ export default function Dashboard() {
   const [prompt, setPrompt] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [caption, setCaption] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [hashtags, setHashtags] = useState<string[]>([]);
+  const [title, setTitle] = useState<string | null>(null);
+  const [offer, setOffer] = useState<string | null>(null);
+  const [callToAction, setCallToAction] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -241,6 +247,7 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     setCaption(null);
+    setImageUrl(null);
     setHashtags([]);
     setResultImageUrl(null);
     try {
@@ -270,12 +277,12 @@ export default function Dashboard() {
 
   const handleDownload = () => {
     const blob = new Blob([caption ?? ""], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
+    const objectUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `generated-content.${selectedFormat || "txt"}`;
     a.click();
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(objectUrl);
   };
 
   const togglePlatform = (val: string) =>
@@ -309,20 +316,47 @@ export default function Dashboard() {
       }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <AutoAwesomeIcon sx={{ color: "#8b5cf6" }} />
-          <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>MarketingAI</Typography>
+          <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>
+            MarketingAI
+          </Typography>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 2 } }}>
           <Button onClick={() => navigate("/history")} startIcon={<HistoryIcon />}
             sx={{ color: "#64748b", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}>
             History
           </Button>
-          <Typography sx={{ color: "#475569", fontSize: 13, display: { xs: "none", md: "block" } }}>
+          <Typography
+            sx={{
+              color: "#475569",
+              fontSize: 13,
+              display: { xs: "none", md: "block" },
+            }}
+          >
             {user?.username}
           </Typography>
-          <Button onClick={handleSignOut} startIcon={<LogoutIcon />} size="small" variant="outlined"
-            sx={{ color: "#8b5cf6", borderColor: "#8b5cf6", textTransform: "none", fontSize: 13,
-              "&:hover": { borderColor: "#a78bfa", color: "#a78bfa", bgcolor: "rgba(139,92,246,0.08)" } }}>
-            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Sign Out</Box>
+          <Button
+            onClick={handleSignOut}
+            startIcon={<LogoutIcon />}
+            size="small"
+            variant="outlined"
+            sx={{
+              color: "#8b5cf6",
+              borderColor: "#8b5cf6",
+              textTransform: "none",
+              fontSize: 13,
+              "&:hover": {
+                borderColor: "#a78bfa",
+                color: "#a78bfa",
+                bgcolor: "rgba(139,92,246,0.08)",
+              },
+            }}
+          >
+            <Box
+              component="span"
+              sx={{ display: { xs: "none", sm: "inline" } }}
+            >
+              Sign Out
+            </Box>
           </Button>
         </Box>
       </Box>

@@ -3,8 +3,12 @@ import axios from "axios";
 const API_URL = "https://l9k0b4he7h.execute-api.us-east-2.amazonaws.com/dev";
 
 export interface GenerateCaptionResponse {
-  caption: string;
-  hashtags: string[];
+  caption?: string;
+  hashtags?: string[];
+  image_url?: string;
+  title?: string;
+  offer?: string;
+  call_to_action?: string;
 }
 
 export interface GenerateAssetResponse {
@@ -45,10 +49,30 @@ export const generateCaption = async (
     business,
     contentType,
     platforms,
-    modelId,
+    modelId: 'us.' + modelId,
   }, {
     headers: { "Content-Type": "application/json" },
   });
+};
+
+export interface GenerateImageResponse {
+  imageUrl: string;
+  action_id: string;
+}
+
+export const generateImage = async (payload: {
+  business: string;
+  contentType: string;
+  platforms: string[];
+  modelId: string;
+  input_type: "text" | "website" | "image";
+  input_value: string;
+}) => {
+  const res = await axios.post(`${API_URL}/image`, payload, {
+    headers: { "Content-Type": "application/json" },
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  return { data: data as GenerateImageResponse };
 };
 
 export interface HistoryItem {

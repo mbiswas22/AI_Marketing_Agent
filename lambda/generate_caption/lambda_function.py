@@ -1,109 +1,186 @@
 import json
 import uuid
+import os
 import boto3
+import base64
 from datetime import datetime
 
 # ============================================================
-# CONFIGURATION — toggle to switch between mock and real
-# ============================================================
-USE_REAL_AI_TEXT = True    # Set False to use mock captions
+# AWS Clients
 # ============================================================
 
-dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
-table = dynamodb.Table('kushtest-MarketingActions')
+user_id = "anonymous-user"
 
-bedrock_text = boto3.client('bedrock-runtime', region_name='us-east-2')
+dynamodb = boto3.resource("dynamodb", region_name="us-east-2")
+table = dynamodb.Table(os.environ["DYNAMO_TABLE"])
 
+s3 = boto3.client("s3", region_name="us-east-2")
+BUCKET = os.environ["S3_BUCKET"]
 
-def generate_text_content(prompt, business, content_type, platforms, model_id):
-    if not USE_REAL_AI_TEXT:
-        return {
-            "caption": f"🔥 {prompt} is here! Don't miss this limited-time offer from {business}.",
-            "hashtags": ["#Marketing", "#Promotion", "#Sale", "#Business", "#ShopNow"],
-            "call_to_action": "Shop now!"
-        }
+# Text model — Nova Micro lives in us-east-1; use cross-region profile
+bedrock_text = boto3.client("bedrock-runtime", region_name="us-east-1")
 
-    platforms_str = ', '.join(platforms) if platforms else 'social media'
+# Image model — Stability SD3.5 only available in us-west-2
+bedrock_image = boto3.client("bedrock-runtime", region_name="us-west-2")
 
-    system_prompt = """You are an expert marketing copywriter. You create compelling,
-    professional marketing content that drives engagement and conversions.
-    Always respond with valid JSON only, no extra text."""
-
-    user_prompt = f"""Create marketing content for the following:
-
-Business: {business}
-Content Type: {content_type}
-Target Platforms: {platforms_str}
-Campaign Details: {prompt}
-
-Respond with ONLY this JSON format, nothing else:
-{{
-    "caption": "A compelling 2-3 sentence marketing caption that grabs attention and drives action",
-    "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"],
-    "call_to_action": "A short call to action phrase"
-}}"""
-
-    # Use the modelId passed from the frontend, fallback to Nova Lite
-    bedrock_model_id = model_id or 'us.amazon.nova-2-lite-v1:0'
-
-    response = bedrock_text.converse(
-        modelId=bedrock_model_id,
-        system=[{'text': system_prompt}],
-        messages=[{'role': 'user', 'content': [{'text': user_prompt}]}],
-        inferenceConfig={'maxTokens': 500, 'temperature': 0.7}
-    )
-
-    response_text = response['output']['message']['content'][0]['text'].strip()
-    if '```json' in response_text:
-        response_text = response_text.split('```json')[1].split('```')[0].strip()
-    elif '```' in response_text:
-        response_text = response_text.split('```')[1].split('```')[0].strip()
-
-    return json.loads(response_text)
-
+# ============================================================
+# Lambda Handler
+# ============================================================
 
 def lambda_handler(event, context):
     try:
-        body = json.loads(event['body'])
-        prompt = body.get('prompt', '')
-        business = body.get('business', 'My Business')
-        content_type = body.get('contentType', 'flyer')
-        platforms = body.get('platforms', [])
-        model_id = body.get('modelId', '')
+        body = json.loads(event["body"])
 
-        result = generate_text_content(prompt, business, content_type, platforms, model_id)
         action_id = str(uuid.uuid4())
+        business = body.get("business", "My Business")
+        prompt = body.get("prompt", "")
+        platforms = body.get("platforms", [])
+
+        flyer = generate_flyer_content(business, prompt, platforms)
+
+        image_bytes = generate_flyer_image(flyer["image_prompt"])
+
+        s3_key = f"flyers/{user_id}/{action_id}.png"
+
+        s3.put_object(
+            Bucket=BUCKET,
+            Key=s3_key,
+            Body=image_bytes,
+            ContentType="image/png"
+        )
+
+        image_url = s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": BUCKET, "Key": s3_key},
+            ExpiresIn=86400
+        )
+
+        TEXT_MODEL = os.environ.get("TEXT_MODEL", "us.amazon.nova-micro-v1:0")
+        IMAGE_MODEL = os.environ.get("IMAGE_MODEL", "stability.sd3-5-large-v1:0")
 
         table.put_item(
             Item={
                 "action_id": action_id,
+                "user_id": user_id,
                 "business": business,
-                "content_type": content_type,
+                "prompt": prompt,
                 "platforms": platforms,
-                "input_type": "text",
-                "input_value": prompt,
-                "caption": result.get("caption", ""),
-                "hashtags": result.get("hashtags", []),
-                "call_to_action": result.get("call_to_action", ""),
-                "model_id": model_id,
-                "status": "draft",
+                "text_model": TEXT_MODEL,
+                "image_model": IMAGE_MODEL,
+                "title": flyer["title"],
+                "caption": flyer["caption"],
+                "offer": flyer["offer"],
+                "call_to_action": flyer["call_to_action"],
+                "image_prompt": flyer["image_prompt"],
+                "image_url": image_url,
+                "s3_key": s3_key,
+                "status": "generated",
                 "created_at": datetime.utcnow().isoformat()
             }
         )
 
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "*"
-            },
-            "body": json.dumps(result)
-        }
+        return api_response(200, {
+            "action_id": action_id,
+            "title": flyer["title"],
+            "caption": flyer["caption"],
+            "offer": flyer["offer"],
+            "call_to_action": flyer["call_to_action"],
+            "image_url": image_url
+        })
 
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return {
-            "statusCode": 500,
-            "headers": {"Access-Control-Allow-Origin": "*"},
-            "body": json.dumps({"error": str(e)})
-        }
+        print("ERROR:", str(e))
+        return api_response(500, {"error": str(e)})
+
+
+# ============================================================
+# Generate Flyer Text
+# ============================================================
+
+def generate_flyer_content(business, prompt, platforms):
+
+    # Cross-region inference profile — required for Nova models outside us-east-1
+    TEXT_MODEL = os.environ.get("TEXT_MODEL", "us.amazon.nova-micro-v1:0")
+
+    platforms_str = ", ".join(platforms) if platforms else "social media"
+
+    marketing_prompt = f"""
+Create a professional marketing flyer.
+
+Business: {business}
+
+Campaign Details:
+{prompt}
+
+Target Platforms:
+{platforms_str}
+
+Return ONLY valid JSON:
+
+{{
+  "title":"Flyer headline",
+  "caption":"Marketing flyer content",
+  "offer":"Special offer text",
+  "call_to_action":"Short CTA",
+  "image_prompt":"Detailed flyer background image description"
+}}
+"""
+    print(f"Using text model: {TEXT_MODEL}")
+    response = bedrock_text.converse(   # <-- us-east-1 client
+        modelId=TEXT_MODEL,
+        messages=[{"role": "user", "content": [{"text": marketing_prompt}]}],
+        inferenceConfig={"maxTokens": 1000, "temperature": 0.7}
+    )
+
+    text = response["output"]["message"]["content"][0]["text"].strip()
+
+    if "```json" in text:
+        text = text.split("```json")[1].split("```")[0]
+    elif "```" in text:
+        text = text.split("```")[1].split("```")[0]
+
+    return json.loads(text)
+
+
+# ============================================================
+# Generate Flyer Image
+# ============================================================
+
+def generate_flyer_image(image_prompt):
+
+    IMAGE_MODEL = os.environ.get("IMAGE_MODEL", "stability.sd3-5-large-v1:0")
+
+    request_body = {
+        "prompt": image_prompt,
+        "mode": "text-to-image",
+        "aspect_ratio": "1:1",
+        "output_format": "png"
+    }
+
+    print(f"Generating image with {IMAGE_MODEL}")
+    response = bedrock_image.invoke_model(   # <-- us-west-2 client
+        modelId=IMAGE_MODEL,
+        body=json.dumps(request_body),
+        contentType="application/json",
+        accept="application/json"
+    )
+
+    result = json.loads(response["body"].read())
+    return base64.b64decode(result["images"][0])
+
+
+# ============================================================
+# API Response
+# ============================================================
+
+def api_response(status_code, body):
+    return {
+        "statusCode": status_code,
+        "headers": {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type,Authorization",
+            "Access-Control-Allow-Methods": "POST,OPTIONS",
+            "Content-Type": "application/json"
+        },
+        "body": json.dumps(body, default=str)
+    }
