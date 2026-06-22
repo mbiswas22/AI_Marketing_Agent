@@ -176,11 +176,13 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(false);
   const [fromHistoryBanner, setFromHistoryBanner] = useState(false);
   const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
+  const [inputTab, setInputTab] = useState<'text' | 'url' | 'image'>('text');
 
   const isCustom = business === "__custom__";
   const effectiveBusiness = isCustom ? customBusiness : business;
   const currentModels = modelsCache[CONTENT_TYPE_CATEGORY[contentType] ?? "text"] ?? [];
   const currentFormats = OUTPUT_FORMATS_BY_TYPE[contentType] ?? [];
+  const isInputEmpty = inputTab === "text" ? !prompt.trim() : inputTab === "url" ? !websiteUrl.trim() : !fileName;
 
   const fetchModels = useCallback(async (category: string) => {
     if (modelsCache[category]?.length && modelsCache[category] !== FALLBACK_MODELS[category]) return;
@@ -229,7 +231,8 @@ export default function Dashboard() {
   const handleSignOut = () => { signOut(); navigate("/login"); };
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+    const effectiveInput = inputTab === "text" ? prompt : inputTab === "url" ? websiteUrl : (fileName ?? "");
+    if (!effectiveInput.trim()) return;
     const config = getApiConfig(contentType);
     if (!config) {
       alert("WhatsApp/SMS integration coming soon");
@@ -244,9 +247,9 @@ export default function Dashboard() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let response: any;
       if (config.type === "caption") {
-        response = await generateCaption(prompt, effectiveBusiness, contentType, selectedPlatforms, selectedModel);
+        response = await generateCaption(effectiveInput, effectiveBusiness, contentType, selectedPlatforms, selectedModel);
       } else {
-        response = await generateMarketAsset(prompt, effectiveBusiness, contentType, selectedFormat, selectedPlatforms, selectedModel);
+        response = await generateMarketAsset(effectiveInput, effectiveBusiness, contentType, selectedFormat, selectedPlatforms, selectedModel);
       }
       setCaption(response.data.caption ?? null);
       setHashtags(response.data.hashtags ?? []);
@@ -285,12 +288,13 @@ export default function Dashboard() {
     setBusiness(DEMO_BUSINESSES[0]);
     setCustomBusiness("");
     setPrompt("");
+    setWebsiteUrl("");
     setContentType("flyer");
     setSelectedPlatforms([]);
     setCaption(null);
     setHashtags([]);
     setResultImageUrl(null);
-    setWebsiteUrl("");
+    setInputTab("text");
   };
 
   return (
@@ -373,7 +377,7 @@ export default function Dashboard() {
               fullWidth
               size="small"
               sx={darkSelectSx}
-              MenuProps={{ PaperProps: { sx: { bgcolor: "#141418", border: "0.5px solid #2a2a35", color: "#e0dcf8" } } }}
+              MenuProps={{ PaperProps: { sx: { bgcolor: "#141418", border: "0.5px solid #2a2a35", color: "#e0dcf8" } } } as any}
             >
               {DEMO_BUSINESSES.map((b) => (
                 <MenuItem key={b} value={b} sx={{ fontSize: 12, "&:hover": { bgcolor: "rgba(124,109,240,0.1)" } }}>{b}</MenuItem>
@@ -495,131 +499,194 @@ export default function Dashboard() {
             )}
           </Box>
 
-          {/* Prompt card */}
-          <Box sx={{ ...cardSx, mb: "8px" }}>
-            <Typography sx={labelSx}>Prompt</Typography>
-
-            {/* Textarea */}
-            <TextField
-              multiline
-              rows={3}
-              fullWidth
-              placeholder="e.g. Write a Facebook ad for our new summer sneaker collection targeting 18–30 year olds..."
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  color: "#e0dcf8",
-                  bgcolor: "#0d0d0f",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                  p: "10px 12px",
-                  "& fieldset": { borderColor: "#3a3a4a", borderWidth: "0.5px" },
-                  "&:hover fieldset": { borderColor: "#7c6df0" },
-                  "&.Mui-focused fieldset": { borderColor: "#7c6df0" },
-                },
-                "& .MuiInputBase-inputMultiline": { color: "#e0dcf8", p: 0, lineHeight: 1.6 },
-                "& .MuiInputBase-input::placeholder": { color: "#555", opacity: 1 },
-              }}
-            />
-
-            {/* Divider */}
-            <Box sx={{ height: "0.5px", bgcolor: "#2a2a35", my: "10px" }} />
-
-            {/* 3-column row */}
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
-
-              {/* Col 1: Bedrock Model */}
-              <Box>
-                <Typography sx={subLabelSx}>Bedrock Model</Typography>
-                <Select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  disabled={modelsLoading}
-                  size="small"
-                  fullWidth
-                  renderValue={(val) => {
-                    const m = currentModels.find((m) => m.modelId === val);
-                    return (
-                      <Box sx={{ lineHeight: 1.3, py: "1px" }}>
-                        <Typography sx={{ fontSize: "11px", fontWeight: 600, color: "#e0dcf8", lineHeight: 1.1 }}>
-                          {m?.label ?? "Model"}
-                        </Typography>
-                        <Typography sx={{ fontSize: "9px", color: "#7c6df0", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {val}
-                        </Typography>
-                      </Box>
-                    );
-                  }}
-                  sx={{
-                    ...darkSelectSx,
-                    "& .MuiSelect-select": { py: "6px", px: "10px" },
-                    "& .MuiSvgIcon-root": { color: "#888", fontSize: 16 },
-                  }}
-                  MenuProps={{ PaperProps: { sx: { bgcolor: "#141418", border: "0.5px solid #2a2a35", maxHeight: 280 } } }}
-                >
-                  {currentModels.map((m) => (
-                    <MenuItem
-                      key={m.modelId}
-                      value={m.modelId}
-                      sx={{
-                        flexDirection: "column", alignItems: "flex-start", py: 1,
-                        "&:hover": { bgcolor: "rgba(124,109,240,0.1)" },
-                        "&.Mui-selected": { bgcolor: "rgba(124,109,240,0.15)" },
-                      }}
-                    >
-                      <Typography sx={{ color: "#e0dcf8", fontSize: 12, fontWeight: 600 }}>{m.label}</Typography>
-                      <Typography sx={{ color: "#555", fontSize: 10 }}>{m.description}</Typography>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </Box>
-
-              {/* Col 2: Website URL */}
-              <Box>
-                <Typography sx={subLabelSx}>Website URL</Typography>
-                <TextField
-                  fullWidth size="small"
-                  placeholder="https://yourwebsite.com"
-                  value={websiteUrl}
-                  onChange={(e) => setWebsiteUrl(e.target.value)}
-                  sx={darkInputSx}
-                />
-              </Box>
-
-              {/* Col 3: Upload Image */}
-              <Box>
-                <Typography sx={subLabelSx}>Upload Image</Typography>
-                <Box
-                  onClick={() => fileRef.current?.click()}
-                  sx={{
-                    border: "0.5px dashed #3a3a4a",
-                    borderRadius: "8px",
-                    height: "38px",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    "&:hover": { borderColor: "#7c6df0" },
-                    transition: "border-color 0.15s",
-                  }}
-                >
-                  {fileName ? (
-                    <>
-                      <InsertDriveFileIcon sx={{ color: "#7c6df0", fontSize: 14 }} />
-                      <Typography sx={{ color: "#a89cf0", fontSize: "9px", maxWidth: "90%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {fileName}
-                      </Typography>
-                    </>
-                  ) : (
-                    <Typography sx={{ color: "#555", fontSize: "10px" }}>Click or drag & drop</Typography>
-                  )}
-                </Box>
-                <input ref={fileRef} type="file" accept="image/*" hidden
-                  onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)} />
-              </Box>
+          {/* Bedrock Model card */}
+          <Box sx={cardSx}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: "8px", mb: "8px" }}>
+              <Typography sx={{ ...labelSx, mb: 0 }}>Bedrock Model</Typography>
+              {modelsLoading
+                ? <CircularProgress size={10} sx={{ color: "#5a4fd0" }} />
+                : <Typography sx={{ color: "#5a4fd0", fontSize: "10px" }}>
+                    Top 5 for {CONTENT_TYPE_CATEGORY[contentType] ?? "text"}
+                  </Typography>
+              }
             </Box>
+            <Select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              disabled={modelsLoading}
+              fullWidth
+              renderValue={(val) => {
+                const m = currentModels.find((m) => m.modelId === val);
+                return (
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Box>
+                      <Typography sx={{ fontSize: "13px", fontWeight: 500, color: "#e0dcf8", lineHeight: 1.3 }}>
+                        {m?.label ?? "Select model"}
+                      </Typography>
+                      <Typography sx={{ fontSize: "10px", color: "#7c6df0", lineHeight: 1.5 }}>
+                        {val}
+                      </Typography>
+                    </Box>
+                  </Box>
+                );
+              }}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              IconComponent={(() => <i className="ti ti-chevron-down" style={{ fontSize: 14, color: "#888", position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />) as any}
+              sx={{
+                bgcolor: "#0d0d0f",
+                borderRadius: "8px",
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "#3a3a4a", borderWidth: "0.5px" },
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
+                "& .MuiSelect-select": { p: "8px 12px" },
+              }}
+              MenuProps={{ PaperProps: { sx: { bgcolor: "#141418", border: "0.5px solid #2a2a35", maxHeight: 280 } } } as any}
+            >
+              {currentModels.map((m) => (
+                <MenuItem
+                  key={m.modelId}
+                  value={m.modelId}
+                  sx={{
+                    flexDirection: "column", alignItems: "flex-start", py: 1,
+                    "&:hover": { bgcolor: "rgba(124,109,240,0.1)" },
+                    "&.Mui-selected": { bgcolor: "rgba(124,109,240,0.15)" },
+                  }}
+                >
+                  <Typography sx={{ color: "#e0dcf8", fontSize: 12, fontWeight: 600 }}>{m.label}</Typography>
+                  <Typography sx={{ color: "#555", fontSize: 10 }}>{m.description}</Typography>
+                </MenuItem>
+              ))}
+            </Select>
+          </Box>
+
+          {/* Input card */}
+          <Box sx={{ ...cardSx, mb: "8px" }}>
+
+            {/* Tab bar */}
+            <Box sx={{ display: "flex", gap: "6px", mb: "10px" }}>
+              {([
+                { value: "text"  as const, icon: "ti-pencil",   label: "Prompt" },
+                { value: "url"   as const, icon: "ti-world",    label: "Website URL" },
+                { value: "image" as const, icon: "ti-photo-up", label: "Upload Image" },
+              ]).map((tab) => {
+                const isActive = inputTab === tab.value;
+                return (
+                  <Box
+                    key={tab.value}
+                    component="button"
+                    onClick={() => setInputTab(tab.value)}
+                    sx={{
+                      background: isActive ? "#2d2460" : "#1e1e2e",
+                      border: `0.5px solid ${isActive ? "#7c6df0" : "#3a3a4a"}`,
+                      borderRadius: "8px",
+                      padding: "7px 14px",
+                      color: isActive ? "#e0dcf8" : "#aaa",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      outline: "none",
+                      fontFamily: "inherit",
+                      transition: "border-color 0.15s, background 0.15s, color 0.15s",
+                      "&:hover": !isActive ? { borderColor: "#7c6df0", color: "#c4bef8", background: "#1a1730" } : {},
+                    }}
+                  >
+                    <i className={`ti ${tab.icon}`} style={{ fontSize: 14, color: "#7c6df0" }} />
+                    {tab.label}
+                  </Box>
+                );
+              })}
+            </Box>
+
+            {/* Tab: Prompt text */}
+            {inputTab === "text" && (
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="e.g. Write a Facebook ad for our new summer sneaker collection targeting 18–30 year olds..."
+                style={{
+                  background: "#0d0d0f",
+                  border: "0.5px solid #3a3a4a",
+                  borderRadius: "8px",
+                  padding: "10px 12px",
+                  color: "#e0dcf8",
+                  fontSize: "13px",
+                  minHeight: "100px",
+                  resize: "none",
+                  width: "100%",
+                  boxSizing: "border-box",
+                  fontFamily: "inherit",
+                  lineHeight: "1.6",
+                  outline: "none",
+                  display: "block",
+                }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = "#7c6df0"; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = "#3a3a4a"; }}
+              />
+            )}
+
+            {/* Tab: Website URL */}
+            {inputTab === "url" && (
+              <input
+                type="text"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                placeholder="https://yourwebsite.com"
+                style={{
+                  background: "#0d0d0f",
+                  border: "0.5px solid #3a3a4a",
+                  borderRadius: "8px",
+                  padding: "10px 12px",
+                  color: "#e0dcf8",
+                  fontSize: "13px",
+                  width: "100%",
+                  boxSizing: "border-box",
+                  fontFamily: "inherit",
+                  outline: "none",
+                  display: "block",
+                }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = "#7c6df0"; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = "#3a3a4a"; }}
+              />
+            )}
+
+            {/* Tab: Upload Image */}
+            {inputTab === "image" && (
+              <Box
+                onClick={() => fileRef.current?.click()}
+                sx={{
+                  border: "0.5px dashed #3a3a4a",
+                  borderRadius: "8px",
+                  p: "28px 16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "6px",
+                  cursor: "pointer",
+                  width: "100%",
+                  boxSizing: "border-box" as const,
+                  "&:hover": { borderColor: "#7c6df0" },
+                  transition: "border-color 0.15s",
+                }}
+              >
+                {fileName ? (
+                  <>
+                    <InsertDriveFileIcon sx={{ color: "#7c6df0", fontSize: 24 }} />
+                    <Typography sx={{ color: "#a89cf0", fontSize: "12px" }}>{fileName}</Typography>
+                  </>
+                ) : (
+                  <>
+                    <i className="ti ti-cloud-upload" style={{ fontSize: 24, color: "#7c6df0" }} />
+                    <Typography sx={{ color: "#555", fontSize: "12px" }}>Click to upload or drag & drop</Typography>
+                    <Typography sx={{ color: "#3a3a4a", fontSize: "10px" }}>PNG, JPG, WEBP up to 10MB</Typography>
+                  </>
+                )}
+              </Box>
+            )}
+            <input ref={fileRef} type="file" accept="image/*" hidden
+              onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)} />
 
             {/* Divider */}
             <Box sx={{ height: "0.5px", bgcolor: "#2a2a35", my: "10px" }} />
@@ -665,17 +732,17 @@ export default function Dashboard() {
           {/* Generate button */}
           <button
             onClick={handleGenerate}
-            disabled={loading || !prompt.trim()}
+            disabled={loading || isInputEmpty}
             style={{
               width: "100%",
-              background: loading || !prompt.trim() ? "#22203a" : "#5a4fd0",
+              background: loading || isInputEmpty ? "#22203a" : "#5a4fd0",
               border: "none",
               borderRadius: "8px",
               padding: "11px",
-              color: loading || !prompt.trim() ? "#5a4f90" : "#ffffff",
+              color: loading || isInputEmpty ? "#5a4f90" : "#ffffff",
               fontSize: "14px",
               fontWeight: 600,
-              cursor: loading || !prompt.trim() ? "not-allowed" : "pointer",
+              cursor: loading || isInputEmpty ? "not-allowed" : "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
