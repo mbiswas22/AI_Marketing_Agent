@@ -18,138 +18,32 @@ import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckIcon from "@mui/icons-material/Check";
 import DownloadIcon from "@mui/icons-material/Download";
-import { generateCaption, generateMarketAsset, getModels } from "../services/api";
+import {
+  generateCaption,
+  generateMarketAsset,
+  getModels,
+} from "../services/api";
 import type { BedrockModel } from "../services/api";
-
-const DEMO_BUSINESSES = ["My Business", "Acme Corp", "Green Leaf Cafe"];
-
-const FALLBACK_MODELS: Record<string, BedrockModel[]> = {
-  text: [
-    { modelId: "anthropic.claude-3-5-sonnet-20241022-v2:0", label: "Claude 3.5 Sonnet v2",   description: "Best for long-form, nuanced text" },
-    { modelId: "anthropic.claude-3-haiku-20240307-v1:0",   label: "Claude 3 Haiku",          description: "Fast & cost-efficient text" },
-    { modelId: "amazon.titan-text-premier-v1:0",           label: "Titan Text Premier",       description: "Amazon's flagship text model" },
-    { modelId: "meta.llama3-70b-instruct-v1:0",            label: "Llama 3 70B",              description: "Open-weight, strong reasoning" },
-    { modelId: "mistral.mistral-large-2402-v1:0",          label: "Mistral Large",            description: "Strong multilingual support" },
-  ],
-  image: [
-    { modelId: "amazon.titan-image-generator-v2:0",        label: "Titan Image Generator v2", description: "Amazon's latest image model" },
-    { modelId: "stability.stable-diffusion-xl-v1",         label: "Stable Diffusion XL",     description: "High-quality photorealistic images" },
-    { modelId: "stability.stable-image-core-v1:0",         label: "Stable Image Core",        description: "Fast creative images" },
-    { modelId: "stability.stable-image-ultra-v1:0",        label: "Stable Image Ultra",       description: "Ultra-detailed image generation" },
-    { modelId: "amazon.nova-canvas-v1:0",                  label: "Nova Canvas",              description: "Amazon Nova image generation" },
-  ],
-};
-
-const CONTENT_TYPE_CATEGORY: Record<string, string> = {
-  flyer:               "text",
-  blog:                "text",
-  email:               "text",
-  video_script:        "text",
-  product_description: "text",
-  social_caption:      "text",
-  image:               "image",
-  merchandise:         "image",
-  whatsapp_sms:        "text",
-};
-
-const CONTENT_TILES = [
-  { value: "flyer",               icon: "ti-speakerphone",   name: "Flyer",          desc: "Bold visual for print or digital" },
-  { value: "blog",                icon: "ti-article",        name: "Blog",           desc: "Long-form SEO article or post" },
-  { value: "email",               icon: "ti-mail",           name: "Email",          desc: "Campaign or newsletter copy" },
-  { value: "video_script",        icon: "ti-player-play",    name: "Video Script",   desc: "Scripted scenes with narration" },
-  { value: "product_description", icon: "ti-tag",            name: "Product Desc.",  desc: "E-commerce listing copy" },
-  { value: "social_caption",      icon: "ti-hash",           name: "Social Caption", desc: "Caption and hashtags for social" },
-  { value: "image",               icon: "ti-photo",          name: "Image",          desc: "AI-generated visual asset" },
-  { value: "merchandise",         icon: "ti-shirt",          name: "Merchandise",    desc: "Product concept with visual" },
-  { value: "whatsapp_sms",        icon: "ti-brand-whatsapp", name: "WhatsApp / SMS", desc: "Short promo message", disabled: true },
-];
-
-const OUTPUT_FORMATS_BY_TYPE: Record<string, string[]> = {
-  flyer:               ["pdf", "word", "plain_text", "html"],
-  blog:                ["pdf", "word", "plain_text", "html"],
-  email:               ["pdf", "word", "plain_text", "html"],
-  video_script:        ["pdf", "word", "plain_text", "html"],
-  product_description: ["pdf", "word", "plain_text", "html"],
-  social_caption:      ["plain_text"],
-  image:               ["png", "jpeg", "pdf"],
-  merchandise:         ["png", "jpeg", "pdf"],
-  whatsapp_sms:        [],
-};
-
-const FORMAT_DEFS: Record<string, { icon: string; name: string; desc: string }> = {
-  pdf:        { icon: "ti-file-type-pdf", name: "PDF",        desc: "Shareable, print-ready doc" },
-  word:       { icon: "ti-file-type-doc", name: "Word",       desc: "Editable .docx for Office" },
-  plain_text: { icon: "ti-align-left",    name: "Plain Text", desc: "Raw text, easy to copy" },
-  html:       { icon: "ti-code",          name: "HTML",       desc: "Embeddable web markup" },
-  png:        { icon: "ti-photo",         name: "PNG",        desc: "Lossless, best quality" },
-  jpeg:       { icon: "ti-photo",         name: "JPEG",       desc: "Compressed, smaller file" },
-};
-
-const SOCIAL_PLATFORMS = [
-  { value: "facebook",  label: "Facebook",  icon: "ti-brand-facebook" },
-  { value: "instagram", label: "Instagram", icon: "ti-brand-instagram" },
-  { value: "youtube",   label: "YouTube",   icon: "ti-brand-youtube" },
-  { value: "linkedin",  label: "LinkedIn",  icon: "ti-brand-linkedin" },
-];
+import {
+  DEMO_BUSINESSES,
+  FALLBACK_MODELS,
+  CONTENT_TYPE_CATEGORY,
+  CONTENT_TILES,
+  OUTPUT_FORMATS_BY_TYPE,
+  FORMAT_DEFS,
+  SOCIAL_PLATFORMS,
+  INPUT_TABS,
+  cardSx,
+  labelSx,
+  subLabelSx,
+  darkSelectSx,
+  darkInputSx,
+} from "../constants/dashboardConstants";
 
 const getApiConfig = (ct: string) => {
   if (ct === "social_caption") return { type: "caption" };
   if (ct === "whatsapp_sms") return null;
   return { type: "asset" };
-};
-
-const cardSx = {
-  background: "#141418",
-  border: "0.5px solid #2a2a35",
-  borderRadius: "10px",
-  p: "12px 14px",
-  mb: "8px",
-  flexShrink: 0,
-} as const;
-
-const labelSx = {
-  fontSize: "10px",
-  fontWeight: 500,
-  letterSpacing: "0.08em",
-  color: "#888",
-  textTransform: "uppercase" as const,
-  display: "block",
-  mb: "8px",
-};
-
-const subLabelSx = {
-  fontSize: "9px",
-  fontWeight: 500,
-  letterSpacing: "0.08em",
-  color: "#888",
-  textTransform: "uppercase" as const,
-  display: "block",
-  mb: "4px",
-};
-
-const darkSelectSx = {
-  color: "#e0dcf8",
-  bgcolor: "#0d0d0f",
-  borderRadius: "8px",
-  fontSize: "12px",
-  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#3a3a4a", borderWidth: "0.5px" },
-  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
-  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
-  "& .MuiSvgIcon-root": { color: "#888" },
-};
-
-const darkInputSx = {
-  "& .MuiOutlinedInput-root": {
-    color: "#e0dcf8",
-    bgcolor: "#0d0d0f",
-    borderRadius: "8px",
-    fontSize: "12px",
-    "& fieldset": { borderColor: "#3a3a4a", borderWidth: "0.5px" },
-    "&:hover fieldset": { borderColor: "#7c6df0" },
-    "&.Mui-focused fieldset": { borderColor: "#7c6df0" },
-  },
-  "& .MuiInputBase-input": { padding: "8px 12px", color: "#e0dcf8" },
-  "& .MuiInputBase-input::placeholder": { color: "#555", opacity: 1 },
 };
 
 export default function Dashboard() {
@@ -166,8 +60,11 @@ export default function Dashboard() {
   const [contentType, setContentType] = useState("flyer");
   const [selectedFormat, setSelectedFormat] = useState("pdf");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
-  const [selectedModel, setSelectedModel] = useState(FALLBACK_MODELS.text[0].modelId);
-  const [modelsCache, setModelsCache] = useState<Record<string, BedrockModel[]>>(FALLBACK_MODELS);
+  const [selectedModel, setSelectedModel] = useState(
+    FALLBACK_MODELS.text[0].modelId,
+  );
+  const [modelsCache, setModelsCache] =
+    useState<Record<string, BedrockModel[]>>(FALLBACK_MODELS);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
@@ -182,29 +79,44 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(false);
   const [fromHistoryBanner, setFromHistoryBanner] = useState(false);
   const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
-  const [inputTab, setInputTab] = useState<'text' | 'url' | 'image'>('text');
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [inputTab, setInputTab] =
+    useState<(typeof INPUT_TABS)[number]["value"]>("text");
 
   const isCustom = business === "__custom__";
   const effectiveBusiness = isCustom ? customBusiness : business;
-  const currentModels = modelsCache[CONTENT_TYPE_CATEGORY[contentType] ?? "text"] ?? [];
+  const currentModels =
+    modelsCache[CONTENT_TYPE_CATEGORY[contentType] ?? "text"] ?? [];
   const currentFormats = OUTPUT_FORMATS_BY_TYPE[contentType] ?? [];
-  const isInputEmpty = inputTab === "text" ? !prompt.trim() : inputTab === "url" ? !websiteUrl.trim() : !fileName;
+  const isInputEmpty =
+    inputTab === "text"
+      ? !prompt.trim()
+      : inputTab === "url"
+        ? !websiteUrl.trim()
+        : !fileName;
 
-  const fetchModels = useCallback(async (category: string) => {
-    if (modelsCache[category]?.length && modelsCache[category] !== FALLBACK_MODELS[category]) return;
-    setModelsLoading(true);
-    try {
-      const models = await getModels(category);
-      if (models.length > 0) {
-        setModelsCache((prev) => ({ ...prev, [category]: models }));
-        setSelectedModel(models[0].modelId);
+  const fetchModels = useCallback(
+    async (category: string) => {
+      if (
+        modelsCache[category]?.length &&
+        modelsCache[category] !== FALLBACK_MODELS[category]
+      )
+        return;
+      setModelsLoading(true);
+      try {
+        const models = await getModels(category);
+        if (models.length > 0) {
+          setModelsCache((prev) => ({ ...prev, [category]: models }));
+          setSelectedModel(models[0].modelId);
+        }
+      } catch {
+        // silently fall back to FALLBACK_MODELS
+      } finally {
+        setModelsLoading(false);
       }
-    } catch {
-      // silently fall back to FALLBACK_MODELS
-    } finally {
-      setModelsLoading(false);
-    }
-  }, [modelsCache]);
+    },
+    [modelsCache],
+  );
 
   useEffect(() => {
     const category = CONTENT_TYPE_CATEGORY[contentType] ?? "text";
@@ -229,15 +141,26 @@ export default function Dashboard() {
     setSelectedPlatforms(hi.platforms ?? []);
     if (hi.caption) setCaption(hi.caption);
     if (hi.hashtags) setHashtags(hi.hashtags);
+    if (hi.title) setTitle(hi.title);
+    if (hi.offer) setOffer(hi.offer);
+    if (hi.call_to_action) setCallToAction(hi.call_to_action);
     if (hi.image_url) setResultImageUrl(hi.image_url);
     setFromHistoryBanner(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSignOut = () => { signOut(); navigate("/login"); };
+  const handleSignOut = () => {
+    signOut();
+    navigate("/login");
+  };
 
   const handleGenerate = async () => {
-    const effectiveInput = inputTab === "text" ? prompt : inputTab === "url" ? websiteUrl : (fileName ?? "");
+    const effectiveInput =
+      inputTab === "text"
+        ? prompt
+        : inputTab === "url"
+          ? websiteUrl
+          : (fileName ?? "");
     if (!effectiveInput.trim()) return;
     const config = getApiConfig(contentType);
     if (!config) {
@@ -249,17 +172,36 @@ export default function Dashboard() {
     setCaption(null);
     setImageUrl(null);
     setHashtags([]);
+    setTitle(null);
+    setOffer(null);
+    setCallToAction(null);
     setResultImageUrl(null);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let response: any;
       if (config.type === "caption") {
-        response = await generateCaption(effectiveInput, effectiveBusiness, contentType, selectedPlatforms, selectedModel);
+        response = await generateCaption(
+          effectiveInput,
+          effectiveBusiness,
+          contentType,
+          selectedPlatforms,
+          selectedModel,
+        );
       } else {
-        response = await generateMarketAsset(effectiveInput, effectiveBusiness, contentType, selectedFormat, selectedPlatforms, selectedModel);
+        response = await generateMarketAsset(
+          effectiveInput,
+          effectiveBusiness,
+          contentType,
+          selectedFormat,
+          selectedPlatforms,
+          selectedModel,
+        );
       }
       setCaption(response.data.caption ?? null);
       setHashtags(response.data.hashtags ?? []);
+      setTitle(response.data.title ?? null);
+      setOffer(response.data.offer ?? null);
+      setCallToAction(response.data.call_to_action ?? null);
       if (response.data.image_url) setResultImageUrl(response.data.image_url);
     } catch {
       setError("Failed to generate content. Please try again.");
@@ -287,7 +229,7 @@ export default function Dashboard() {
 
   const togglePlatform = (val: string) =>
     setSelectedPlatforms((prev) =>
-      prev.includes(val) ? prev.filter((p) => p !== val) : [...prev, val]
+      prev.includes(val) ? prev.filter((p) => p !== val) : [...prev, val],
     );
 
   const clearHistory = () => {
@@ -300,29 +242,56 @@ export default function Dashboard() {
     setSelectedPlatforms([]);
     setCaption(null);
     setHashtags([]);
+    setTitle(null);
+    setOffer(null);
+    setCallToAction(null);
     setResultImageUrl(null);
     setInputTab("text");
   };
 
   return (
-    <Box sx={{ height: "100vh", bgcolor: "#0d0d0f", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
+    <Box
+      sx={{
+        height: "100vh",
+        bgcolor: "#0d0d0f",
+        display: "flex",
+        flexDirection: "column",
+        overflow: { xs: "auto", md: "hidden" },
+      }}
+    >
       {/* Navbar */}
-      <Box sx={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        px: { xs: 2, sm: 3, md: 4 }, py: 1.75,
-        borderBottom: "1px solid rgba(255,255,255,0.07)",
-        bgcolor: "#111", zIndex: 10, flexShrink: 0,
-      }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          px: { xs: 2, sm: 3, md: 4 },
+          py: 1.75,
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          bgcolor: "#111",
+          zIndex: 10,
+          flexShrink: 0,
+        }}
+      >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <AutoAwesomeIcon sx={{ color: "#8b5cf6" }} />
           <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>
             MarketingAI
           </Typography>
         </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 2 } }}>
-          <Button onClick={() => navigate("/history")} startIcon={<HistoryIcon />}
-            sx={{ color: "#64748b", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}>
+        <Box
+          sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 2 } }}
+        >
+          <Button
+            onClick={() => navigate("/history")}
+            startIcon={<HistoryIcon />}
+            sx={{
+              color: "#64748b",
+              textTransform: "none",
+              fontSize: 14,
+              "&:hover": { color: "#fff" },
+            }}
+          >
             History
           </Button>
           <Typography
@@ -362,42 +331,65 @@ export default function Dashboard() {
       </Box>
 
       {/* Body */}
-      <Box sx={{ flex: 1, display: "flex", overflow: { xs: "auto", md: "hidden" }, flexDirection: { xs: "column", md: "row" } }}>
-
-        {/* Left panel — full width mobile, 67% desktop */}
-        <Box sx={{
-          width: { xs: "100%", md: "67%" },
-          flexShrink: 0,
-          overflowY: { xs: "unset", md: "auto" },
-          borderRight: { xs: "none", md: "1px solid #2a2a35" },
-          borderBottom: { xs: "1px solid #2a2a35", md: "none" },
-          px: { xs: "12px", sm: "18px" },
-          py: "12px",
+      <Box
+        sx={{
+          flex: 1,
           display: "flex",
-          flexDirection: "column",
-          "&::-webkit-scrollbar": { width: 4 },
-          "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
-          "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(124,109,240,0.3)", borderRadius: 2 },
-        }}>
-
+          overflow: { xs: "unset", md: "hidden" },
+          flexDirection: { xs: "column", md: "row" },
+        }}
+      >
+        {/* Left panel — full width mobile, 67% desktop */}
+        <Box
+          sx={{
+            width: { xs: "100%", md: "67%" },
+            flexShrink: 0,
+            overflowY: { xs: "visible", md: "auto" },
+            borderRight: { xs: "none", md: "1px solid #2a2a35" },
+            borderBottom: { xs: "1px solid #2a2a35", md: "none" },
+            px: { xs: "12px", sm: "18px" },
+            py: "12px",
+            display: "flex",
+            flexDirection: "column",
+            "&::-webkit-scrollbar": { width: 4 },
+            "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+            "&::-webkit-scrollbar-thumb": {
+              bgcolor: "rgba(124,109,240,0.3)",
+              borderRadius: 2,
+            },
+          }}
+        >
           {/* History banner */}
           {fromHistoryBanner && (
-            <Box sx={{
-              background: "#1a1730",
-              border: "1px solid #7c6df0",
-              borderRadius: "6px",
-              p: "8px 12px",
-              mb: "8px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexShrink: 0,
-            }}>
+            <Box
+              sx={{
+                background: "#1a1730",
+                border: "1px solid #7c6df0",
+                borderRadius: "6px",
+                p: "8px 12px",
+                mb: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexShrink: 0,
+              }}
+            >
               <Typography sx={{ color: "#a89cf0", fontSize: 11 }}>
-                Editing from history — modify and regenerate, or clear to start fresh
+                Editing from history — modify and regenerate, or clear to start
+                fresh
               </Typography>
-              <button onClick={clearHistory}
-                style={{ background: "none", border: "none", color: "#a89cf0", cursor: "pointer", fontSize: 14, padding: "0 0 0 8px", lineHeight: 1 }}>
+              <button
+                onClick={clearHistory}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#a89cf0",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  padding: "0 0 0 8px",
+                  lineHeight: 1,
+                }}
+              >
                 ✕
               </button>
             </Box>
@@ -412,18 +404,45 @@ export default function Dashboard() {
               fullWidth
               size="small"
               sx={darkSelectSx}
-              MenuProps={{ PaperProps: { sx: { bgcolor: "#141418", border: "0.5px solid #2a2a35", color: "#e0dcf8" } } } as any}
+              MenuProps={
+                {
+                  PaperProps: {
+                    sx: {
+                      bgcolor: "#141418",
+                      border: "0.5px solid #2a2a35",
+                      color: "#e0dcf8",
+                    },
+                  },
+                } as any
+              }
             >
               {DEMO_BUSINESSES.map((b) => (
-                <MenuItem key={b} value={b} sx={{ fontSize: 12, "&:hover": { bgcolor: "rgba(124,109,240,0.1)" } }}>{b}</MenuItem>
+                <MenuItem
+                  key={b}
+                  value={b}
+                  sx={{
+                    fontSize: 12,
+                    "&:hover": { bgcolor: "rgba(124,109,240,0.1)" },
+                  }}
+                >
+                  {b}
+                </MenuItem>
               ))}
-              <MenuItem value="__custom__" sx={{ fontSize: 12, color: "#7c6df0", "&:hover": { bgcolor: "rgba(124,109,240,0.1)" } }}>
+              <MenuItem
+                value="__custom__"
+                sx={{
+                  fontSize: 12,
+                  color: "#7c6df0",
+                  "&:hover": { bgcolor: "rgba(124,109,240,0.1)" },
+                }}
+              >
                 + Type a different business
               </MenuItem>
             </Select>
             {isCustom && (
               <TextField
-                fullWidth size="small"
+                fullWidth
+                size="small"
                 placeholder="Enter your business name"
                 value={customBusiness}
                 onChange={(e) => setCustomBusiness(e.target.value)}
@@ -441,7 +460,11 @@ export default function Dashboard() {
                 return (
                   <Box
                     key={tile.value}
-                    onClick={!tile.disabled ? () => setContentType(tile.value) : undefined}
+                    onClick={
+                      !tile.disabled
+                        ? () => setContentType(tile.value)
+                        : undefined
+                    }
                     sx={{
                       position: "relative",
                       background: isSelected ? "#1a1730" : "#0d0d0f",
@@ -452,30 +475,63 @@ export default function Dashboard() {
                       cursor: tile.disabled ? "not-allowed" : "pointer",
                       opacity: tile.disabled ? 0.5 : 1,
                       textAlign: "center",
-                      flex: { xs: "0 0 calc(33.33% - 5px)", sm: "0 0 calc(20% - 5px)" },
+                      flex: {
+                        xs: "0 0 calc(33.33% - 5px)",
+                        sm: "0 0 calc(20% - 5px)",
+                      },
                       boxSizing: "border-box",
-                      "&:hover": !tile.disabled ? { borderColor: "#7c6df0" } : {},
+                      "&:hover": !tile.disabled
+                        ? { borderColor: "#7c6df0" }
+                        : {},
                       transition: "border-color 0.15s, background 0.15s",
                     }}
                   >
                     {tile.disabled && (
-                      <Box sx={{
-                        position: "absolute", top: 4, right: 4,
-                        bgcolor: "#2a2a35", color: "#666",
-                        fontSize: "8px", px: "4px", py: "1px",
-                        borderRadius: "3px", lineHeight: 1.5,
-                      }}>
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          top: 4,
+                          right: 4,
+                          bgcolor: "#2a2a35",
+                          color: "#666",
+                          fontSize: "8px",
+                          px: "4px",
+                          py: "1px",
+                          borderRadius: "3px",
+                          lineHeight: 1.5,
+                        }}
+                      >
                         Soon
                       </Box>
                     )}
                     <i
                       className={`ti ${tile.icon}`}
-                      style={{ fontSize: 20, color: isSelected ? "#7c6df0" : "#555", display: "block", marginBottom: 4 }}
+                      style={{
+                        fontSize: 20,
+                        color: isSelected ? "#7c6df0" : "#555",
+                        display: "block",
+                        marginBottom: 4,
+                      }}
                     />
-                    <Typography sx={{ fontSize: { xs: "10px", sm: "12px" }, fontWeight: 600, color: "#e0dcf8", lineHeight: 1.3, mb: "2px" }}>
+                    <Typography
+                      sx={{
+                        fontSize: { xs: "10px", sm: "12px" },
+                        fontWeight: 600,
+                        color: "#e0dcf8",
+                        lineHeight: 1.3,
+                        mb: "2px",
+                      }}
+                    >
                       {tile.name}
                     </Typography>
-                    <Typography sx={{ fontSize: "10px", color: "#666", lineHeight: 1.4, display: { xs: "none", sm: "block" } }}>
+                    <Typography
+                      sx={{
+                        fontSize: "10px",
+                        color: "#666",
+                        lineHeight: 1.4,
+                        display: { xs: "none", sm: "block" },
+                      }}
+                    >
                       {tile.desc}
                     </Typography>
                   </Box>
@@ -501,7 +557,9 @@ export default function Dashboard() {
                   return (
                     <Box
                       key={fmt}
-                      onClick={!isAuto ? () => setSelectedFormat(fmt) : undefined}
+                      onClick={
+                        !isAuto ? () => setSelectedFormat(fmt) : undefined
+                      }
                       sx={{
                         background: isSelected ? "#1a1730" : "#0d0d0f",
                         border: `0.5px solid ${isSelected ? "#7c6df0" : "#2a2a35"}`,
@@ -511,7 +569,10 @@ export default function Dashboard() {
                         cursor: isAuto ? "default" : "pointer",
                         opacity: isAuto ? 0.7 : 1,
                         textAlign: "center",
-                        flex: { xs: "0 0 calc(33.33% - 5px)", sm: "0 0 calc(20% - 5px)" },
+                        flex: {
+                          xs: "0 0 calc(33.33% - 5px)",
+                          sm: "0 0 calc(20% - 5px)",
+                        },
                         boxSizing: "border-box",
                         "&:hover": !isAuto ? { borderColor: "#7c6df0" } : {},
                         transition: "border-color 0.15s, background 0.15s",
@@ -519,12 +580,32 @@ export default function Dashboard() {
                     >
                       <i
                         className={`ti ${def.icon}`}
-                        style={{ fontSize: 20, color: isSelected ? "#7c6df0" : "#555", display: "block", marginBottom: 4 }}
+                        style={{
+                          fontSize: 20,
+                          color: isSelected ? "#7c6df0" : "#555",
+                          display: "block",
+                          marginBottom: 4,
+                        }}
                       />
-                      <Typography sx={{ fontSize: { xs: "10px", sm: "12px" }, fontWeight: 600, color: "#e0dcf8", lineHeight: 1.3, mb: "2px" }}>
+                      <Typography
+                        sx={{
+                          fontSize: { xs: "10px", sm: "12px" },
+                          fontWeight: 600,
+                          color: "#e0dcf8",
+                          lineHeight: 1.3,
+                          mb: "2px",
+                        }}
+                      >
                         {def.name}
                       </Typography>
-                      <Typography sx={{ fontSize: "10px", color: "#666", lineHeight: 1.4, display: { xs: "none", sm: "block" } }}>
+                      <Typography
+                        sx={{
+                          fontSize: "10px",
+                          color: "#666",
+                          lineHeight: 1.4,
+                          display: { xs: "none", sm: "block" },
+                        }}
+                      >
                         {def.desc}
                       </Typography>
                     </Box>
@@ -536,14 +617,22 @@ export default function Dashboard() {
 
           {/* Bedrock Model card */}
           <Box sx={cardSx}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: "8px", mb: "8px" }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                mb: "8px",
+              }}
+            >
               <Typography sx={{ ...labelSx, mb: 0 }}>Bedrock Model</Typography>
-              {modelsLoading
-                ? <CircularProgress size={10} sx={{ color: "#5a4fd0" }} />
-                : <Typography sx={{ color: "#5a4fd0", fontSize: "10px" }}>
-                    Top 5 for {CONTENT_TYPE_CATEGORY[contentType] ?? "text"}
-                  </Typography>
-              }
+              {modelsLoading ? (
+                <CircularProgress size={10} sx={{ color: "#5a4fd0" }} />
+              ) : (
+                <Typography sx={{ color: "#5a4fd0", fontSize: "10px" }}>
+                  Top 5 for {CONTENT_TYPE_CATEGORY[contentType] ?? "text"}
+                </Typography>
+              )}
             </Box>
             <Select
               value={selectedModel}
@@ -553,12 +642,31 @@ export default function Dashboard() {
               renderValue={(val) => {
                 const m = currentModels.find((m) => m.modelId === val);
                 return (
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
                     <Box>
-                      <Typography sx={{ fontSize: "13px", fontWeight: 500, color: "#e0dcf8", lineHeight: 1.3 }}>
+                      <Typography
+                        sx={{
+                          fontSize: "13px",
+                          fontWeight: 500,
+                          color: "#e0dcf8",
+                          lineHeight: 1.3,
+                        }}
+                      >
                         {m?.label ?? "Select model"}
                       </Typography>
-                      <Typography sx={{ fontSize: "10px", color: "#7c6df0", lineHeight: 1.5 }}>
+                      <Typography
+                        sx={{
+                          fontSize: "10px",
+                          color: "#7c6df0",
+                          lineHeight: 1.5,
+                        }}
+                      >
                         {val}
                       </Typography>
                     </Box>
@@ -566,29 +674,69 @@ export default function Dashboard() {
                 );
               }}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              IconComponent={(() => <i className="ti ti-chevron-down" style={{ fontSize: 14, color: "#888", position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />) as any}
+              IconComponent={
+                (() => (
+                  <i
+                    className="ti ti-chevron-down"
+                    style={{
+                      fontSize: 14,
+                      color: "#888",
+                      position: "absolute",
+                      right: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      pointerEvents: "none",
+                    }}
+                  />
+                )) as any
+              }
               sx={{
                 bgcolor: "#0d0d0f",
                 borderRadius: "8px",
-                "& .MuiOutlinedInput-notchedOutline": { borderColor: "#3a3a4a", borderWidth: "0.5px" },
-                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
-                "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#3a3a4a",
+                  borderWidth: "0.5px",
+                },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#7c6df0",
+                },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#7c6df0",
+                },
                 "& .MuiSelect-select": { p: "8px 12px" },
               }}
-              MenuProps={{ PaperProps: { sx: { bgcolor: "#141418", border: "0.5px solid #2a2a35", maxHeight: 280 } } } as any}
+              MenuProps={
+                {
+                  PaperProps: {
+                    sx: {
+                      bgcolor: "#141418",
+                      border: "0.5px solid #2a2a35",
+                      maxHeight: 280,
+                    },
+                  },
+                } as any
+              }
             >
               {currentModels.map((m) => (
                 <MenuItem
                   key={m.modelId}
                   value={m.modelId}
                   sx={{
-                    flexDirection: "column", alignItems: "flex-start", py: 1,
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    py: 1,
                     "&:hover": { bgcolor: "rgba(124,109,240,0.1)" },
                     "&.Mui-selected": { bgcolor: "rgba(124,109,240,0.15)" },
                   }}
                 >
-                  <Typography sx={{ color: "#e0dcf8", fontSize: 12, fontWeight: 600 }}>{m.label}</Typography>
-                  <Typography sx={{ color: "#555", fontSize: 10 }}>{m.description}</Typography>
+                  <Typography
+                    sx={{ color: "#e0dcf8", fontSize: 12, fontWeight: 600 }}
+                  >
+                    {m.label}
+                  </Typography>
+                  <Typography sx={{ color: "#555", fontSize: 10 }}>
+                    {m.description}
+                  </Typography>
                 </MenuItem>
               ))}
             </Select>
@@ -596,14 +744,9 @@ export default function Dashboard() {
 
           {/* Input card */}
           <Box sx={{ ...cardSx, mb: "8px" }}>
-
             {/* Tab bar */}
             <Box sx={{ display: "flex", gap: "6px", mb: "10px" }}>
-              {([
-                { value: "text"  as const, icon: "ti-pencil",   label: "Prompt" },
-                { value: "url"   as const, icon: "ti-world",    label: "Website URL" },
-                { value: "image" as const, icon: "ti-photo-up", label: "Upload Image" },
-              ]).map((tab) => {
+              {INPUT_TABS.map((tab) => {
                 const isActive = inputTab === tab.value;
                 return (
                   <Box
@@ -626,12 +769,27 @@ export default function Dashboard() {
                       fontFamily: "inherit",
                       flex: 1,
                       justifyContent: "center",
-                      transition: "border-color 0.15s, background 0.15s, color 0.15s",
-                      "&:hover": !isActive ? { borderColor: "#7c6df0", color: "#c4bef8", background: "#1a1730" } : {},
+                      transition:
+                        "border-color 0.15s, background 0.15s, color 0.15s",
+                      "&:hover": !isActive
+                        ? {
+                            borderColor: "#7c6df0",
+                            color: "#c4bef8",
+                            background: "#1a1730",
+                          }
+                        : {},
                     }}
                   >
-                    <i className={`ti ${tab.icon}`} style={{ fontSize: 14, color: "#7c6df0" }} />
-                    <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>{tab.label}</Box>
+                    <i
+                      className={`ti ${tab.icon}`}
+                      style={{ fontSize: 14, color: "#7c6df0" }}
+                    />
+                    <Box
+                      component="span"
+                      sx={{ display: { xs: "none", sm: "inline" } }}
+                    >
+                      {tab.label}
+                    </Box>
                   </Box>
                 );
               })}
@@ -659,8 +817,12 @@ export default function Dashboard() {
                   outline: "none",
                   display: "block",
                 }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = "#7c6df0"; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = "#3a3a4a"; }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = "#7c6df0";
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = "#3a3a4a";
+                }}
               />
             )}
 
@@ -684,8 +846,12 @@ export default function Dashboard() {
                   outline: "none",
                   display: "block",
                 }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = "#7c6df0"; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = "#3a3a4a"; }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = "#7c6df0";
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = "#3a3a4a";
+                }}
               />
             )}
 
@@ -710,29 +876,59 @@ export default function Dashboard() {
               >
                 {fileName ? (
                   <>
-                    <InsertDriveFileIcon sx={{ color: "#7c6df0", fontSize: 24 }} />
-                    <Typography sx={{ color: "#a89cf0", fontSize: "12px" }}>{fileName}</Typography>
+                    <InsertDriveFileIcon
+                      sx={{ color: "#7c6df0", fontSize: 24 }}
+                    />
+                    <Typography sx={{ color: "#a89cf0", fontSize: "12px" }}>
+                      {fileName}
+                    </Typography>
                   </>
                 ) : (
                   <>
-                    <i className="ti ti-cloud-upload" style={{ fontSize: 24, color: "#7c6df0" }} />
-                    <Typography sx={{ color: "#555", fontSize: "12px" }}>Click to upload or drag & drop</Typography>
-                    <Typography sx={{ color: "#3a3a4a", fontSize: "10px" }}>PNG, JPG, WEBP up to 10MB</Typography>
+                    <i
+                      className="ti ti-cloud-upload"
+                      style={{ fontSize: 24, color: "#7c6df0" }}
+                    />
+                    <Typography sx={{ color: "#555", fontSize: "12px" }}>
+                      Click to upload or drag & drop
+                    </Typography>
+                    <Typography sx={{ color: "#3a3a4a", fontSize: "10px" }}>
+                      PNG, JPG, WEBP up to 10MB
+                    </Typography>
                   </>
                 )}
               </Box>
             )}
-            <input ref={fileRef} type="file" accept="image/*" hidden
-              onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)} />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
+            />
 
             {/* Divider */}
             <Box sx={{ height: "0.5px", bgcolor: "#2a2a35", my: "10px" }} />
 
             {/* Social media row */}
             <Box>
-              <Box sx={{ display: "flex", alignItems: "center", gap: "5px", mb: "6px" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  mb: "6px",
+                }}
+              >
                 <Typography sx={subLabelSx}>Publish to Social Media</Typography>
-                <Typography sx={{ color: "#555", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                <Typography
+                  sx={{
+                    color: "#555",
+                    fontSize: "9px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                  }}
+                >
                   (optional)
                 </Typography>
               </Box>
@@ -787,24 +983,38 @@ export default function Dashboard() {
               flexShrink: 0,
             }}
           >
-            {loading
-              ? <><CircularProgress size={15} sx={{ color: "#a89cf0" }} /> Generating...</>
-              : <><i className="ti ti-sparkles" style={{ fontSize: 16 }} /> Generate</>
-            }
+            {loading ? (
+              <>
+                <CircularProgress size={15} sx={{ color: "#a89cf0" }} />{" "}
+                Generating...
+              </>
+            ) : (
+              <>
+                <i className="ti ti-sparkles" style={{ fontSize: 16 }} />{" "}
+                Generate
+              </>
+            )}
           </button>
         </Box>
 
         {/* Right panel — 33% */}
-        <Box sx={{
-          flex: 1,
-          bgcolor: "#0d0d0f",
-          p: "20px",
-          overflowY: "auto",
-          "&::-webkit-scrollbar": { width: 4 },
-          "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
-          "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(124,109,240,0.3)", borderRadius: 2 },
-        }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 500, color: "#f0eeff", mb: "4px" }}>
+        <Box
+          sx={{
+            flex: 1,
+            bgcolor: "#0d0d0f",
+            p: "20px",
+            overflowY: "auto",
+            "&::-webkit-scrollbar": { width: 4 },
+            "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+            "&::-webkit-scrollbar-thumb": {
+              bgcolor: "rgba(124,109,240,0.3)",
+              borderRadius: 2,
+            },
+          }}
+        >
+          <Typography
+            sx={{ fontSize: 16, fontWeight: 500, color: "#f0eeff", mb: "4px" }}
+          >
             Result
           </Typography>
           <Typography sx={{ color: "#555", fontSize: "11px", mb: "16px" }}>
@@ -813,9 +1023,23 @@ export default function Dashboard() {
 
           {/* Empty state */}
           {!caption && !resultImageUrl && !error && !loading && (
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 200, gap: "12px" }}>
-              <i className="ti ti-sparkles" style={{ fontSize: 32, color: "#333" }} />
-              <Typography sx={{ color: "#333", fontSize: 12, textAlign: "center" }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 200,
+                gap: "12px",
+              }}
+            >
+              <i
+                className="ti ti-sparkles"
+                style={{ fontSize: 32, color: "#333" }}
+              />
+              <Typography
+                sx={{ color: "#333", fontSize: 12, textAlign: "center" }}
+              >
                 Your generated content will appear here.
               </Typography>
             </Box>
@@ -823,16 +1047,36 @@ export default function Dashboard() {
 
           {/* Loading */}
           {loading && (
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 200, gap: 2 }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 200,
+                gap: 2,
+              }}
+            >
               <CircularProgress sx={{ color: "#7c6df0" }} />
-              <Typography sx={{ color: "#555", fontSize: 13 }}>Generating your content...</Typography>
+              <Typography sx={{ color: "#555", fontSize: 13 }}>
+                Generating your content...
+              </Typography>
             </Box>
           )}
 
           {/* Error */}
           {error && (
-            <Box sx={{ background: "#1a0808", border: "0.5px solid #5c1a1a", borderRadius: "8px", p: "12px" }}>
-              <Typography sx={{ color: "#ef4444", fontSize: 13 }}>{error}</Typography>
+            <Box
+              sx={{
+                background: "#1a0808",
+                border: "0.5px solid #5c1a1a",
+                borderRadius: "8px",
+                p: "12px",
+              }}
+            >
+              <Typography sx={{ color: "#ef4444", fontSize: 13 }}>
+                {error}
+              </Typography>
             </Box>
           )}
 
@@ -841,24 +1085,121 @@ export default function Dashboard() {
             <Box>
               {caption && (
                 <Box sx={{ mb: 2 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-                    <Typography sx={{ color: "#888", fontSize: 10, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      mb: 1,
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        color: "#888",
+                        fontSize: 10,
+                        fontWeight: 500,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
                       Generated Content
                     </Typography>
                     <Tooltip title={copied ? "Copied!" : "Copy to clipboard"}>
                       <Button
                         size="small"
                         onClick={handleCopy}
-                        startIcon={copied ? <CheckIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
-                        sx={{ color: copied ? "#22c55e" : "#555", textTransform: "none", fontSize: 11,
-                          "&:hover": { color: "#a89cf0" }, minWidth: "auto", p: "2px 8px" }}
+                        startIcon={
+                          copied ? (
+                            <CheckIcon fontSize="small" />
+                          ) : (
+                            <ContentCopyIcon fontSize="small" />
+                          )
+                        }
+                        sx={{
+                          color: copied ? "#22c55e" : "#555",
+                          textTransform: "none",
+                          fontSize: 11,
+                          "&:hover": { color: "#a89cf0" },
+                          minWidth: "auto",
+                          p: "2px 8px",
+                        }}
                       >
                         {copied ? "Copied" : "Copy"}
                       </Button>
                     </Tooltip>
                   </Box>
-                  <Box sx={{ height: "0.5px", bgcolor: "#2a2a35", mb: "12px" }} />
-                  <Typography sx={{ color: "#e0dcf8", fontSize: 13, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
+                  <Box
+                    sx={{ height: "0.5px", bgcolor: "#2a2a35", mb: "12px" }}
+                  />
+                  {title && (
+                    <Box sx={{ mb: "10px" }}>
+                      <Typography
+                        sx={{
+                          color: "#888",
+                          fontSize: 10,
+                          fontWeight: 500,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          mb: "4px",
+                        }}
+                      >
+                        Title
+                      </Typography>
+                      <Typography
+                        sx={{ color: "#e0dcf8", fontSize: 13, fontWeight: 600 }}
+                      >
+                        {title}
+                      </Typography>
+                    </Box>
+                  )}
+                  {offer && (
+                    <Box sx={{ mb: "10px" }}>
+                      <Typography
+                        sx={{
+                          color: "#888",
+                          fontSize: 10,
+                          fontWeight: 500,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          mb: "4px",
+                        }}
+                      >
+                        Offer
+                      </Typography>
+                      <Typography sx={{ color: "#e0dcf8", fontSize: 13 }}>
+                        {offer}
+                      </Typography>
+                    </Box>
+                  )}
+                  {callToAction && (
+                    <Box sx={{ mb: "10px" }}>
+                      <Typography
+                        sx={{
+                          color: "#888",
+                          fontSize: 10,
+                          fontWeight: 500,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          mb: "4px",
+                        }}
+                      >
+                        Call to Action
+                      </Typography>
+                      <Typography
+                        sx={{ color: "#a89cf0", fontSize: 13, fontWeight: 600 }}
+                      >
+                        {callToAction}
+                      </Typography>
+                    </Box>
+                  )}
+                  <Typography
+                    sx={{
+                      color: "#e0dcf8",
+                      fontSize: 13,
+                      lineHeight: 1.8,
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
                     {caption}
                   </Typography>
                 </Box>
@@ -866,16 +1207,32 @@ export default function Dashboard() {
 
               {hashtags.length > 0 && (
                 <Box sx={{ mb: 2 }}>
-                  <Typography sx={{ color: "#888", fontSize: 10, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", mb: 1 }}>
+                  <Typography
+                    sx={{
+                      color: "#888",
+                      fontSize: 10,
+                      fontWeight: 500,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      mb: 1,
+                    }}
+                  >
                     Hashtags
                   </Typography>
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                     {hashtags.map((tag) => (
-                      <Box key={tag} sx={{
-                        color: "#7c6df0", fontSize: 12,
-                        bgcolor: "rgba(124,109,240,0.1)", px: "10px", py: "3px",
-                        borderRadius: "20px", border: "0.5px solid rgba(124,109,240,0.25)",
-                      }}>
+                      <Box
+                        key={tag}
+                        sx={{
+                          color: "#7c6df0",
+                          fontSize: 12,
+                          bgcolor: "rgba(124,109,240,0.1)",
+                          px: "10px",
+                          py: "3px",
+                          borderRadius: "20px",
+                          border: "0.5px solid rgba(124,109,240,0.25)",
+                        }}
+                      >
                         {tag}
                       </Box>
                     ))}
@@ -885,14 +1242,63 @@ export default function Dashboard() {
 
               {resultImageUrl && (
                 <Box sx={{ mb: 2 }}>
-                  <Typography sx={{ color: "#888", fontSize: 10, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", mb: 1 }}>
+                  <Typography
+                    sx={{
+                      color: "#888",
+                      fontSize: 10,
+                      fontWeight: 500,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      mb: 1,
+                    }}
+                  >
                     Generated Image
                   </Typography>
                   <Box
                     component="img"
                     src={resultImageUrl}
                     alt="Generated"
-                    sx={{ maxHeight: 200, maxWidth: "100%", objectFit: "contain", borderRadius: "6px", display: "block" }}
+                    onClick={() => setLightboxOpen(true)}
+                    sx={{
+                      maxHeight: 200,
+                      maxWidth: "100%",
+                      objectFit: "contain",
+                      borderRadius: "6px",
+                      display: "block",
+                      cursor: "zoom-in",
+                      transition: "opacity 0.15s",
+                      "&:hover": { opacity: 0.85 },
+                    }}
+                  />
+                </Box>
+              )}
+
+              {/* Lightbox */}
+              {lightboxOpen && resultImageUrl && (
+                <Box
+                  onClick={() => setLightboxOpen(false)}
+                  sx={{
+                    position: "fixed",
+                    inset: 0,
+                    bgcolor: "rgba(0,0,0,0.85)",
+                    zIndex: 1300,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "zoom-out",
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src={resultImageUrl}
+                    alt="Generated full size"
+                    sx={{
+                      maxWidth: "90vw",
+                      maxHeight: "90vh",
+                      objectFit: "contain",
+                      borderRadius: "8px",
+                      boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
+                    }}
                   />
                 </Box>
               )}
@@ -901,19 +1307,33 @@ export default function Dashboard() {
 
               <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                 <Button
-                  variant="outlined" size="small"
+                  variant="outlined"
+                  size="small"
                   startIcon={<DownloadIcon fontSize="small" />}
                   onClick={handleDownload}
-                  sx={{ color: "#7c6df0", borderColor: "rgba(124,109,240,0.5)", textTransform: "none",
-                    borderRadius: "6px", fontSize: 12, "&:hover": { bgcolor: "rgba(124,109,240,0.08)" } }}
+                  sx={{
+                    color: "#7c6df0",
+                    borderColor: "rgba(124,109,240,0.5)",
+                    textTransform: "none",
+                    borderRadius: "6px",
+                    fontSize: 12,
+                    "&:hover": { bgcolor: "rgba(124,109,240,0.08)" },
+                  }}
                 >
                   Download .{selectedFormat || "txt"}
                 </Button>
                 {selectedPlatforms.length > 0 && (
                   <Button
-                    variant="outlined" size="small"
-                    sx={{ color: "#22c55e", borderColor: "rgba(34,197,94,0.5)", textTransform: "none",
-                      borderRadius: "6px", fontSize: 12, "&:hover": { bgcolor: "rgba(34,197,94,0.08)" } }}
+                    variant="outlined"
+                    size="small"
+                    sx={{
+                      color: "#22c55e",
+                      borderColor: "rgba(34,197,94,0.5)",
+                      textTransform: "none",
+                      borderRadius: "6px",
+                      fontSize: 12,
+                      "&:hover": { bgcolor: "rgba(34,197,94,0.08)" },
+                    }}
                   >
                     Publish to {selectedPlatforms.join(", ")}
                   </Button>

@@ -1,0 +1,16 @@
+/* ── Login page ── */
+.login-page {
+  min-height: 100vh;
+  background: #0f0f0f;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
