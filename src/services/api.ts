@@ -11,6 +11,32 @@ export interface GenerateCaptionResponse {
   call_to_action?: string;
 }
 
+export interface GenerateAssetResponse {
+  caption?: string;
+  hashtags?: string[];
+  image_url?: string;
+}
+
+export const generateMarketAsset = async (
+  prompt: string,
+  business: string,
+  contentType: string,
+  outputFormat: string,
+  platforms: string[],
+  modelId: string
+) => {
+  return axios.post<GenerateAssetResponse>(`${API_URL}/generate`, {
+    prompt,
+    business,
+    content_type: contentType,
+    output_format: outputFormat,
+    platforms,
+    modelId,
+  }, {
+    headers: { "Content-Type": "application/json" },
+  });
+};
+
 export const generateCaption = async (
   prompt: string,
   business: string,
@@ -52,7 +78,9 @@ export const generateImage = async (payload: {
 export interface HistoryItem {
   action_id: string;
   input_value?: string;
+  prompt?: string;
   caption?: string;
+  image_url?: string;
   created_at: string;
   business?: string;
   content_type?: string;
