@@ -1,0 +1,262 @@
+/* ── Dashboard layout ── */
+.dashboard-page {
+  height: 100vh;
+  background: #0d0d0f;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.dashboard-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 32px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: #111;
+  z-index: 10;
+  flex-shrink: 0;
+}
+.dashboard-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Panels ── */
+.panel-left {
+  width: 67%;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid #2a2a35;
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+}
+.panel-right {
+  flex: 1;
+  background: #0d0d0f;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* ── Card ── */
+.card {
+  background: #141418;
+  border: 0.5px solid #2a2a35;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Labels ── */
+.label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #888;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 8px;
+}
+.sub-label {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #888;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* ── Content type / format tiles ── */
+.tile-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tile {
+  background: #0d0d0f;
+  border: 0.5px solid #2a2a35;
+  border-radius: 8px;
+  padding: 12px 8px;
+  cursor: pointer;
+  text-align: center;
+  flex: 0 0 calc(20% - 5px);
+  box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+.tile:hover { border-color: #7c6df0; }
+.tile.selected { background: #1a1730; border-color: #7c6df0; }
+.tile.disabled { cursor: not-allowed; opacity: 0.5; }
+.tile-icon { font-size: 20px; color: #555; display: block; margin-bottom: 4px; }
+.tile-icon.active { color: #7c6df0; }
+.tile-name { font-size: 12px; font-weight: 600; color: #e0dcf8; line-height: 1.3; margin-bottom: 2px; }
+.tile-desc { font-size: 10px; color: #666; line-height: 1.4; }
+.tile-soon {
+  position: absolute; top: 4px; right: 4px;
+  background: #2a2a35; color: #666;
+  font-size: 8px; padding: 1px 4px;
+  border-radius: 3px; line-height: 1.5;
+}
+
+/* ── Input tabs ── */
+.tab-bar { display: flex; gap: 6px; margin-bottom: 10px; }
+.tab-btn {
+  background: #1e1e2e;
+  border: 0.5px solid #3a3a4a;
+  border-radius: 8px;
+  padding: 7px 14px;
+  color: #aaa;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  outline: none;
+  font-family: inherit;
+  flex: 1;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.tab-btn:hover { border-color: #7c6df0; color: #c4bef8; background: #1a1730; }
+.tab-btn.active { background: #2d2460; border-color: #7c6df0; color: #e0dcf8; }
+.tab-icon { font-size: 14px; color: #7c6df0; }
+
+/* ── Textarea / Input ── */
+.prompt-textarea,
+.url-input {
+  background: #0d0d0f;
+  border: 0.5px solid #3a3a4a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #e0dcf8;
+  font-size: 13px;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  outline: none;
+  display: block;
+  transition: border-color 0.15s;
+}
+.prompt-textarea { min-height: 100px; resize: none; line-height: 1.6; }
+.prompt-textarea:focus,
+.url-input:focus { border-color: #7c6df0; }
+.prompt-textarea::placeholder,
+.url-input::placeholder { color: #555; }
+
+/* ── Upload drop zone ── */
+.upload-zone {
+  border: 0.5px dashed #3a3a4a;
+  border-radius: 8px;
+  padding: 28px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.upload-zone:hover { border-color: #7c6df0; }
+.upload-hint      { color: #555; font-size: 12px; }
+.upload-hint-sub  { color: #3a3a4a; font-size: 10px; }
+.upload-filename  { color: #a89cf0; font-size: 12px; }
+
+/* ── Social platform buttons ── */
+.platform-btn {
+  background: none;
+  border: 0.5px solid #2a2a35;
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #555;
+  font-size: 11px;
+  font-family: inherit;
+  transition: border-color 0.15s, color 0.15s;
+}
+.platform-btn.selected { border-color: #7c6df0; color: #e0dcf8; }
+
+/* ── Generate button ── */
+.generate-btn {
+  width: 100%;
+  background: #5a4fd0;
+  border: none;
+  border-radius: 8px;
+  padding: 11px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.generate-btn:disabled { background: #22203a; color: #5a4f90; cursor: not-allowed; }
+
+/* ── Result panel ── */
+.result-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  gap: 12px;
+}
+.result-empty-icon { font-size: 32px; color: #333; }
+.result-empty-text { color: #333; font-size: 12px; text-align: center; }
+.result-error {
+  background: #1a0808;
+  border: 0.5px solid #5c1a1a;
+  border-radius: 8px;
+  padding: 12px;
+}
+.hashtag-chip {
+  color: #7c6df0;
+  font-size: 12px;
+  background: rgba(124,109,240,0.1);
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 0.5px solid rgba(124,109,240,0.25);
+}
+
+/* ── History banner ── */
+.history-banner {
+  background: #1a1730;
+  border: 1px solid #7c6df0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.history-banner-close {
+  background: none;
+  border: none;
+  color: #a89cf0;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 0 0 8px;
+  line-height: 1;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .dashboard-body  { flex-direction: column; overflow: auto; }
+  .panel-left      { width: 100%; border-right: none; border-bottom: 1px solid #2a2a35; overflow-y: unset; }
+  .tile            { flex: 0 0 calc(33.33% - 5px); }
+  .tab-btn         { padding: 7px 8px; font-size: 11px; }
+  .dashboard-navbar { padding: 14px 16px; }
+}
