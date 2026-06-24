@@ -2,6 +2,10 @@ import json
 import os
 import boto3
 from boto3.dynamodb.conditions import Attr
+from auth import get_user
+from response import api_response
+from authorization import require_role
+
 
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table(os.environ['DYNAMO_TABLE'])
@@ -11,7 +15,9 @@ BUCKET = os.environ['S3_BUCKET']
 
 def lambda_handler(event, context):
     try:
-        user_id = "anonymous-user"
+        user = get_user(event)
+        print(f"User ID: {user}")
+        user_id = user['user_id']
 
         response = table.scan(FilterExpression=Attr('user_id').eq(user_id))
         items = response['Items']

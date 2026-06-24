@@ -1,6 +1,16 @@
 import axios from "axios";
+import { fetchAuthSession } from "aws-amplify/auth";
 
 const API_URL = "https://l9k0b4he7h.execute-api.us-east-2.amazonaws.com/dev";
+
+const api = axios.create({ baseURL: API_URL });
+
+api.interceptors.request.use(async (config) => {
+  const session = await fetchAuthSession();
+  const token = session.tokens?.idToken?.toString();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
 export interface GenerateCaptionResponse {
   caption?: string;
@@ -25,15 +35,13 @@ export const generateMarketAsset = async (
   platforms: string[],
   modelId: string
 ) => {
-  return axios.post<GenerateAssetResponse>(`${API_URL}/generate`, {
+  return api.post<GenerateAssetResponse>(`/generate`, {
     prompt,
     business,
     content_type: contentType,
     output_format: outputFormat,
     platforms,
     modelId,
-  }, {
-    headers: { "Content-Type": "application/json" },
   });
 };
 
@@ -44,14 +52,12 @@ export const generateCaption = async (
   platforms: string[],
   modelId: string
 ) => {
-  return axios.post<GenerateCaptionResponse>(`${API_URL}/generate`, {
+  return api.post<GenerateCaptionResponse>(`/generate`, {
     prompt,
     business,
     contentType,
     platforms,
     modelId: 'us.' + modelId,
-  }, {
-    headers: { "Content-Type": "application/json" },
   });
 };
 
@@ -68,9 +74,7 @@ export const generateImage = async (payload: {
   input_type: "text" | "website" | "image";
   input_value: string;
 }) => {
-  const res = await axios.post(`${API_URL}/image`, payload, {
-    headers: { "Content-Type": "application/json" },
-  });
+  const res = await api.post(`/image`, payload);
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return { data: data as GenerateImageResponse };
 };
@@ -96,14 +100,12 @@ export interface BedrockModel {
 }
 
 export const getModels = async (category: string): Promise<BedrockModel[]> => {
-  const res = await axios.get<BedrockModel[]>(`${API_URL}/models`, {
-    params: { category },
-  });
+  const res = await api.get<BedrockModel[]>(`/models`, { params: { category } });
   return Array.isArray(res.data) ? res.data : [];
 };
 
 export const getHistory = async (): Promise<HistoryItem[]> => {
-  const res = await axios.get(`${API_URL}/history`);
+  const res = await api.get(`/history`);
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return Array.isArray(data) ? data : [];
 };
