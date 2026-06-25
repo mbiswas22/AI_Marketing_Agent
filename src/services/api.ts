@@ -109,3 +109,38 @@ export const getHistory = async (): Promise<HistoryItem[]> => {
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return Array.isArray(data) ? data : [];
 };
+
+export interface User {
+  userId: string;
+  businessId: string;
+  email: string;
+  role: string;
+  displayName: string;
+  status: string;
+  createdAt: string;
+}
+
+export const getUsers = async (businessId: string): Promise<User[]> => {
+  const res = await api.get(`/users`, { params: { businessId } });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.users)) return data.users;
+  return [];
+};
+
+export const createUser = async (data: {
+  businessId: string;
+  email: string;
+  role: string;
+  displayName: string;
+}): Promise<User> => {
+  const res = await api.post(`/users`, data);
+  return res.data;
+};
+
+export const deleteUser = async (
+  businessId: string,
+  userId: string
+): Promise<void> => {
+  await api.delete(`/users/${userId}`, { data: { businessId } });
+};
