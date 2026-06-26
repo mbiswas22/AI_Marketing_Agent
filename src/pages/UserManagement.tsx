@@ -10,7 +10,6 @@ import {
   TableRow,
   TableCell,
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
@@ -22,6 +21,8 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import PeopleIcon from "@mui/icons-material/People";
@@ -71,6 +72,9 @@ function validateEmail(email: string) {
 
 export default function UserManagement() {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -272,15 +276,69 @@ export default function UserManagement() {
           <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
             <CircularProgress sx={{ color: "#7c6df0" }} />
           </Box>
+        ) : users.length === 0 ? (
+          <Box sx={{ border: "0.5px solid #2a2a35", borderRadius: "10px", p: 4, textAlign: "center" }}>
+            <Typography sx={{ color: "#555", fontSize: 13 }}>No users found.</Typography>
+          </Box>
+        ) : isMobile ? (
+          /* ── Mobile: card list ── */
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            {users.map((user) => (
+              <Box
+                key={user.userId}
+                sx={{
+                  border: "0.5px solid #2a2a35",
+                  borderRadius: "10px",
+                  bgcolor: "#111118",
+                  p: 2,
+                  "&:hover": { borderColor: "rgba(124,109,240,0.4)" },
+                }}
+              >
+                {/* Name + actions row */}
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                  <Box>
+                    <Typography sx={{ color: "#e0dcf8", fontSize: 14, fontWeight: 600 }}>{user.displayName}</Typography>
+                    <Typography sx={{ color: "#8090a8", fontSize: 12, mt: 0.3 }}>{user.email}</Typography>
+                  </Box>
+                  <Box sx={{ display: "flex", gap: 0.5 }}>
+                    <IconButton size="small" onClick={() => openEditDialog(user)}
+                      sx={{ color: "#7c6df0", "&:hover": { bgcolor: "rgba(124,109,240,0.12)" } }}>
+                      <EditOutlinedIcon sx={{ fontSize: 17 }} />
+                    </IconButton>
+                    <IconButton size="small" onClick={() => handleDelete(user.userId)} disabled={deletingId === user.userId}
+                      sx={{ color: "#ef4444", "&:hover": { bgcolor: "rgba(239,68,68,0.1)" }, "&.Mui-disabled": { color: "#5a2020" } }}>
+                      {deletingId === user.userId
+                        ? <CircularProgress size={14} sx={{ color: "#ef4444" }} />
+                        : <DeleteOutlineIcon sx={{ fontSize: 17 }} />}
+                    </IconButton>
+                  </Box>
+                </Box>
+                {/* Badges + date row */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                  <Box sx={{
+                    px: "8px", py: "2px", borderRadius: "20px", fontSize: 11, fontWeight: 600,
+                    bgcolor: user.role === "ADMIN" ? "rgba(139,92,246,0.15)" : "rgba(124,109,240,0.1)",
+                    color: user.role === "ADMIN" ? "#a78bfa" : "#7c6df0",
+                    border: `0.5px solid ${user.role === "ADMIN" ? "rgba(139,92,246,0.3)" : "rgba(124,109,240,0.25)"}`,
+                  }}>{user.role}</Box>
+                  <Box sx={{
+                    px: "8px", py: "2px", borderRadius: "20px", fontSize: 11, fontWeight: 600,
+                    bgcolor: user.status === "ACTIVE" ? "rgba(34,197,94,0.1)" : "rgba(100,116,139,0.1)",
+                    color: user.status === "ACTIVE" ? "#22c55e" : "#64748b",
+                    border: `0.5px solid ${user.status === "ACTIVE" ? "rgba(34,197,94,0.25)" : "rgba(100,116,139,0.25)"}`,
+                  }}>{user.status}</Box>
+                  <Typography sx={{ color: "#6070a0", fontSize: 11, ml: "auto" }}>
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </Typography>
+                </Box>
+              </Box>
+            ))}
+          </Box>
         ) : (
-          <Box
-            sx={{
-              border: "0.5px solid #2a2a35",
-              borderRadius: "10px",
-              overflow: "hidden",
-            }}
-          >
-            <Table>
+          /* ── Tablet / Desktop: table ── */
+          <Box sx={{ border: "0.5px solid #2a2a35", borderRadius: "10px", overflow: "hidden" }}>
+            <Box sx={{ overflowX: "auto" }}>
+            <Table sx={{ minWidth: isTablet ? 500 : 650 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: "#141418" }}>
                   {[
@@ -288,168 +346,70 @@ export default function UserManagement() {
                     "Email",
                     "Role",
                     "Status",
-                    "Created At",
+                    ...(!isTablet ? ["Created At"] : []),
                     "Actions",
                   ].map((h) => (
-                    <TableCell
-                      key={h}
-                      sx={{
-                        color: "#c0c0d8",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                        borderBottom: "0.5px solid #2a2a35",
-                        py: 1.5,
-                      }}
-                    >
+                    <TableCell key={h} sx={{ color: "#c0c0d8", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "0.5px solid #2a2a35", py: 1.5, whiteSpace: "nowrap" }}>
                       {h}
                     </TableCell>
                   ))}
                 </TableRow>
               </TableHead>
               <TableBody>
-                {users.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      sx={{
-                        color: "#555",
-                        fontSize: 13,
-                        textAlign: "center",
-                        py: 4,
-                        borderBottom: "none",
-                      }}
-                    >
-                      No users found.
+                {users.map((user) => (
+                  <TableRow key={user.userId}
+                    sx={{ "&:hover": { bgcolor: "rgba(124,109,240,0.04)" }, "&:last-child td": { borderBottom: "none" } }}
+                  >
+                    <TableCell sx={{ color: "#e0dcf8", fontSize: 13, borderBottom: "0.5px solid #1e1e2e", whiteSpace: "nowrap" }}>
+                      {user.displayName}
                     </TableCell>
-                  </TableRow>
-                ) : (
-                  users.map((user) => (
-                    <TableRow
-                      key={user.userId}
-                      sx={{
-                        "&:hover": { bgcolor: "rgba(124,109,240,0.04)" },
-                        "&:last-child td": { borderBottom: "none" },
-                      }}
-                    >
-                      <TableCell
-                        sx={{
-                          color: "#e0dcf8",
-                          fontSize: 13,
-                          borderBottom: "0.5px solid #1e1e2e",
-                        }}
-                      >
-                        {user.displayName}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: "#c8d0e0",
-                          fontSize: 13,
-                          borderBottom: "0.5px solid #1e1e2e",
-                        }}
-                      >
-                        {user.email}
-                      </TableCell>
-                      <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
-                        <Box
-                          sx={{
-                            display: "inline-block",
-                            px: "10px",
-                            py: "2px",
-                            borderRadius: "20px",
-                            fontSize: 11,
-                            fontWeight: 600,
-                            bgcolor:
-                              user.role === "ADMIN"
-                                ? "rgba(139,92,246,0.15)"
-                                : "rgba(124,109,240,0.1)",
-                            color:
-                              user.role === "ADMIN" ? "#a78bfa" : "#7c6df0",
-                            border: `0.5px solid ${user.role === "ADMIN" ? "rgba(139,92,246,0.3)" : "rgba(124,109,240,0.25)"}`,
-                          }}
-                        >
-                          {user.role}
-                        </Box>
-                      </TableCell>
-                      <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
-                        <Box
-                          sx={{
-                            display: "inline-block",
-                            px: "10px",
-                            py: "2px",
-                            borderRadius: "20px",
-                            fontSize: 11,
-                            fontWeight: 600,
-                            bgcolor:
-                              user.status === "ACTIVE"
-                                ? "rgba(34,197,94,0.1)"
-                                : "rgba(100,116,139,0.1)",
-                            color:
-                              user.status === "ACTIVE" ? "#22c55e" : "#64748b",
-                            border: `0.5px solid ${user.status === "ACTIVE" ? "rgba(34,197,94,0.25)" : "rgba(100,116,139,0.25)"}`,
-                          }}
-                        >
-                          {user.status}
-                        </Box>
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: "#a0b0c8",
-                          fontSize: 12,
-                          borderBottom: "0.5px solid #1e1e2e",
-                        }}
-                      >
+                    <TableCell sx={{ color: "#c8d0e0", fontSize: 13, borderBottom: "0.5px solid #1e1e2e", maxWidth: isTablet ? 140 : "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {user.email}
+                    </TableCell>
+                    <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
+                      <Box sx={{
+                        display: "inline-block", px: "10px", py: "2px", borderRadius: "20px", fontSize: 11, fontWeight: 600,
+                        bgcolor: user.role === "ADMIN" ? "rgba(139,92,246,0.15)" : "rgba(124,109,240,0.1)",
+                        color: user.role === "ADMIN" ? "#a78bfa" : "#7c6df0",
+                        border: `0.5px solid ${user.role === "ADMIN" ? "rgba(139,92,246,0.3)" : "rgba(124,109,240,0.25)"}`,
+                      }}>{user.role}</Box>
+                    </TableCell>
+                    <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
+                      <Box sx={{
+                        display: "inline-block", px: "10px", py: "2px", borderRadius: "20px", fontSize: 11, fontWeight: 600,
+                        bgcolor: user.status === "ACTIVE" ? "rgba(34,197,94,0.1)" : "rgba(100,116,139,0.1)",
+                        color: user.status === "ACTIVE" ? "#22c55e" : "#64748b",
+                        border: `0.5px solid ${user.status === "ACTIVE" ? "rgba(34,197,94,0.25)" : "rgba(100,116,139,0.25)"}`,
+                      }}>{user.status}</Box>
+                    </TableCell>
+                    {!isTablet && (
+                      <TableCell sx={{ color: "#a0b0c8", fontSize: 12, borderBottom: "0.5px solid #1e1e2e", whiteSpace: "nowrap" }}>
                         {new Date(user.createdAt).toLocaleDateString()}
                       </TableCell>
-                      <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
-                        <Box sx={{ display: "flex", gap: 0.5 }}>
-                          <Tooltip title="Edit user" placement="top">
-                            <IconButton
-                              size="small"
-                              onClick={() => openEditDialog(user)}
-                              sx={{
-                                color: "#7c6df0",
-                                "&:hover": {
-                                  bgcolor: "rgba(124,109,240,0.12)",
-                                  color: "#a89cf0",
-                                },
-                              }}
-                            >
-                              <EditOutlinedIcon sx={{ fontSize: 17 }} />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete user" placement="top">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleDelete(user.userId)}
-                              disabled={deletingId === user.userId}
-                              sx={{
-                                color: "#ef4444",
-                                "&:hover": {
-                                  bgcolor: "rgba(239,68,68,0.1)",
-                                  color: "#f87171",
-                                },
-                                "&.Mui-disabled": { color: "#5a2020" },
-                              }}
-                            >
-                              {deletingId === user.userId ? (
-                                <CircularProgress
-                                  size={14}
-                                  sx={{ color: "#ef4444" }}
-                                />
-                              ) : (
-                                <DeleteOutlineIcon sx={{ fontSize: 17 }} />
-                              )}
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                    )}
+                    <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
+                      <Box sx={{ display: "flex", gap: 0.5 }}>
+                        <Tooltip title="Edit user" placement="top">
+                          <IconButton size="small" onClick={() => openEditDialog(user)}
+                            sx={{ color: "#7c6df0", "&:hover": { bgcolor: "rgba(124,109,240,0.12)", color: "#a89cf0" } }}>
+                            <EditOutlinedIcon sx={{ fontSize: 17 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete user" placement="top">
+                          <IconButton size="small" onClick={() => handleDelete(user.userId)} disabled={deletingId === user.userId}
+                            sx={{ color: "#ef4444", "&:hover": { bgcolor: "rgba(239,68,68,0.1)", color: "#f87171" }, "&.Mui-disabled": { color: "#5a2020" } }}>
+                            {deletingId === user.userId
+                              ? <CircularProgress size={14} sx={{ color: "#ef4444" }} />
+                              : <DeleteOutlineIcon sx={{ fontSize: 17 }} />}
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
+            </Box>
           </Box>
         )}
       </Box>
