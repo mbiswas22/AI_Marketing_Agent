@@ -301,7 +301,7 @@ export default function Dashboard() {
               onClick={() => navigate("/users")}
               startIcon={<PeopleIcon />}
               sx={{
-                color: "#64748b",
+                color: "#a78bfa",
                 textTransform: "none",
                 fontSize: 14,
                 "&:hover": { color: "#fff" },

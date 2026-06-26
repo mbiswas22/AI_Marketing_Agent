@@ -19,41 +19,55 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
+  IconButton,
+  Tooltip,
+  Divider,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import PeopleIcon from "@mui/icons-material/People";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { getUsers, createUser, deleteUser } from "../services/api";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
+import { getUsers, createUser, deleteUser, updateUser } from "../services/api";
 import type { User } from "../services/api";
 
 const HARDCODED_BUSINESS_ID = "BUS001";
 
-const darkInputSx = {
-  "& .MuiOutlinedInput-root": {
-    bgcolor: "#0d0d0f",
-    borderRadius: "8px",
-    "& fieldset": { borderColor: "#3a3a4a", borderWidth: "0.5px" },
-    "&:hover fieldset": { borderColor: "#7c6df0" },
-    "&.Mui-focused fieldset": { borderColor: "#7c6df0" },
-    "& input": { color: "#e0dcf8", fontSize: 13 },
+const fieldInputSx = (hasError: boolean) => ({
+  bgcolor: "#a78bfa",
+  borderRadius: "10px",
+  "& fieldset": {
+    borderColor: hasError ? "#ef4444" : "#383850",
+    borderWidth: "1px",
   },
-  "& .MuiInputLabel-root": { color: "#666", fontSize: 13 },
-  "& .MuiInputLabel-root.Mui-focused": { color: "#7c6df0" },
-};
+  "&:hover fieldset": { borderColor: hasError ? "#f87171" : "#7c6df0" },
+  "&.Mui-focused fieldset": {
+    borderColor: hasError ? "#ef4444" : "#7c6df0",
+    borderWidth: "1.5px",
+  },
+  "& input": { color: "#ffffff", fontSize: 14, py: "13px", px: "14px" },
+  "& input::placeholder": { color: "#7070a0", opacity: 1 },
+  "& .MuiSelect-select": {
+    color: "#ffffff",
+    fontSize: 14,
+    py: "13px",
+    px: "14px",
+  },
+  "& .MuiSvgIcon-root": { color: "#9090c0" },
+});
 
-const darkSelectSx = {
-  bgcolor: "#0d0d0f",
-  borderRadius: "8px",
-  color: "#e0dcf8",
-  fontSize: 13,
-  "& .MuiOutlinedInput-notchedOutline": {
-    borderColor: "#3a3a4a",
-    borderWidth: "0.5px",
-  },
-  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
-  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
-  "& .MuiSvgIcon-root": { color: "#888" },
+const emptyForm = {
+  email: "",
+  displayName: "",
+  role: "VIEWER",
+  businessId: HARDCODED_BUSINESS_ID,
 };
+const emptyErrors = { email: "", displayName: "", businessId: "" };
+
+function validateEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 export default function UserManagement() {
   const navigate = useNavigate();
@@ -61,15 +75,11 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const [form, setForm] = useState({
-    email: "",
-    displayName: "",
-    role: "VIEWER",
-    businessId: HARDCODED_BUSINESS_ID,
-  });
+  const [form, setForm] = useState(emptyForm);
+  const [fieldErrors, setFieldErrors] = useState(emptyErrors);
 
   useEffect(() => {
     fetchUsers();
@@ -79,8 +89,7 @@ export default function UserManagement() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getUsers(HARDCODED_BUSINESS_ID);
-      setUsers(data);
+      setUsers(await getUsers(HARDCODED_BUSINESS_ID));
     } catch {
       setError("Failed to load users.");
     } finally {
@@ -88,20 +97,62 @@ export default function UserManagement() {
     }
   };
 
-  const handleOpenDialog = () => {
-    setForm({ email: "", displayName: "", role: "VIEWER", businessId: HARDCODED_BUSINESS_ID });
+  const openAddDialog = () => {
+    setEditingUser(null);
+    setForm(emptyForm);
+    setFieldErrors(emptyErrors);
     setDialogOpen(true);
   };
 
-  const handleCreate = async () => {
-    if (!form.email || !form.displayName || !form.businessId) return;
+  const openEditDialog = (user: User) => {
+    setEditingUser(user);
+    setForm({
+      email: user.email,
+      displayName: user.displayName,
+      role: user.role,
+      businessId: user.businessId,
+    });
+    setFieldErrors(emptyErrors);
+    setDialogOpen(true);
+  };
+
+  const validate = () => {
+    const errors = { email: "", displayName: "", businessId: "" };
+    let valid = true;
+    if (!form.email.trim()) {
+      errors.email = "Email is required.";
+      valid = false;
+    } else if (!validateEmail(form.email)) {
+      errors.email = "Enter a valid email address.";
+      valid = false;
+    }
+    if (!form.displayName.trim()) {
+      errors.displayName = "Display name is required.";
+      valid = false;
+    }
+    if (!form.businessId.trim()) {
+      errors.businessId = "Business ID is required.";
+      valid = false;
+    }
+    setFieldErrors(errors);
+    return valid;
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
     setSubmitting(true);
     try {
-      await createUser(form);
+      if (editingUser) {
+        await updateUser(editingUser.userId, form);
+      } else {
+        await createUser(form);
+      }
       setDialogOpen(false);
       await fetchUsers();
     } catch {
-      setError("Failed to create user.");
+      setError(
+        editingUser ? "Failed to update user." : "Failed to create user.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -119,8 +170,21 @@ export default function UserManagement() {
     }
   };
 
+  const handleFieldChange = (field: keyof typeof form, value: string) => {
+    setForm((p) => ({ ...p, [field]: value }));
+    if (fieldErrors[field as keyof typeof fieldErrors])
+      setFieldErrors((p) => ({ ...p, [field]: "" }));
+  };
+
   return (
-    <Box sx={{ height: "100vh", bgcolor: "#0d0d0f", display: "flex", flexDirection: "column" }}>
+    <Box
+      sx={{
+        height: "100vh",
+        bgcolor: "#0d0d0f",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       {/* Navbar */}
       <Box
         sx={{
@@ -143,7 +207,12 @@ export default function UserManagement() {
         <Button
           onClick={() => navigate("/dashboard")}
           startIcon={<ArrowBackIcon />}
-          sx={{ color: "#64748b", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}
+          sx={{
+            color: "#a0aec0",
+            textTransform: "none",
+            fontSize: 14,
+            "&:hover": { color: "#fff" },
+          }}
         >
           Dashboard
         </Button>
@@ -151,16 +220,26 @@ export default function UserManagement() {
 
       {/* Content */}
       <Box sx={{ flex: 1, overflowY: "auto", p: { xs: 2, sm: 3, md: 4 } }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: 3,
+          }}
+        >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <PeopleIcon sx={{ color: "#7c6df0", fontSize: 24 }} />
-            <Typography sx={{ color: "#f0eeff", fontSize: 20, fontWeight: 600 }}>
+            <Typography
+              sx={{ color: "#f0eeff", fontSize: 20, fontWeight: 600 }}
+            >
               User Management
             </Typography>
           </Box>
           <Button
             variant="contained"
-            onClick={handleOpenDialog}
+            onClick={openAddDialog}
+            startIcon={<PersonAddAltIcon sx={{ fontSize: 16 }} />}
             sx={{
               bgcolor: "#5a4fd0",
               textTransform: "none",
@@ -169,13 +248,23 @@ export default function UserManagement() {
               "&:hover": { bgcolor: "#6b5fe0" },
             }}
           >
-            + Add User
+            Add User
           </Button>
         </Box>
 
         {error && (
-          <Box sx={{ bgcolor: "#1a0808", border: "0.5px solid #5c1a1a", borderRadius: "8px", p: "12px", mb: 2 }}>
-            <Typography sx={{ color: "#ef4444", fontSize: 13 }}>{error}</Typography>
+          <Box
+            sx={{
+              bgcolor: "#1a0808",
+              border: "0.5px solid #5c1a1a",
+              borderRadius: "8px",
+              p: "12px",
+              mb: 2,
+            }}
+          >
+            <Typography sx={{ color: "#ef4444", fontSize: 13 }}>
+              {error}
+            </Typography>
           </Box>
         )}
 
@@ -194,10 +283,25 @@ export default function UserManagement() {
             <Table>
               <TableHead>
                 <TableRow sx={{ bgcolor: "#141418" }}>
-                  {["Display Name", "Email", "Role", "Status", "Created At", ""].map((h) => (
+                  {[
+                    "Display Name",
+                    "Email",
+                    "Role",
+                    "Status",
+                    "Created At",
+                    "Actions",
+                  ].map((h) => (
                     <TableCell
                       key={h}
-                      sx={{ color: "#888", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "0.5px solid #2a2a35", py: 1.5 }}
+                      sx={{
+                        color: "#c0c0d8",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        borderBottom: "0.5px solid #2a2a35",
+                        py: 1.5,
+                      }}
                     >
                       {h}
                     </TableCell>
@@ -207,7 +311,16 @@ export default function UserManagement() {
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} sx={{ color: "#555", fontSize: 13, textAlign: "center", py: 4, borderBottom: "none" }}>
+                    <TableCell
+                      colSpan={6}
+                      sx={{
+                        color: "#555",
+                        fontSize: 13,
+                        textAlign: "center",
+                        py: 4,
+                        borderBottom: "none",
+                      }}
+                    >
                       No users found.
                     </TableCell>
                   </TableRow>
@@ -215,12 +328,27 @@ export default function UserManagement() {
                   users.map((user) => (
                     <TableRow
                       key={user.userId}
-                      sx={{ "&:hover": { bgcolor: "rgba(124,109,240,0.04)" }, "&:last-child td": { borderBottom: "none" } }}
+                      sx={{
+                        "&:hover": { bgcolor: "rgba(124,109,240,0.04)" },
+                        "&:last-child td": { borderBottom: "none" },
+                      }}
                     >
-                      <TableCell sx={{ color: "#e0dcf8", fontSize: 13, borderBottom: "0.5px solid #1e1e2e" }}>
+                      <TableCell
+                        sx={{
+                          color: "#e0dcf8",
+                          fontSize: 13,
+                          borderBottom: "0.5px solid #1e1e2e",
+                        }}
+                      >
                         {user.displayName}
                       </TableCell>
-                      <TableCell sx={{ color: "#a0aec0", fontSize: 13, borderBottom: "0.5px solid #1e1e2e" }}>
+                      <TableCell
+                        sx={{
+                          color: "#c8d0e0",
+                          fontSize: 13,
+                          borderBottom: "0.5px solid #1e1e2e",
+                        }}
+                      >
                         {user.email}
                       </TableCell>
                       <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
@@ -232,8 +360,12 @@ export default function UserManagement() {
                             borderRadius: "20px",
                             fontSize: 11,
                             fontWeight: 600,
-                            bgcolor: user.role === "ADMIN" ? "rgba(139,92,246,0.15)" : "rgba(124,109,240,0.1)",
-                            color: user.role === "ADMIN" ? "#a78bfa" : "#7c6df0",
+                            bgcolor:
+                              user.role === "ADMIN"
+                                ? "rgba(139,92,246,0.15)"
+                                : "rgba(124,109,240,0.1)",
+                            color:
+                              user.role === "ADMIN" ? "#a78bfa" : "#7c6df0",
                             border: `0.5px solid ${user.role === "ADMIN" ? "rgba(139,92,246,0.3)" : "rgba(124,109,240,0.25)"}`,
                           }}
                         >
@@ -249,34 +381,69 @@ export default function UserManagement() {
                             borderRadius: "20px",
                             fontSize: 11,
                             fontWeight: 600,
-                            bgcolor: user.status === "ACTIVE" ? "rgba(34,197,94,0.1)" : "rgba(100,116,139,0.1)",
-                            color: user.status === "ACTIVE" ? "#22c55e" : "#64748b",
+                            bgcolor:
+                              user.status === "ACTIVE"
+                                ? "rgba(34,197,94,0.1)"
+                                : "rgba(100,116,139,0.1)",
+                            color:
+                              user.status === "ACTIVE" ? "#22c55e" : "#64748b",
                             border: `0.5px solid ${user.status === "ACTIVE" ? "rgba(34,197,94,0.25)" : "rgba(100,116,139,0.25)"}`,
                           }}
                         >
                           {user.status}
                         </Box>
                       </TableCell>
-                      <TableCell sx={{ color: "#64748b", fontSize: 12, borderBottom: "0.5px solid #1e1e2e" }}>
+                      <TableCell
+                        sx={{
+                          color: "#a0b0c8",
+                          fontSize: 12,
+                          borderBottom: "0.5px solid #1e1e2e",
+                        }}
+                      >
                         {new Date(user.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
-                        <Button
-                          size="small"
-                          onClick={() => handleDelete(user.userId)}
-                          disabled={deletingId === user.userId}
-                          sx={{
-                            color: "#ef4444",
-                            textTransform: "none",
-                            fontSize: 12,
-                            minWidth: "auto",
-                            px: 1.5,
-                            borderRadius: "6px",
-                            "&:hover": { bgcolor: "rgba(239,68,68,0.08)" },
-                          }}
-                        >
-                          {deletingId === user.userId ? <CircularProgress size={12} sx={{ color: "#ef4444" }} /> : "Delete"}
-                        </Button>
+                        <Box sx={{ display: "flex", gap: 0.5 }}>
+                          <Tooltip title="Edit user" placement="top">
+                            <IconButton
+                              size="small"
+                              onClick={() => openEditDialog(user)}
+                              sx={{
+                                color: "#7c6df0",
+                                "&:hover": {
+                                  bgcolor: "rgba(124,109,240,0.12)",
+                                  color: "#a89cf0",
+                                },
+                              }}
+                            >
+                              <EditOutlinedIcon sx={{ fontSize: 17 }} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete user" placement="top">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDelete(user.userId)}
+                              disabled={deletingId === user.userId}
+                              sx={{
+                                color: "#ef4444",
+                                "&:hover": {
+                                  bgcolor: "rgba(239,68,68,0.1)",
+                                  color: "#f87171",
+                                },
+                                "&.Mui-disabled": { color: "#5a2020" },
+                              }}
+                            >
+                              {deletingId === user.userId ? (
+                                <CircularProgress
+                                  size={14}
+                                  sx={{ color: "#ef4444" }}
+                                />
+                              ) : (
+                                <DeleteOutlineIcon sx={{ fontSize: 17 }} />
+                              )}
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))
@@ -287,81 +454,249 @@ export default function UserManagement() {
         )}
       </Box>
 
-      {/* Add User Dialog */}
+      {/* Add / Edit User Dialog */}
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
         PaperProps={{
-          sx: { bgcolor: "#141418", border: "0.5px solid #2a2a35", borderRadius: "12px", minWidth: 400 },
+          sx: {
+            bgcolor: "#1a1a24",
+            border: "1px solid #32324a",
+            borderRadius: "16px",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.7)",
+            mx: { xs: 2, sm: 3 },
+            width: { xs: "calc(100% - 32px)", sm: "100%" },
+          },
         }}
       >
-        <DialogTitle sx={{ color: "#f0eeff", fontSize: 16, fontWeight: 600, pb: 1 }}>
-          Add User
-        </DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "8px !important" }}>
-          <TextField
-            label="Email"
-            type="email"
-            fullWidth
-            size="small"
-            value={form.email}
-            onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-            sx={darkInputSx}
-          />
-          <TextField
-            label="Display Name"
-            fullWidth
-            size="small"
-            value={form.displayName}
-            onChange={(e) => setForm((p) => ({ ...p, displayName: e.target.value }))}
-            sx={darkInputSx}
-          />
-          <FormControl fullWidth size="small">
-            <InputLabel sx={{ color: "#666", fontSize: 13, "&.Mui-focused": { color: "#7c6df0" } }}>
-              Role
-            </InputLabel>
-            <Select
-              label="Role"
-              value={form.role}
-              onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
-              sx={darkSelectSx}
-              MenuProps={{ PaperProps: { sx: { bgcolor: "#141418", border: "0.5px solid #2a2a35", color: "#e0dcf8" } } } as any}
+        {/* Dialog Header */}
+        <Box
+          sx={{
+            px: { xs: 3, sm: 4 },
+            pt: 3.5,
+            pb: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+          }}
+        >
+          <Box
+            sx={{
+              bgcolor: "rgba(124,109,240,0.18)",
+              borderRadius: "12px",
+              p: "10px",
+              display: "flex",
+              border: "1px solid rgba(124,109,240,0.25)",
+            }}
+          >
+            {editingUser ? (
+              <EditOutlinedIcon sx={{ color: "#5140d0", fontSize: 22 }} />
+            ) : (
+              <PersonAddAltIcon sx={{ color: "#5140d0", fontSize: 22 }} />
+            )}
+          </Box>
+          <Box>
+            <Typography
+              sx={{
+                color: "#5140d0",
+                fontSize: 17,
+                fontWeight: 700,
+                lineHeight: 1.3,
+              }}
             >
-              <MenuItem value="VIEWER" sx={{ fontSize: 13, "&:hover": { bgcolor: "rgba(124,109,240,0.1)" } }}>VIEWER</MenuItem>
-              <MenuItem value="EDITOR" sx={{ fontSize: 13, "&:hover": { bgcolor: "rgba(124,109,240,0.1)" } }}>EDITOR</MenuItem>
-              <MenuItem value="ADMIN" disabled sx={{ fontSize: 13, color: "#555" }}>ADMIN</MenuItem>
+              {editingUser ? "Edit User" : "Add New User"}
+            </Typography>
+            <Typography sx={{ color: "#a0a0c8", fontSize: 12.5, mt: 0.3 }}>
+              {editingUser
+                ? `Editing: ${editingUser.email}`
+                : "Enter the details for the new team member."}
+            </Typography>
+          </Box>
+        </Box>
+
+        <Divider sx={{ borderColor: "#2e2e42" }} />
+
+        <DialogContent
+          sx={{ px: { xs: 3, sm: 4 }, pt: "24px !important", pb: 2 }}
+        >
+          {/* Email */}
+          <Box sx={{ mb: 2.5 }}>
+            <Typography
+              sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}
+            >
+              Email Address
+            </Typography>
+            <TextField
+              type="email"
+              fullWidth
+              placeholder="user@example.com"
+              value={form.email}
+              onChange={(e) => handleFieldChange("email", e.target.value)}
+              error={!!fieldErrors.email}
+              InputProps={{ sx: fieldInputSx(!!fieldErrors.email) }}
+              InputLabelProps={{ shrink: false }}
+              sx={{
+                "& .MuiInputLabel-root": { display: "none" },
+                "& .MuiFormHelperText-root": {
+                  color: "#ef4444",
+                  fontSize: 12,
+                  mx: 0,
+                  mt: 0.6,
+                },
+              }}
+              helperText={fieldErrors.email}
+            />
+          </Box>
+          {/* Display Name */}
+          <Box sx={{ mb: 2.5 }}>
+            <Typography
+              sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}
+            >
+              Display Name
+            </Typography>
+            <TextField
+              fullWidth
+              placeholder="e.g. Jane Smith"
+              value={form.displayName}
+              onChange={(e) => handleFieldChange("displayName", e.target.value)}
+              error={!!fieldErrors.displayName}
+              InputProps={{ sx: fieldInputSx(!!fieldErrors.displayName) }}
+              InputLabelProps={{ shrink: false }}
+              sx={{
+                "& .MuiInputLabel-root": { display: "none" },
+                "& .MuiFormHelperText-root": {
+                  color: "#ef4444",
+                  fontSize: 12,
+                  mx: 0,
+                  mt: 0.6,
+                },
+              }}
+              helperText={fieldErrors.displayName}
+            />
+          </Box>
+          {/* Role */}
+          <Box sx={{ mb: 2.5 }}>
+            <Typography
+              sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}
+            >
+              Role
+            </Typography>
+            <Select
+              fullWidth
+              value={form.role}
+              onChange={(e) => handleFieldChange("role", e.target.value)}
+              displayEmpty
+              sx={fieldInputSx(false)}
+              MenuProps={
+                {
+                  PaperProps: {
+                    sx: {
+                      bgcolor: "#13131e",
+                      border: "1px solid #383850",
+                      borderRadius: "10px",
+                      color: "#f0eeff",
+                      mt: 0.5,
+                      "& .MuiMenuItem-root": {
+                        fontSize: 14,
+                        py: 1.2,
+                        "&:hover": { bgcolor: "rgba(124,109,240,0.12)" },
+                      },
+                      "& .Mui-selected": {
+                        bgcolor: "rgba(124,109,240,0.18) !important",
+                      },
+                    },
+                  },
+                } as any
+              }
+            >
+              <MenuItem value="VIEWER">VIEWER</MenuItem>
+              <MenuItem value="EDITOR">EDITOR</MenuItem>
+              <MenuItem value="ADMIN" disabled sx={{ color: "#4a4a6a" }}>
+                ADMIN (restricted)
+              </MenuItem>
             </Select>
-          </FormControl>
-          <TextField
-            label="Business ID"
-            fullWidth
-            size="small"
-            value={form.businessId}
-            onChange={(e) => setForm((p) => ({ ...p, businessId: e.target.value }))}
-            sx={darkInputSx}
-          />
+          </Box>
+          {/* Business ID */}
+          <Box sx={{ mb: 1 }}>
+            <Typography
+              sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}
+            >
+              Business ID
+            </Typography>
+            <TextField
+              fullWidth
+              placeholder="e.g. BUS001"
+              value={form.businessId}
+              onChange={(e) => handleFieldChange("businessId", e.target.value)}
+              error={!!fieldErrors.businessId}
+              InputProps={{ sx: fieldInputSx(!!fieldErrors.businessId) }}
+              InputLabelProps={{ shrink: false }}
+              sx={{
+                "& .MuiInputLabel-root": { display: "none" },
+                "& .MuiFormHelperText-root": {
+                  color: "#ef4444",
+                  fontSize: 12,
+                  mx: 0,
+                  mt: 0.6,
+                },
+              }}
+              helperText={fieldErrors.businessId}
+            />
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+
+        <Divider sx={{ borderColor: "#2e2e42" }} />
+
+        <DialogActions sx={{ px: { xs: 3, sm: 4 }, py: 2.5, gap: 1.5 }}>
           <Button
             onClick={() => setDialogOpen(false)}
-            sx={{ color: "#64748b", textTransform: "none", fontSize: 13 }}
+            sx={{
+              color: "#7070a0",
+              textTransform: "none",
+              fontSize: 14,
+              borderRadius: "10px",
+              px: 2.5,
+              border: "1px solid #44445a",
+              "&:hover": {
+                bgcolor: "rgba(255,255,255,0.06)",
+                borderColor: "#7070a0",
+                color: "#070707",
+              },
+            }}
           >
             Cancel
           </Button>
           <Button
-            onClick={handleCreate}
-            disabled={submitting || !form.email || !form.displayName || !form.businessId}
+            onClick={handleSubmit}
+            disabled={
+              submitting ||
+              (!editingUser &&
+                (!form.email.trim() ||
+                  !form.displayName.trim() ||
+                  !form.businessId.trim()))
+            }
             variant="contained"
             sx={{
-              bgcolor: "#5a4fd0",
+              bgcolor: "#a78bfa",
               textTransform: "none",
-              fontSize: 13,
-              borderRadius: "8px",
-              "&:hover": { bgcolor: "#6b5fe0" },
-              "&.Mui-disabled": { bgcolor: "#2d2460", color: "#5a4f90" },
+              fontSize: 14,
+              fontWeight: 600,
+              borderRadius: "10px",
+              px: 3,
+              flexGrow: 1,
+              "&:hover": { bgcolor: "#b89ffb" },
+              "&.Mui-disabled": { bgcolor: "#3d2d60", color: "#f0eef3" },
             }}
           >
-            {submitting ? <CircularProgress size={14} sx={{ color: "#a89cf0" }} /> : "Create"}
+            {submitting ? (
+              <CircularProgress size={16} sx={{ color: "#a89cf0" }} />
+            ) : editingUser ? (
+              "Save Changes"
+            ) : (
+              "Create User"
+            )}
           </Button>
         </DialogActions>
       </Dialog>

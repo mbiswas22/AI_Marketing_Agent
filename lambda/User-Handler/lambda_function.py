@@ -3,9 +3,6 @@ import json
 import uuid
 import boto3
 from datetime import datetime
-from auth import get_user
-from response import api_response
-from authorization import require_role
 
 # ── DynamoDB setup ──────────────────────────────────────────────────────────────
 dynamodb = boto3.resource("dynamodb")
@@ -38,17 +35,16 @@ def lambda_handler(event, context):
     elif method == "PUT":
         return update_user(event)
     elif method == "DELETE":
-        return deactivate_user(event)
+        return delete_user(event)
     else:
         return response(405, {"error": f"Method {method} not allowed"})
 
 # ── POST /users ──────────────────────────────────────────────────────────────────
-# Table keys: businessId (PK), userId (SK)
 def create_user(event):
     try:
         body = json.loads(event.get("body") or "{}")
 
-        required = ["businessId", "email", "role"]
+        required = ["businessId", "email", "role", "displayName"]
         missing = [f for f in required if not body.get(f)]
         if missing:
             return response(400, {"error": f"Missing required fields: {', '.join(missing)}"})
@@ -65,6 +61,7 @@ def create_user(event):
             "userId":     user_id,               # SK
             "email":      body["email"],
             "role":       body["role"],
+            "displayName": body["displayName"],
             "status":     "ACTIVE",
             "createdAt":  now,
             "updatedAt":  now,
@@ -77,8 +74,7 @@ def create_user(event):
         print(f"[create_user] Error: {e}")
         return response(500, {"error": str(e)})
 
-# ── GET /users ───────────────────────────────────────────────────────────────────
-# Query by businessId (required) since it's the PK
+# ── GET /users?businessId=BUS001 ─────────────────────────────────────────────────
 def get_users(event):
     try:
         params = event.get("queryStringParameters") or {}
@@ -98,16 +94,18 @@ def get_users(event):
         print(f"[get_users] Error: {e}")
         return response(500, {"error": str(e)})
 
-# ── PUT /users ───────────────────────────────────────────────────────────────────
-# Body: { "businessId": "...", "userId": "...", "role": "EDITOR" }
+# ── PUT /users/{userId} ──────────────────────────────────────────────────────────
+# userId comes from URL, businessId comes from body
 def update_user(event):
     try:
         body = json.loads(event.get("body") or "{}")
 
+        # Read userId from URL path
+        user_id = (event.get("pathParameters") or {}).get("userId") or body.get("userId")
         business_id = body.get("businessId")
-        user_id = body.get("userId")
+
         if not business_id or not user_id:
-            return response(400, {"error": "businessId and userId are required"})
+            return response(400, {"error": "userId is required in the URL and businessId is required in the body"})
 
         allowed_updates = {}
         if "role" in body:
@@ -117,6 +115,8 @@ def update_user(event):
             allowed_updates["role"] = body["role"]
         if "email" in body:
             allowed_updates["email"] = body["email"]
+        if "displayName" in body:
+            allowed_updates["displayName"] = body["displayName"]
         if "status" in body:
             allowed_updates["status"] = body["status"]
 
@@ -146,32 +146,28 @@ def update_user(event):
         print(f"[update_user] Error: {e}")
         return response(500, {"error": str(e)})
 
-# ── DELETE /users ─────────────────────────────────────────────────────────────────
-# Body: { "businessId": "...", "userId": "..." }
-# Soft delete — sets status = INACTIVE
-def deactivate_user(event):
+# ── DELETE /users/{userId} ────────────────────────────────────────────────────────
+# userId comes from URL, businessId comes from body
+def delete_user(event):
     try:
+        params = event.get("queryStringParameters") or {}
         body = json.loads(event.get("body") or "{}")
 
-        business_id = body.get("businessId")
-        user_id = event["pathParameters"]["userId"]
+        user_id = (event.get("pathParameters") or {}).get("userId")
+        business_id = params.get("businessId") or body.get("businessId")
+
         if not business_id or not user_id:
-            return response(400, {"error": "businessId and userId are required"})
+            return response(400, {"error": "userId is required in the URL and businessId is required in the body"})
 
-        now = datetime.utcnow().isoformat()
-
-        table.update_item(
+        table.delete_item(
             Key={"businessId": business_id, "userId": user_id},
-            UpdateExpression="SET #status = :s, updatedAt = :u",
-            ExpressionAttributeNames={"#status": "status"},
-            ExpressionAttributeValues={":s": "INACTIVE", ":u": now},
             ConditionExpression="attribute_exists(businessId)",
         )
 
-        return response(200, {"message": f"User {user_id} deactivated"})
+        return response(200, {"message": f"User {user_id} deleted"})
 
     except dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
         return response(404, {"error": "User not found"})
     except Exception as e:
-        print(f"[deactivate_user] Error: {e}")
+        print(f"[delete_user] Error: {e}")
         return response(500, {"error": str(e)})

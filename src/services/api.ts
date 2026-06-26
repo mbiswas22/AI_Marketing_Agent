@@ -142,5 +142,13 @@ export const deleteUser = async (
   businessId: string,
   userId: string
 ): Promise<void> => {
-  await api.delete(`/users/${userId}`, { data: { businessId } });
+  await api.delete(`/users/${userId}`, { params: { businessId } });
+};
+
+export const updateUser = async (
+  userId: string,
+  data: { businessId: string; email: string; role: string; displayName: string }
+): Promise<User> => {
+  const res = await api.put(`/users/${userId}`, data);
+  return res.data;
 };
