@@ -4,12 +4,14 @@ import os
 import boto3
 import base64
 from datetime import datetime
+from auth import get_user
+from response import api_response
+from authorization import require_role
 
 # ============================================================
 # AWS Clients
 # ============================================================
 
-user_id = "anonymous-user"
 
 dynamodb = boto3.resource("dynamodb", region_name="us-east-2")
 table = dynamodb.Table(os.environ["DYNAMO_TABLE"])
@@ -30,6 +32,10 @@ bedrock_image = boto3.client("bedrock-runtime", region_name="us-west-2")
 def lambda_handler(event, context):
     try:
         body = json.loads(event["body"])
+
+        user = get_user(event)
+        print(f"Genarate_caption: User ID: {user}")
+        user_id = user['user_id']
 
         action_id = str(uuid.uuid4())
         business = body.get("business", "My Business")

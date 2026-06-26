@@ -14,6 +14,7 @@ import {
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LogoutIcon from "@mui/icons-material/Logout";
 import HistoryIcon from "@mui/icons-material/History";
+import PeopleIcon from "@mui/icons-material/People";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckIcon from "@mui/icons-material/Check";
@@ -49,6 +50,7 @@ const getApiConfig = (ct: string) => {
 export default function Dashboard() {
   const { user, signOut } = useAuthenticator();
   const navigate = useNavigate();
+  const role = "ADMIN";
   const location = useLocation();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -294,6 +296,20 @@ export default function Dashboard() {
           >
             History
           </Button>
+          {role === "ADMIN" && (
+            <Button
+              onClick={() => navigate("/users")}
+              startIcon={<PeopleIcon />}
+              sx={{
+                color: "#a78bfa",
+                textTransform: "none",
+                fontSize: 14,
+                "&:hover": { color: "#fff" },
+              }}
+            >
+              User Management
+            </Button>
+          )}
           <Typography
             sx={{
               color: "#475569",
