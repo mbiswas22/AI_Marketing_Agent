@@ -1036,7 +1036,6 @@ export default function Dashboard() {
                 sx={{ color: "#333", fontSize: 12, textAlign: "center" }}
               >
                 Your generated content will appear here.
->>>>>>> master
               </Typography>
             </Box>
           )}
