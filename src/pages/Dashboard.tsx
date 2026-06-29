@@ -25,6 +25,28 @@ import {
   generateImage,
   getModels,
 } from "../services/api";
+import type { BedrockModel } from "../services/api";
+import {
+  DEMO_BUSINESSES,
+  FALLBACK_MODELS,
+  CONTENT_TYPE_CATEGORY,
+  CONTENT_TILES,
+  OUTPUT_FORMATS_BY_TYPE,
+  FORMAT_DEFS,
+  SOCIAL_PLATFORMS,
+  INPUT_TABS,
+  cardSx,
+  labelSx,
+  subLabelSx,
+  darkSelectSx,
+  darkInputSx,
+} from "../constants/dashboardConstants";
+
+const getApiConfig = (ct: string) => {
+  if (ct === "social_caption") return { type: "caption" };
+  if (ct === "whatsapp_sms") return null;
+  return { type: "asset" };
+};
 
 export default function Dashboard() {
   const { user, signOut } = useAuthenticator();
