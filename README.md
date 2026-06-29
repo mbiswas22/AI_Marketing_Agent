@@ -1,14 +1,16 @@
 # AI Marketing Agent
 
 A React + TypeScript + Vite web application with AWS Cognito authentication and a multi-page dark UI for AI-powered marketing content generation.
-hello world 
+hello world
+
 ### Pages
-| Route | Description |
-|---|---|
-| `/login` | Sign in / Sign up via AWS Cognito (Amplify UI) |
-| `/welcome` | Landing screen after login with a "Get Started" CTA |
+
+| Route        | Description                                                 |
+| ------------ | ----------------------------------------------------------- |
+| `/login`     | Sign in / Sign up via AWS Cognito (Amplify UI)              |
+| `/welcome`   | Landing screen after login with a "Get Started" CTA         |
 | `/dashboard` | Generate marketing content via prompt, URL, or image upload |
-| `/history` | Table of past AI-generated content with status indicators |
+| `/history`   | Table of past AI-generated content with status indicators   |
 
 All routes except `/login` are protected — unauthenticated users are redirected to `/login` automatically.
 
@@ -23,6 +25,7 @@ Make sure the following are installed before getting started:
 - [Git](https://git-scm.com/)
 
 Verify your installations:
+
 ```bash
 node -v
 npm -v
@@ -57,6 +60,7 @@ git checkout your-branch-name
 ```
 
 Or create and switch in one step if you didn't create it on GitHub:
+
 ```bash
 git checkout -b your-branch-name
 ```
@@ -81,17 +85,18 @@ npm install
 
 This installs all required packages, including:
 
-| Package | Purpose |
-|---|---|
-| `aws-amplify` | AWS Amplify core — Cognito auth integration |
-| `@aws-amplify/ui-react` | Pre-built Authenticator UI component |
-| `@mui/material` | Material UI component library |
-| `@mui/icons-material` | MUI icon set used across all pages |
-| `@emotion/react` / `@emotion/styled` | Required peer deps for MUI |
-| `react-router-dom` | Client-side routing between pages |
-| `axios` | HTTP client for future API calls |
+| Package                              | Purpose                                     |
+| ------------------------------------ | ------------------------------------------- |
+| `aws-amplify`                        | AWS Amplify core — Cognito auth integration |
+| `@aws-amplify/ui-react`              | Pre-built Authenticator UI component        |
+| `@mui/material`                      | Material UI component library               |
+| `@mui/icons-material`                | MUI icon set used across all pages          |
+| `@emotion/react` / `@emotion/styled` | Required peer deps for MUI                  |
+| `react-router-dom`                   | Client-side routing between pages           |
+| `axios`                              | HTTP client for future API calls            |
 
 > **Windows users:** If you see a `rolldown` native binding error, run:
+>
 > ```bash
 > npm install @rolldown/binding-win32-x64-msvc
 > ```
@@ -110,8 +115,8 @@ Amplify.configure({
     Cognito: {
       userPoolId: "us-east-2_xxxxxxxxx",
       userPoolClientId: "xxxxxxxxxxxxxxxxxxxxxxxxxx",
-    }
-  }
+    },
+  },
 });
 ```
 
@@ -138,6 +143,7 @@ npm run dev
 The app will be available at `http://localhost:5173`
 
 Other available scripts:
+
 ```bash
 npm run build    # production build
 npm run preview  # preview production build
@@ -149,11 +155,13 @@ npm run lint     # run ESLint
 ## 8. Making Changes & Committing
 
 ### Check status of your changes
+
 ```bash
 git status
 ```
 
 ### Stage files
+
 ```bash
 # Stage a specific file
 git add src/App.tsx
@@ -163,6 +171,7 @@ git add .
 ```
 
 ### Commit your changes
+
 ```bash
 git commit -m "short description of what you changed"
 ```
@@ -176,6 +185,7 @@ git push origin your-branch-name
 ```
 
 If it's your first push on this branch:
+
 ```bash
 git push -u origin your-branch-name
 ```

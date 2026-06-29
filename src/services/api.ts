@@ -1,39 +1,83 @@
 import axios from "axios";
+import { fetchAuthSession } from "aws-amplify/auth";
 
 const API_URL = "https://3xw44p0uke.execute-api.us-east-2.amazonaws.com";
 
+const api = axios.create({ baseURL: API_URL });
+
+api.interceptors.request.use(async (config) => {
+  const session = await fetchAuthSession();
+  const token = session.tokens?.idToken?.toString();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 export interface GenerateCaptionResponse {
-  action_id: string;
-  userId: string;
-  result: {
-    caption: string;
-    hashtags: string[];
-    call_to_action: string;
-  };
+  caption?: string;
+  hashtags?: string[];
+  image_url?: string;
+  title?: string;
+  offer?: string;
+  call_to_action?: string;
 }
+
+export interface GenerateAssetResponse {
+  caption?: string;
+  hashtags?: string[];
+  image_url?: string;
+}
+
+export const generateMarketAsset = async (
+  prompt: string,
+  business: string,
+  contentType: string,
+  outputFormat: string,
+  platforms: string[],
+  modelId: string
+) => {
+  return api.post<GenerateAssetResponse>(`/generate`, {
+    prompt,
+    business,
+    content_type: contentType,
+    output_format: outputFormat,
+    platforms,
+    modelId,
+  });
+};
 
 export const generateCaption = async (
   prompt: string,
   business: string,
   contentType: string,
   platforms: string[],
-  userId: string
+  modelId: string
 ) => {
-  return axios.post<GenerateCaptionResponse>(`${API_URL}/generate`, {
+  return api.post<GenerateCaptionResponse>(`/generate`, {
     prompt,
     business,
     contentType,
     platforms,
-    userId,
-  }, {
-    headers: { "Content-Type": "application/json" },
+    modelId: 'us.' + modelId,
   });
+};
+
+export interface GenerateImageResponse {
+  imageUrl: string;
+  action_id: string;
+}
+
+export const generateImage = async (prompt: string): Promise<string> => {
+  const res = await api.post(`/generate-image`, { prompt });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  return data.imageUrl;
 };
 
 export interface HistoryItem {
   action_id: string;
-  input_value: string;
-  caption: string;
+  input_value?: string;
+  prompt?: string;
+  caption?: string;
+  image_url?: string;
   created_at: string;
   business?: string;
   content_type?: string;
@@ -42,19 +86,62 @@ export interface HistoryItem {
   status?: string;
 }
 
-export interface GenerateImageResponse {
-  imageUrl: string;
+export interface BedrockModel {
+  modelId: string;
+  label: string;
+  description: string;
 }
 
-export const generateImage = async (prompt: string): Promise<string> => {
-  const res = await axios.post<GenerateImageResponse>(`${API_URL}/generate-image`, { prompt }, {
-    headers: { "Content-Type": "application/json" },
-  });
-  return res.data.imageUrl;
+export const getModels = async (category: string): Promise<BedrockModel[]> => {
+  const res = await api.get<BedrockModel[]>(`/models`, { params: { category } });
+  return Array.isArray(res.data) ? res.data : [];
 };
-  const res = await axios.get(`${API_URL}/history`, {
-    params: { userId }
-  });
+
+export const getHistory = async (userId?: string): Promise<HistoryItem[]> => {
+  const res = await api.get(`/history`, { params: userId ? { userId } : {} });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return Array.isArray(data) ? data : [];
+};
+
+export interface User {
+  userId: string;
+  businessId: string;
+  email: string;
+  role: string;
+  displayName: string;
+  status: string;
+  createdAt: string;
+}
+
+export const getUsers = async (businessId: string): Promise<User[]> => {
+  const res = await api.get(`/users`, { params: { businessId } });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.users)) return data.users;
+  return [];
+};
+
+export const createUser = async (data: {
+  businessId: string;
+  email: string;
+  role: string;
+  displayName: string;
+}): Promise<User> => {
+  const res = await api.post(`/users`, data);
+  return res.data;
+};
+
+export const deleteUser = async (
+  businessId: string,
+  userId: string
+): Promise<void> => {
+  await api.delete(`/users/${userId}`, { params: { businessId } });
+};
+
+export const updateUser = async (
+  userId: string,
+  data: { businessId: string; email: string; role: string; displayName: string }
+): Promise<User> => {
+  const res = await api.put(`/users/${userId}`, data);
+  return res.data;
 };
