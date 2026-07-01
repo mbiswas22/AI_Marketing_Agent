@@ -152,3 +152,38 @@ export const updateUser = async (
   const res = await api.put(`/users/${userId}`, data);
   return res.data;
 };
+
+export interface InviteUserPayload {
+  businessName: string;
+  userName: string;
+  userId: string;
+  role: string;
+  userEmail: string;
+  phone: string;
+  invitationLink: string;
+  expirationTime: string;
+}
+
+export const inviteUser = async (payload: InviteUserPayload): Promise<void> => {
+  await api.post(`/invitations`, payload);
+};
+
+export const sendInviteEmail = async (payload: {
+  toEmail: string;
+  subject: string;
+  message: string;
+}): Promise<void> => {
+  await api.post(`/send-email`, payload);
+};
+
+// export const createInvitation = async (payload: {
+//   userEmail: string;
+//   role: string;
+//   invitationLink: string;
+//   businessId: string;
+//   userName: string;
+//   userID: string;
+//   userPhoneNumber: string;
+// }): Promise<void> => {
+//   await api.post(`/invitations`, payload);
+// };
