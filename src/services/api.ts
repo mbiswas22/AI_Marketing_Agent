@@ -85,6 +85,8 @@ export interface HistoryItem {
   prompt?: string;
   caption?: string;
   image_url?: string;
+  image_key?: string;
+  s3_key?: string;
   created_at: string;
   business?: string;
   content_type?: string;
@@ -150,6 +152,36 @@ export const updateUser = async (
   data: { businessId: string; email: string; role: string; displayName: string }
 ): Promise<User> => {
   const res = await api.put(`/users/${userId}`, data);
+  return res.data;
+};
+
+export interface SocialConnection {
+  platform: string;
+  status: string;
+  displayName: string | null;
+  connectedAt: string | null;
+}
+
+export const getSocialConnections = async (): Promise<SocialConnection[]> => {
+  const res = await api.get(`/social/connections`);
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  return Array.isArray(data) ? data : [];
+};
+
+export const getLinkedInAuthUrl = async (): Promise<string> => {
+  const res = await api.get(`/social/linkedin/authorize`);
+  return res.data.authUrl;
+};
+
+export const disconnectSocialPlatform = async (platform: string): Promise<void> => {
+  await api.delete(`/social/connections/${platform}`);
+};
+
+export const publishToLinkedIn = async (payload: {
+  text?: string;
+  image_key?: string;
+}): Promise<{ success: boolean; postId: string }> => {
+  const res = await api.post(`/social/linkedin/publish`, payload);
   return res.data;
 };
 

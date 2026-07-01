@@ -10,19 +10,24 @@ import {
   MenuItem,
   Select,
   Tooltip,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LogoutIcon from "@mui/icons-material/Logout";
 import HistoryIcon from "@mui/icons-material/History";
-import PeopleIcon from "@mui/icons-material/People";
+import SettingsIcon from "@mui/icons-material/Settings";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckIcon from "@mui/icons-material/Check";
 import DownloadIcon from "@mui/icons-material/Download";
+import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import {
   generateCaption,
   generateMarketAsset,
   getModels,
+  getSocialConnections,
+  publishToLinkedIn,
 } from "../services/api";
 import type { BedrockModel } from "../services/api";
 import {
@@ -71,7 +76,6 @@ export default function Dashboard() {
   const [prompt, setPrompt] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [caption, setCaption] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [title, setTitle] = useState<string | null>(null);
   const [offer, setOffer] = useState<string | null>(null);
@@ -80,6 +84,9 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [fromHistoryBanner, setFromHistoryBanner] = useState(false);
+  const [linkedinConnected, setLinkedinConnected] = useState(false);
+  const [publishingToLinkedIn, setPublishingToLinkedIn] = useState(false);
+  const [publishSnackbar, setPublishSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
   const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [inputTab, setInputTab] =
@@ -151,9 +158,43 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    getSocialConnections()
+      .then((conns) => setLinkedinConnected(conns.some((c) => c.platform === "linkedin" && c.status === "connected")))
+      .catch(() => {});
+  }, []);
+
   const handleSignOut = () => {
     signOut();
     navigate("/login");
+  };
+
+  const handleLinkedInPublish = async () => {
+    setPublishingToLinkedIn(true);
+    try {
+      const extractS3Key = (url: string): string | null => {
+        if (!url) return null;
+        try {
+          const urlObj = new URL(url);
+          return urlObj.pathname.startsWith('/') ? urlObj.pathname.slice(1) : urlObj.pathname;
+        } catch {
+          return null;
+        }
+      };
+
+      const imageKey = resultImageUrl ? extractS3Key(resultImageUrl) : null;
+
+      await publishToLinkedIn({
+        text: caption || undefined,
+        ...(imageKey && { image_key: imageKey }),
+      });
+      setPublishSnackbar({ open: true, message: "Posted to LinkedIn successfully", severity: "success" });
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || "Failed to post to LinkedIn";
+      setPublishSnackbar({ open: true, message: msg, severity: "error" });
+    } finally {
+      setPublishingToLinkedIn(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -172,7 +213,6 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     setCaption(null);
-    setImageUrl(null);
     setHashtags([]);
     setTitle(null);
     setOffer(null);
@@ -298,8 +338,8 @@ export default function Dashboard() {
           </Button>
           {role === "ADMIN" && (
             <Button
-              onClick={() => navigate("/users")}
-              startIcon={<PeopleIcon />}
+              onClick={() => navigate("/settings")}
+              startIcon={<SettingsIcon />}
               sx={{
                 color: "#a78bfa",
                 textTransform: "none",
@@ -307,7 +347,7 @@ export default function Dashboard() {
                 "&:hover": { color: "#fff" },
               }}
             >
-              User Management
+              Settings
             </Button>
           )}
           <Typography
@@ -1354,11 +1394,60 @@ export default function Dashboard() {
                     Publish to {selectedPlatforms.join(", ")}
                   </Button>
                 )}
+                {caption && (
+                  <Tooltip
+                    title={linkedinConnected ? "" : "Connect LinkedIn in Account Settings"}
+                    placement="top"
+                  >
+                    <span>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        disabled={!linkedinConnected || publishingToLinkedIn}
+                        onClick={handleLinkedInPublish}
+                        startIcon={
+                          publishingToLinkedIn
+                            ? <CircularProgress size={12} sx={{ color: "#fff" }} />
+                            : <LinkedInIcon fontSize="small" />
+                        }
+                        sx={{
+                          bgcolor: "#0077b5",
+                          textTransform: "none",
+                          borderRadius: "6px",
+                          fontSize: 12,
+                          "&:hover": { bgcolor: "#005f8f" },
+                          "&.Mui-disabled": { bgcolor: "#003850", color: "#335870" },
+                        }}
+                      >
+                        Post to LinkedIn
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
               </Box>
             </Box>
           )}
         </Box>
       </Box>
+      <Snackbar
+        open={publishSnackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setPublishSnackbar((p) => ({ ...p, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity={publishSnackbar.severity}
+          onClose={() => setPublishSnackbar((p) => ({ ...p, open: false }))}
+          sx={{
+            bgcolor: publishSnackbar.severity === "success" ? "#0d2010" : "#1a0808",
+            color: publishSnackbar.severity === "success" ? "#22c55e" : "#ef4444",
+            border: `0.5px solid ${publishSnackbar.severity === "success" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+            "& .MuiAlert-icon": { color: publishSnackbar.severity === "success" ? "#22c55e" : "#ef4444" },
+          }}
+        >
+          {publishSnackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
