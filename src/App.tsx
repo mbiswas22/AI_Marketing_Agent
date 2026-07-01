@@ -7,7 +7,7 @@ import Login from "./pages/Login";
 import Welcome from "./pages/Welcome";
 import Dashboard from "./pages/Dashboard";
 import History from "./pages/History";
-import UserManagement from "./pages/UserManagement";
+import SettingsPage from "./pages/SettingsPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { authStatus } = useAuthenticator();
@@ -47,10 +47,10 @@ function AppRoutes() {
           }
         />
         <Route
-          path="/users"
+          path="/settings"
           element={
             <ProtectedRoute>
-              <UserManagement />
+              <SettingsPage />
             </ProtectedRoute>
           }
         />
