@@ -1,0 +1,194 @@
+/* ── Onboard page ── */
+
+.onboard-page {
+  min-height: 100vh;
+  background-color: #0a0a10;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Navbar */
+.onboard-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background-color: #0f0f18;
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .onboard-navbar { padding: 14px 16px; }
+}
+
+.onboard-navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.onboard-navbar-title {
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+/* Content wrapper */
+.onboard-content {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px;
+}
+@media (max-width: 900px) {
+  .onboard-content { padding: 24px; }
+}
+@media (max-width: 600px) {
+  .onboard-content { padding: 16px; }
+}
+
+.onboard-inner {
+  width: 100%;
+  max-width: 620px;
+}
+
+/* Page header */
+.onboard-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.onboard-header-icon {
+  background: rgba(167, 139, 250, 0.12);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  flex-shrink: 0;
+}
+
+.onboard-header-title {
+  color: #f0eeff;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.onboard-header-subtitle {
+  color: #5a5a8a;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* Form card */
+.onboard-card {
+  background-color: #12121e;
+  border: 1px solid #22223a;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* Form sections */
+.onboard-section {
+  padding: 24px 32px 16px;
+}
+.onboard-section-user {
+  padding: 24px 32px;
+}
+@media (max-width: 600px) {
+  .onboard-section,
+  .onboard-section-user {
+    padding: 20px 20px 16px;
+  }
+}
+
+.onboard-section-label {
+  color: #6060a0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 16px;
+}
+
+/* Field wrapper */
+.onboard-field {
+  margin-bottom: 20px;
+}
+.onboard-field:last-child {
+  margin-bottom: 0;
+}
+
+/* Actions row */
+.onboard-actions {
+  padding: 24px 32px;
+  display: flex;
+  gap: 16px;
+}
+@media (max-width: 600px) {
+  .onboard-actions {
+    padding: 20px;
+    flex-direction: column;
+  }
+}
+
+/* API error box */
+.onboard-error-box {
+  margin: 16px 32px 0;
+  background: #1a0808;
+  border: 0.5px solid #5c1a1a;
+  border-radius: 8px;
+  padding: 12px;
+}
+@media (max-width: 600px) {
+  .onboard-error-box { margin: 16px 20px 0; }
+}
+
+.onboard-error-text {
+  color: #ef4444;
+  font-size: 13px;
+}
+
+/* Success card */
+.onboard-success {
+  background: #0d1f14;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 14px;
+  padding: 40px 32px;
+  text-align: center;
+}
+
+.onboard-success-title {
+  color: #22c55e;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.onboard-success-body {
+  color: #5a8a6a;
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+
+.onboard-success-email {
+  color: #c0f0d0;
+  font-weight: 600;
+}
+
+.onboard-success-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Optional label hint */
+.onboard-optional {
+  color: #50507a;
+  font-weight: 400;
+  font-size: 12px;
+}

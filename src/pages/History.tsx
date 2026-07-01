@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { useAuthenticator } from "@aws-amplify/ui-react";
 import { useNavigate } from "react-router-dom";
 import {
   Box, Typography, Button, Paper,
   CircularProgress, Chip, Collapse, IconButton,
+  Tooltip, Snackbar, Alert,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -20,7 +21,7 @@ import FacebookIcon from "@mui/icons-material/Facebook";
 import InstagramIcon from "@mui/icons-material/Instagram";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
-import { getHistory } from "../services/api";
+import { getHistory, getSocialConnections, publishToLinkedIn } from "../services/api";
 import type { HistoryItem } from "../services/api";
 import "../styles/history.css";
 
@@ -73,9 +74,34 @@ const formatDate = (d: string) =>
 const truncate = (text: string | undefined, max = 40) =>
   !text ? "—" : text.length > max ? `${text.slice(0, max).trimEnd()}...` : text;
 
-function HistoryRow({ item }: { item: HistoryItem }) {
+function HistoryRow({
+  item,
+  linkedinConnected,
+  onPublishResult,
+}: {
+  item: HistoryItem;
+  linkedinConnected: boolean;
+  onPublishResult: (success: boolean, msg: string) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const navigate = useNavigate();
+
+  const handleLinkedInPublish = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = item.caption || getDisplayPrompt(item);
+    const image_key = item.image_key || item.s3_key;
+    setPublishing(true);
+    try {
+      await publishToLinkedIn({ text: text || undefined, image_key: image_key || undefined });
+      onPublishResult(true, "Posted to LinkedIn successfully");
+    } catch (err) {
+      const msg = (err as any)?.response?.data?.error || "Failed to post to LinkedIn";
+      onPublishResult(false, msg);
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   const statusConfig =
     item.status === "generated" || item.status === "published"
@@ -226,7 +252,29 @@ function HistoryRow({ item }: { item: HistoryItem }) {
             )}
           </Box>
 
-          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Tooltip
+              title={linkedinConnected ? "Post to LinkedIn" : "Connect LinkedIn in Account Settings"}
+              placement="top"
+            >
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={handleLinkedInPublish}
+                  disabled={!linkedinConnected || publishing}
+                  sx={{
+                    color: linkedinConnected ? "#0077b5" : "#334455",
+                    p: "6px",
+                    "&:hover": { bgcolor: "rgba(0,119,181,0.12)" },
+                    "&.Mui-disabled": { color: "#2a3a4a" },
+                  }}
+                >
+                  {publishing
+                    ? <CircularProgress size={16} sx={{ color: "#0077b5" }} />
+                    : <LinkedInIcon sx={{ fontSize: 18 }} />}
+                </IconButton>
+              </span>
+            </Tooltip>
             <button
               className="use-again-btn"
               onClick={() => navigate("/dashboard", {
@@ -259,8 +307,14 @@ export default function History() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [linkedinConnected, setLinkedinConnected] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
 
   const handleSignOut = () => { signOut(); navigate("/login"); };
+
+  const handlePublishResult = (success: boolean, msg: string) => {
+    setSnackbar({ open: true, message: msg, severity: success ? "success" : "error" });
+  };
 
   useEffect(() => {
     const userId = user?.userId ?? user?.username ?? "unknown";
@@ -271,6 +325,11 @@ export default function History() {
       .catch(() => setError("Failed to load history."))
       .finally(() => setLoading(false));
   }, [user]);
+
+    getSocialConnections()
+      .then((conns) => setLinkedinConnected(conns.some((c) => c.platform === "linkedin" && c.status === "connected")))
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="history-page">
@@ -322,7 +381,14 @@ export default function History() {
               </Box>
             )}
 
-            {history.map((item) => <HistoryRow key={item.action_id} item={item} />)}
+            {history.map((item) => (
+              <HistoryRow
+                key={item.action_id}
+                item={item}
+                linkedinConnected={linkedinConnected}
+                onPublishResult={handlePublishResult}
+              />
+            ))}
 
             {history.length === 0 && (
               <Paper elevation={0} sx={{
@@ -335,6 +401,26 @@ export default function History() {
           </Box>
         )}
       </div>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setSnackbar((p) => ({ ...p, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity={snackbar.severity}
+          onClose={() => setSnackbar((p) => ({ ...p, open: false }))}
+          sx={{
+            bgcolor: snackbar.severity === "success" ? "#0d2010" : "#1a0808",
+            color: snackbar.severity === "success" ? "#22c55e" : "#ef4444",
+            border: `0.5px solid ${snackbar.severity === "success" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+            "& .MuiAlert-icon": { color: snackbar.severity === "success" ? "#22c55e" : "#ef4444" },
+          }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 }
