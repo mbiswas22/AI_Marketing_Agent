@@ -28,14 +28,19 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import AddBusinessIcon from "@mui/icons-material/AddBusiness";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import CheckIcon from "@mui/icons-material/Check";
 import { api } from "../services/api";
 
 export interface Business {
   businessId: string;
-  name: string;
-  industry: string;
+  businessName: string;
+  businessType: string;
   status: string;
   createdAt: string;
+  phone?: string;
+  region?: string;
 }
 
 const fieldInputSx = (hasError: boolean) => ({
@@ -56,8 +61,8 @@ const fieldInputSx = (hasError: boolean) => ({
   "& .MuiSvgIcon-root": { color: "#9090c0" },
 });
 
-const emptyForm = { businessId: "", name: "", industry: "Retail", status: "ACTIVE" };
-const emptyErrors = { businessId: "", name: "" };
+const emptyForm = { businessName: "", businessType: "Retail", status: "ACTIVE", ownerEmail: "", ownerName: "" };
+const emptyErrors = { businessName: "", ownerEmail: "", ownerName: "" };
 
 const INDUSTRIES = ["Retail", "Food & Beverage", "Technology", "Healthcare", "Education", "Finance", "Real Estate", "Entertainment", "Other"];
 
@@ -76,6 +81,8 @@ export default function BusinessManagement() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [fieldErrors, setFieldErrors] = useState(emptyErrors);
+  const [createdBusinessId, setCreatedBusinessId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => { fetchBusinesses(); }, []);
 
@@ -83,7 +90,7 @@ export default function BusinessManagement() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get("/businesses");
+      const res = await api.get("/business");
       const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
       setBusinesses(Array.isArray(data) ? data : data?.businesses ?? []);
     } catch {
@@ -102,16 +109,17 @@ export default function BusinessManagement() {
 
   const openEditDialog = (business: Business) => {
     setEditingBusiness(business);
-    setForm({ businessId: business.businessId, name: business.name, industry: business.industry, status: business.status });
+    setForm({ businessName: business.businessName, businessType: business.businessType, status: business.status, ownerEmail: "", ownerName: "" });
     setFieldErrors(emptyErrors);
     setDialogOpen(true);
   };
 
   const validate = () => {
-    const errors = { businessId: "", name: "" };
+    const errors = { businessName: "", ownerEmail: "", ownerName: "" };
     let valid = true;
-    if (!form.businessId.trim()) { errors.businessId = "Business ID is required."; valid = false; }
-    if (!form.name.trim()) { errors.name = "Business name is required."; valid = false; }
+    if (!form.businessName.trim()) { errors.businessName = "Business name is required."; valid = false; }
+    if (!editingBusiness && !form.ownerEmail.trim()) { errors.ownerEmail = "Owner email is required."; valid = false; }
+    if (!editingBusiness && !form.ownerName.trim()) { errors.ownerName = "Owner name is required."; valid = false; }
     setFieldErrors(errors);
     return valid;
   };
@@ -121,9 +129,15 @@ export default function BusinessManagement() {
     setSubmitting(true);
     try {
       if (editingBusiness) {
-        await api.put(`/businesses/${editingBusiness.businessId}`, form);
+        await api.put(`/business/${editingBusiness.businessId}`, {
+          businessName: form.businessName,
+          businessType: form.businessType,
+          status: form.status,
+        });
       } else {
-        await api.post("/businesses", form);
+        const res = await api.post("/business", form);
+        const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+        setCreatedBusinessId(data?.business?.businessId ?? null);
       }
       setDialogOpen(false);
       await fetchBusinesses();
@@ -137,7 +151,7 @@ export default function BusinessManagement() {
   const handleDelete = async (businessId: string) => {
     setDeletingId(businessId);
     try {
-      await api.delete(`/businesses/${businessId}`);
+      await api.delete(`/business/${businessId}`);
       setBusinesses((prev) => prev.filter((b) => b.businessId !== businessId));
     } catch {
       setError("Failed to delete business.");
@@ -146,11 +160,21 @@ export default function BusinessManagement() {
     }
   };
 
-  const handleFieldChange = (field: keyof typeof form, value: string) => {
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleFieldChange = (field: keyof typeof emptyForm, value: string) => {
     setForm((p) => ({ ...p, [field]: value }));
-    if (fieldErrors[field as keyof typeof fieldErrors])
+    if (field in fieldErrors)
       setFieldErrors((p) => ({ ...p, [field]: "" }));
   };
+
+  const isFormValid = !!form.businessName.trim() && (!!editingBusiness || (!!form.ownerName.trim() && !!form.ownerEmail.trim()));
+
+  console.log("form:", form, "isFormValid:", isFormValid);
 
   return (
     <Box sx={{ height: "100vh", bgcolor: "#0d0d0f", display: "flex", flexDirection: "column" }}>
@@ -208,7 +232,7 @@ export default function BusinessManagement() {
               }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
                   <Box>
-                    <Typography sx={{ color: "#e0dcf8", fontSize: 14, fontWeight: 600 }}>{b.name}</Typography>
+                    <Typography sx={{ color: "#e0dcf8", fontSize: 14, fontWeight: 600 }}>{b.businessName}</Typography>
                     <Typography sx={{ color: "#8090a8", fontSize: 12, mt: 0.3 }}>ID: {b.businessId}</Typography>
                   </Box>
                   <Box sx={{ display: "flex", gap: 0.5 }}>
@@ -229,7 +253,7 @@ export default function BusinessManagement() {
                     px: "8px", py: "2px", borderRadius: "20px", fontSize: 11, fontWeight: 600,
                     bgcolor: "rgba(124,109,240,0.1)", color: "#7c6df0",
                     border: "0.5px solid rgba(124,109,240,0.25)",
-                  }}>{b.industry}</Box>
+                  }}>{b.businessType}</Box>
                   <Box sx={{
                     px: "8px", py: "2px", borderRadius: "20px", fontSize: 11, fontWeight: 600,
                     bgcolor: b.status === "ACTIVE" ? "rgba(34,197,94,0.1)" : "rgba(100,116,139,0.1)",
@@ -250,7 +274,7 @@ export default function BusinessManagement() {
               <Table sx={{ minWidth: isTablet ? 500 : 650 }}>
                 <TableHead>
                   <TableRow sx={{ bgcolor: "#141418" }}>
-                    {["Business ID", "Name", "Industry", "Status", ...(!isTablet ? ["Created At"] : []), "Actions"].map((h) => (
+                    {["Business ID", "Name", "Business Type", "Status", ...(!isTablet ? ["Created At"] : []), "Actions"].map((h) => (
                       <TableCell key={h} sx={{ color: "#c0c0d8", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "0.5px solid #2a2a35", py: 1.5, whiteSpace: "nowrap" }}>
                         {h}
                       </TableCell>
@@ -265,10 +289,10 @@ export default function BusinessManagement() {
                         {b.businessId}
                       </TableCell>
                       <TableCell sx={{ color: "#e0dcf8", fontSize: 13, borderBottom: "0.5px solid #1e1e2e", whiteSpace: "nowrap" }}>
-                        {b.name}
+                        {b.businessName}
                       </TableCell>
                       <TableCell sx={{ color: "#c8d0e0", fontSize: 13, borderBottom: "0.5px solid #1e1e2e" }}>
-                        {b.industry}
+                        {b.businessType}
                       </TableCell>
                       <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
                         <Box sx={{
@@ -310,6 +334,30 @@ export default function BusinessManagement() {
         )}
       </Box>
 
+      {/* Success Dialog */}
+      <Dialog open={!!createdBusinessId} onClose={() => setCreatedBusinessId(null)} fullWidth maxWidth="xs"
+        PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)", mx: { xs: 2, sm: 3 } } }}>
+        <Box sx={{ p: { xs: 3, sm: 4 }, textAlign: "center" }}>
+          <CheckCircleOutlineIcon sx={{ color: "#22c55e", fontSize: 48, mb: 1.5 }} />
+          <Typography sx={{ color: "#f0eeff", fontSize: 17, fontWeight: 700, mb: 0.5 }}>Business Created!</Typography>
+          <Typography sx={{ color: "#a0a0c8", fontSize: 13, mb: 3 }}>Save this Business ID — it's used to link users to this business.</Typography>
+          <Box sx={{ bgcolor: "#0d0d0f", border: "1px solid #2a2a35", borderRadius: "10px", p: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 3 }}>
+            <Typography sx={{ color: "#a89cf0", fontFamily: "monospace", fontSize: 16, fontWeight: 700, letterSpacing: "0.05em" }}>
+              {createdBusinessId}
+            </Typography>
+            <Tooltip title={copied ? "Copied!" : "Copy ID"}>
+              <IconButton size="small" onClick={() => handleCopyId(createdBusinessId!)} sx={{ color: copied ? "#22c55e" : "#7c6df0", "&:hover": { bgcolor: "rgba(124,109,240,0.12)" } }}>
+                {copied ? <CheckIcon sx={{ fontSize: 18 }} /> : <ContentCopyIcon sx={{ fontSize: 18 }} />}
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Button fullWidth variant="contained" onClick={() => setCreatedBusinessId(null)}
+            sx={{ bgcolor: "#5a4fd0", textTransform: "none", fontSize: 14, fontWeight: 600, borderRadius: "10px", "&:hover": { bgcolor: "#6b5fe0" } }}>
+            Done
+          </Button>
+        </Box>
+      </Dialog>
+
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm"
         PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)", mx: { xs: 2, sm: 3 }, width: { xs: "calc(100% - 32px)", sm: "100%" } } }}>
@@ -331,40 +379,54 @@ export default function BusinessManagement() {
         <Divider sx={{ borderColor: "#2e2e42" }} />
 
         <DialogContent sx={{ px: { xs: 3, sm: 4 }, pt: "24px !important", pb: 2 }}>
-          {/* Business ID */}
-          <Box sx={{ mb: 2.5 }}>
-            <Typography sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Business ID</Typography>
-            <TextField fullWidth placeholder="e.g. BUS001"
-              value={form.businessId}
-              onChange={(e) => handleFieldChange("businessId", e.target.value)}
-              error={!!fieldErrors.businessId}
-              disabled={!!editingBusiness}
-              InputProps={{ sx: fieldInputSx(!!fieldErrors.businessId) }}
-              InputLabelProps={{ shrink: false }}
-              sx={{ "& .MuiInputLabel-root": { display: "none" }, "& .MuiFormHelperText-root": { color: "#ef4444", fontSize: 12, mx: 0, mt: 0.6 } }}
-              helperText={fieldErrors.businessId} />
-          </Box>
           {/* Business Name */}
           <Box sx={{ mb: 2.5 }}>
             <Typography sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Business Name</Typography>
             <TextField fullWidth placeholder="e.g. Acme Corp"
-              value={form.name}
-              onChange={(e) => handleFieldChange("name", e.target.value)}
-              error={!!fieldErrors.name}
-              InputProps={{ sx: fieldInputSx(!!fieldErrors.name) }}
+              value={form.businessName}
+              onChange={(e) => handleFieldChange("businessName", e.target.value)}
+              error={!!fieldErrors.businessName}
+              InputProps={{ sx: fieldInputSx(!!fieldErrors.businessName) }}
               InputLabelProps={{ shrink: false }}
               sx={{ "& .MuiInputLabel-root": { display: "none" }, "& .MuiFormHelperText-root": { color: "#ef4444", fontSize: 12, mx: 0, mt: 0.6 } }}
-              helperText={fieldErrors.name} />
+              helperText={fieldErrors.businessName} />
           </Box>
-          {/* Industry */}
+          {/* Business Type */}
           <Box sx={{ mb: 2.5 }}>
-            <Typography sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Industry</Typography>
-            <Select fullWidth value={form.industry} onChange={(e) => handleFieldChange("industry", e.target.value)}
+            <Typography sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Business Type</Typography>
+            <Select fullWidth value={form.businessType} onChange={(e) => handleFieldChange("businessType", e.target.value)}
               sx={fieldInputSx(false)}
               MenuProps={{ PaperProps: { sx: { bgcolor: "#13131e", border: "1px solid #383850", borderRadius: "10px", color: "#f0eeff", mt: 0.5, "& .MuiMenuItem-root": { fontSize: 14, py: 1.2, "&:hover": { bgcolor: "rgba(124,109,240,0.12)" } }, "& .Mui-selected": { bgcolor: "rgba(124,109,240,0.18) !important" } } } } as any}>
               {INDUSTRIES.map((ind) => <MenuItem key={ind} value={ind}>{ind}</MenuItem>)}
             </Select>
           </Box>
+          {/* Owner fields — only on create */}
+          {!editingBusiness && (
+            <>
+              <Box sx={{ mb: 2.5 }}>
+                <Typography sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Owner Name</Typography>
+                <TextField fullWidth placeholder="e.g. Jane Smith"
+                  value={form.ownerName}
+                  onChange={(e) => handleFieldChange("ownerName", e.target.value)}
+                  error={!!fieldErrors.ownerName}
+                  InputProps={{ sx: fieldInputSx(!!fieldErrors.ownerName) }}
+                  InputLabelProps={{ shrink: false }}
+                  sx={{ "& .MuiInputLabel-root": { display: "none" }, "& .MuiFormHelperText-root": { color: "#ef4444", fontSize: 12, mx: 0, mt: 0.6 } }}
+                  helperText={fieldErrors.ownerName} />
+              </Box>
+              <Box sx={{ mb: 2.5 }}>
+                <Typography sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Owner Email</Typography>
+                <TextField fullWidth placeholder="e.g. jane@acme.com"
+                  value={form.ownerEmail}
+                  onChange={(e) => handleFieldChange("ownerEmail", e.target.value)}
+                  error={!!fieldErrors.ownerEmail}
+                  InputProps={{ sx: fieldInputSx(!!fieldErrors.ownerEmail) }}
+                  InputLabelProps={{ shrink: false }}
+                  sx={{ "& .MuiInputLabel-root": { display: "none" }, "& .MuiFormHelperText-root": { color: "#ef4444", fontSize: 12, mx: 0, mt: 0.6 } }}
+                  helperText={fieldErrors.ownerEmail} />
+              </Box>
+            </>
+          )}
           {/* Status */}
           <Box sx={{ mb: 1 }}>
             <Typography sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Status</Typography>
@@ -385,7 +447,7 @@ export default function BusinessManagement() {
             Cancel
           </Button>
           <Button onClick={handleSubmit}
-            disabled={submitting || (!editingBusiness && (!form.businessId.trim() || !form.name.trim()))}
+            disabled={submitting || !isFormValid}
             variant="contained"
             sx={{ bgcolor: "#a78bfa", textTransform: "none", fontSize: 14, fontWeight: 600, borderRadius: "10px", px: 3, flexGrow: 1, "&:hover": { bgcolor: "#b89ffb" }, "&.Mui-disabled": { bgcolor: "#3d2d60", color: "#f0eef3" } }}>
             {submitting ? <CircularProgress size={16} sx={{ color: "#a89cf0" }} /> : editingBusiness ? "Save Changes" : "Create Business"}
