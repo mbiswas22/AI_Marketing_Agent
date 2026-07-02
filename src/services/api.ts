@@ -191,7 +191,7 @@ export interface InviteUserPayload {
   userId: string;
   role: string;
   userEmail: string;
-  phone: string;
+  userPhoneNumber: string;
   invitationLink: string;
   expirationTime: string;
 }

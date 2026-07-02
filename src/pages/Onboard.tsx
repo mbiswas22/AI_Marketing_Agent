@@ -60,7 +60,7 @@ const emptyForm: InviteUserPayload = {
   userId: generateUserId(),
   role: "VIEWER",
   userEmail: "",
-  phone: "",
+  userPhoneNumber: "",
   invitationLink: "",
   expirationTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
 };
@@ -105,7 +105,7 @@ export default function Onboard() {
       e.email = "Enter a valid email address.";
       ok = false;
     }
-    if (form.phone && !validatePhone(form.phone)) {
+    if (form.userPhoneNumber && !validatePhone(form.userPhoneNumber)) {
       e.phone = "Enter a valid phone number.";
       ok = false;
     }
@@ -360,8 +360,8 @@ export default function Onboard() {
                     <TextField
                       fullWidth
                       placeholder="+1 555 000 0000"
-                      value={form.phone}
-                      onChange={(e) => set("phone", e.target.value)}
+                      value={form.userPhoneNumber}
+                      onChange={(e) => set("userPhoneNumber", e.target.value)}
                       error={!!errors.phone}
                       helperText={errors.phone}
                       slotProps={{ input: { sx: inputSx(!!errors.phone) } }}
