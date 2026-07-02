@@ -326,6 +326,7 @@ export default function History() {
       .finally(() => setLoading(false));
   }, [user]);
 
+  useEffect(() => {
     getSocialConnections()
       .then((conns) => setLinkedinConnected(conns.some((c) => c.platform === "linkedin" && c.status === "connected")))
       .catch(() => {});
