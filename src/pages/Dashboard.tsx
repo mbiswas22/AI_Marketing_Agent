@@ -16,6 +16,8 @@ import {
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LogoutIcon from "@mui/icons-material/Logout";
 import HistoryIcon from "@mui/icons-material/History";
+import PeopleIcon from "@mui/icons-material/People";
+import BusinessIcon from "@mui/icons-material/Business";
 import SettingsIcon from "@mui/icons-material/Settings";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -25,6 +27,7 @@ import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import {
   generateCaption,
   generateMarketAsset,
+  generateImage,
   getModels,
   getSocialConnections,
   publishToLinkedIn,
@@ -219,18 +222,21 @@ export default function Dashboard() {
     setCallToAction(null);
     setResultImageUrl(null);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let response: any;
-      if (config.type === "caption") {
-        response = await generateCaption(
+      if (contentType === "image") {
+        const url = await generateImage(prompt);
+        setResultImageUrl(url);
+      } else if (config.type === "caption") {
+        const response = await generateCaption(
           effectiveInput,
           effectiveBusiness,
           contentType,
           selectedPlatforms,
           selectedModel,
         );
+        setCaption(response.data.caption ?? null);
+        setHashtags(response.data.hashtags ?? []);
       } else {
-        response = await generateMarketAsset(
+        const response = await generateMarketAsset(
           effectiveInput,
           effectiveBusiness,
           contentType,
@@ -238,13 +244,10 @@ export default function Dashboard() {
           selectedPlatforms,
           selectedModel,
         );
+        setCaption(response.data.caption ?? null);
+        setHashtags(response.data.hashtags ?? []);
+        if (response.data.image_url) setResultImageUrl(response.data.image_url);
       }
-      setCaption(response.data.caption ?? null);
-      setHashtags(response.data.hashtags ?? []);
-      setTitle(response.data.title ?? null);
-      setOffer(response.data.offer ?? null);
-      setCallToAction(response.data.call_to_action ?? null);
-      if (response.data.image_url) setResultImageUrl(response.data.image_url);
     } catch {
       setError("Failed to generate content. Please try again.");
     } finally {
@@ -338,16 +341,29 @@ export default function Dashboard() {
           </Button>
           {role === "ADMIN" && (
             <Button
+              onClick={() => navigate("/users")}
+              startIcon={<PeopleIcon />}
+              sx={{ color: "#a78bfa", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}
+            >
+              User Management
+            </Button>
+          )}
+          {role === "ADMIN" && (
+            <Button
               onClick={() => navigate("/settings")}
               startIcon={<SettingsIcon />}
-              sx={{
-                color: "#a78bfa",
-                textTransform: "none",
-                fontSize: 14,
-                "&:hover": { color: "#fff" },
-              }}
+              sx={{ color: "#a78bfa", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}
             >
               Settings
+            </Button>
+          )}
+          {role === "ADMIN" && (
+            <Button
+              onClick={() => navigate("/businesses")}
+              startIcon={<BusinessIcon />}
+              sx={{ color: "#a78bfa", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}
+            >
+              Businesses
             </Button>
           )}
           <Typography

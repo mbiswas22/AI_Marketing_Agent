@@ -3,7 +3,7 @@ import { fetchAuthSession } from "aws-amplify/auth";
 
 const API_URL = "https://l9k0b4he7h.execute-api.us-east-2.amazonaws.com/dev";
 
-const api = axios.create({ baseURL: API_URL });
+export const api = axios.create({ baseURL: API_URL });
 
 api.interceptors.request.use(async (config) => {
   const session = await fetchAuthSession();
@@ -66,17 +66,10 @@ export interface GenerateImageResponse {
   action_id: string;
 }
 
-export const generateImage = async (payload: {
-  business: string;
-  contentType: string;
-  platforms: string[];
-  modelId: string;
-  input_type: "text" | "website" | "image";
-  input_value: string;
-}) => {
-  const res = await api.post(`/image`, payload);
+export const generateImage = async (prompt: string): Promise<string> => {
+  const res = await api.post(`/generate-image`, { prompt });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
-  return { data: data as GenerateImageResponse };
+  return data.imageUrl;
 };
 
 export interface HistoryItem {
@@ -106,8 +99,8 @@ export const getModels = async (category: string): Promise<BedrockModel[]> => {
   return Array.isArray(res.data) ? res.data : [];
 };
 
-export const getHistory = async (): Promise<HistoryItem[]> => {
-  const res = await api.get(`/history`);
+export const getHistory = async (userId?: string): Promise<HistoryItem[]> => {
+  const res = await api.get(`/history`, { params: userId ? { userId } : {} });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return Array.isArray(data) ? data : [];
 };
@@ -154,6 +147,7 @@ export const updateUser = async (
   const res = await api.put(`/users/${userId}`, data);
   return res.data;
 };
+
 
 export interface SocialConnection {
   platform: string;
@@ -207,15 +201,3 @@ export const sendInviteEmail = async (payload: {
 }): Promise<void> => {
   await api.post(`/send-email`, payload);
 };
-
-// export const createInvitation = async (payload: {
-//   userEmail: string;
-//   role: string;
-//   invitationLink: string;
-//   businessId: string;
-//   userName: string;
-//   userID: string;
-//   userPhoneNumber: string;
-// }): Promise<void> => {
-//   await api.post(`/invitations`, payload);
-// };
