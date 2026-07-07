@@ -7,8 +7,6 @@ import Login from "./pages/Login";
 import Welcome from "./pages/Welcome";
 import Dashboard from "./pages/Dashboard";
 import History from "./pages/History";
-import UserManagement from "./pages/UserManagement";
-import BusinessManagement from "./pages/BusinessManagement";
 import SettingsPage from "./pages/SettingsPage";
 import Onboard from "./pages/Onboard";
 import InviteAccept from "./pages/InviteAccept";
@@ -67,14 +65,6 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <Onboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/businesses"
-          element={
-            <ProtectedRoute>
-              <BusinessManagement />
             </ProtectedRoute>
           }
         />

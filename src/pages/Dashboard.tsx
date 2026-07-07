@@ -16,8 +16,6 @@ import {
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LogoutIcon from "@mui/icons-material/Logout";
 import HistoryIcon from "@mui/icons-material/History";
-import PeopleIcon from "@mui/icons-material/People";
-import BusinessIcon from "@mui/icons-material/Business";
 import SettingsIcon from "@mui/icons-material/Settings";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
