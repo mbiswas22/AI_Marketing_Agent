@@ -206,6 +206,31 @@ export const sendInviteEmail = async (payload: {
   await api.post(`/send-email`, payload);
 };
 
+export interface CrawlWebsiteResponse {
+  websiteData: { title: string; h1: string[]; h2: string[] };
+  businessType: string;
+  services?: {
+    services: string[];
+    hours: string;
+    contact: { phone: string; email: string; address: string };
+  };
+  marketing: { caption?: string; hashtags?: string[]; image_prompt?: string };
+  imageUrl?: string;
+}
+
+export const crawlWebsite = async (
+  url: string,
+  contentType: string,
+  platforms: string[]
+): Promise<CrawlWebsiteResponse> => {
+  const res = await api.post<CrawlWebsiteResponse>(`/crawl`, {
+    url,
+    contentType,
+    platforms,
+  });
+  return res.data;
+};
+
 export interface InvitationResponse {
   invitationId: string;
   businessId: string;

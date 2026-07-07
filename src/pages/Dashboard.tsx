@@ -31,6 +31,7 @@ import {
   getModels,
   getSocialConnections,
   publishToLinkedIn,
+  crawlWebsite,
 } from "../services/api";
 import type { BedrockModel } from "../services/api";
 import {
@@ -123,7 +124,9 @@ export default function Dashboard() {
         const models = await getModels(category);
         if (models.length > 0) {
           setModelsCache((prev) => ({ ...prev, [category]: models }));
-          setSelectedModel(models[0].modelId);
+          setSelectedModel((prev) =>
+            models.some((m) => m.modelId === prev) ? prev : models[0].modelId
+          );
         }
       } catch {
         // silently fall back to FALLBACK_MODELS
@@ -240,7 +243,12 @@ export default function Dashboard() {
     setCallToAction(null);
     setResultImageUrl(null);
     try {
-      if (contentType === "image") {
+      if (inputTab === "url") {
+        const result = await crawlWebsite(websiteUrl, contentType, selectedPlatforms);
+        setCaption(result.marketing.caption ?? null);
+        setHashtags(result.marketing.hashtags ?? []);
+        if (result.imageUrl) setResultImageUrl(result.imageUrl);
+      } else if (contentType === "image") {
         const url = await generateImage(prompt);
         setResultImageUrl(url);
       } else if (config.type === "caption") {

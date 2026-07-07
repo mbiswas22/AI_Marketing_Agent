@@ -31,6 +31,7 @@ import AddBusinessIcon from "@mui/icons-material/AddBusiness";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckIcon from "@mui/icons-material/Check";
+import SearchIcon from "@mui/icons-material/Search";
 import { api } from "../services/api";
 
 export interface Business {
@@ -64,13 +65,59 @@ const fieldInputSx = (hasError: boolean) => ({
 const emptyForm = { businessName: "", businessType: "Retail", status: "ACTIVE", ownerEmail: "", ownerName: "" };
 const emptyErrors = { businessName: "", ownerEmail: "", ownerName: "" };
 
-const INDUSTRIES = ["Retail", "Food & Beverage", "Technology", "Healthcare", "Education", "Finance", "Real Estate", "Entertainment", "Other"];
+const DEFAULT_INDUSTRIES = ["Retail", "Food & Beverage", "Technology", "Healthcare", "Education", "Finance", "Real Estate", "Entertainment", "Other"];
+const CUSTOM_INDUSTRIES_KEY = "customBusinessTypes";
+
+const loadIndustries = (): string[] => {
+  try {
+    const saved = localStorage.getItem(CUSTOM_INDUSTRIES_KEY);
+    const custom: string[] = saved ? JSON.parse(saved) : [];
+    return [...DEFAULT_INDUSTRIES.slice(0, -1), ...custom, "Other"];
+  } catch {
+    return DEFAULT_INDUSTRIES;
+  }
+};
+
+const saveCustomIndustry = (value: string): string[] => {
+  try {
+    const saved = localStorage.getItem(CUSTOM_INDUSTRIES_KEY);
+    const custom: string[] = saved ? JSON.parse(saved) : [];
+    if (!custom.includes(value)) {
+      custom.push(value);
+      localStorage.setItem(CUSTOM_INDUSTRIES_KEY, JSON.stringify(custom));
+    }
+  } catch {}
+  return loadIndustries();
+};
+
+const updateCustomIndustry = (oldValue: string, newValue: string): string[] => {
+  try {
+    const saved = localStorage.getItem(CUSTOM_INDUSTRIES_KEY);
+    const custom: string[] = saved ? JSON.parse(saved) : [];
+    const idx = custom.indexOf(oldValue);
+    if (idx !== -1) { custom[idx] = newValue; }
+    localStorage.setItem(CUSTOM_INDUSTRIES_KEY, JSON.stringify(custom));
+  } catch {}
+  return loadIndustries();
+};
+
+const deleteCustomIndustry = (value: string): string[] => {
+  try {
+    const saved = localStorage.getItem(CUSTOM_INDUSTRIES_KEY);
+    const custom: string[] = saved ? JSON.parse(saved) : [];
+    localStorage.setItem(CUSTOM_INDUSTRIES_KEY, JSON.stringify(custom.filter((c) => c !== value)));
+  } catch {}
+  return loadIndustries();
+};
 
 export function BusinessManagementPanel() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
 
+  const [industries, setIndustries] = useState<string[]>(loadIndustries);
+  const [customType, setCustomType] = useState("");
+  const [editingCustomType, setEditingCustomType] = useState<{ original: string; value: string } | null>(null);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +129,9 @@ export function BusinessManagementPanel() {
   const [fieldErrors, setFieldErrors] = useState(emptyErrors);
   const [createdBusinessId, setCreatedBusinessId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [searchId, setSearchId] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   useEffect(() => { fetchBusinesses(); }, []);
 
@@ -103,12 +153,15 @@ export function BusinessManagementPanel() {
     setEditingBusiness(null);
     setForm(emptyForm);
     setFieldErrors(emptyErrors);
+    setCustomType("");
     setDialogOpen(true);
   };
 
   const openEditDialog = (business: Business) => {
     setEditingBusiness(business);
-    setForm({ businessName: business.businessName, businessType: business.businessType, status: business.status, ownerEmail: "", ownerName: "" });
+    const knownType = industries.includes(business.businessType);
+    setForm({ businessName: business.businessName, businessType: knownType ? business.businessType : "Other", status: business.status, ownerEmail: "", ownerName: "" });
+    setCustomType(knownType ? "" : business.businessType);
     setFieldErrors(emptyErrors);
     setDialogOpen(true);
   };
@@ -126,17 +179,23 @@ export function BusinessManagementPanel() {
   const handleSubmit = async () => {
     if (!validate()) return;
     setSubmitting(true);
+    const effectiveType = form.businessType === "Other" && customType.trim()
+      ? customType.trim()
+      : form.businessType;
     try {
       if (editingBusiness) {
         await api.put(`/business/${editingBusiness.businessId}`, {
           businessName: form.businessName,
-          businessType: form.businessType,
+          businessType: effectiveType,
           status: form.status,
         });
       } else {
-        const res = await api.post("/business", form);
+        const res = await api.post("/business", { ...form, businessType: effectiveType });
         const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
         setCreatedBusinessId(data?.business?.businessId ?? null);
+      }
+      if (form.businessType === "Other" && customType.trim()) {
+        setIndustries(saveCustomIndustry(customType.trim()));
       }
       setDialogOpen(false);
       await fetchBusinesses();
@@ -165,15 +224,32 @@ export function BusinessManagementPanel() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleSearch = async () => {
+    if (!searchId.trim()) return;
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const res = await api.get("/business", { params: { businessId: searchId.trim() } });
+      const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+      const found: Business = data?.business ?? data;
+      if (!found?.businessId) { setSearchError("Business not found."); return; }
+      setBusinesses((prev) => [found, ...prev.filter((b) => b.businessId !== found.businessId)]);
+    } catch {
+      setSearchError("Business not found.");
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const handleFieldChange = (field: keyof typeof emptyForm, value: string) => {
     setForm((p) => ({ ...p, [field]: value }));
     if (field in fieldErrors)
       setFieldErrors((p) => ({ ...p, [field]: "" }));
   };
 
-  const isFormValid = !!form.businessName.trim() && (!!editingBusiness || (!!form.ownerName.trim() && !!form.ownerEmail.trim()));
-
-  console.log("form:", form, "isFormValid:", isFormValid);
+  const isFormValid = !!form.businessName.trim()
+    && (!!editingBusiness || (!!form.ownerName.trim() && !!form.ownerEmail.trim()))
+    && (form.businessType !== "Other" || !!customType.trim());
 
   return (
     <Box>
@@ -188,6 +264,41 @@ export function BusinessManagementPanel() {
             Add Business
           </Button>
         </Box>
+
+        {/* Search Bar */}
+        <Box sx={{ display: "flex", gap: 1, mb: 2.5 }}>
+          <TextField
+            placeholder="Search by Business ID (e.g. bz-247)"
+            value={searchId}
+            onChange={(e) => { setSearchId(e.target.value); setSearchError(null); }}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            size="small"
+            sx={{
+              flex: 1,
+              "& .MuiOutlinedInput-root": {
+                bgcolor: "#111118", borderRadius: "8px", color: "#e0dcf8", fontSize: 13,
+                "& fieldset": { borderColor: searchError ? "#ef4444" : "#2a2a35" },
+                "&:hover fieldset": { borderColor: searchError ? "#f87171" : "#7c6df0" },
+                "&.Mui-focused fieldset": { borderColor: searchError ? "#ef4444" : "#7c6df0" },
+              },
+              "& input::placeholder": { color: "#555", opacity: 1 },
+            }}
+          />
+          <Button
+            onClick={handleSearch}
+            disabled={searching || !searchId.trim()}
+            variant="outlined"
+            startIcon={searching ? <CircularProgress size={14} sx={{ color: "#7c6df0" }} /> : <SearchIcon sx={{ fontSize: 16 }} />}
+            sx={{ borderColor: "#2a2a35", color: "#a89cf0", textTransform: "none", fontSize: 13, borderRadius: "8px", whiteSpace: "nowrap", "&:hover": { borderColor: "#7c6df0", bgcolor: "rgba(124,109,240,0.08)" }, "&.Mui-disabled": { borderColor: "#1e1e2e", color: "#444" } }}>
+            {searching ? "Searching..." : "Search"}
+          </Button>
+        </Box>
+
+        {searchError && (
+          <Box sx={{ bgcolor: "#1a0808", border: "0.5px solid #5c1a1a", borderRadius: "8px", p: "10px 12px", mb: 2 }}>
+            <Typography sx={{ color: "#ef4444", fontSize: 13 }}>{searchError}</Typography>
+          </Box>
+        )}
 
         {error && (
           <Box sx={{ bgcolor: "#1a0808", border: "0.5px solid #5c1a1a", borderRadius: "8px", p: "12px", mb: 2 }}>
@@ -374,11 +485,86 @@ export function BusinessManagementPanel() {
           {/* Business Type */}
           <Box sx={{ mb: 2.5 }}>
             <Typography sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Business Type</Typography>
-            <Select fullWidth value={form.businessType} onChange={(e) => handleFieldChange("businessType", e.target.value)}
+            <Select fullWidth value={form.businessType} onChange={(e) => { handleFieldChange("businessType", e.target.value); setCustomType(""); }}
               sx={fieldInputSx(false)}
               MenuProps={{ PaperProps: { sx: { bgcolor: "#13131e", border: "1px solid #383850", borderRadius: "10px", color: "#f0eeff", mt: 0.5, "& .MuiMenuItem-root": { fontSize: 14, py: 1.2, "&:hover": { bgcolor: "rgba(124,109,240,0.12)" } }, "& .Mui-selected": { bgcolor: "rgba(124,109,240,0.18) !important" } } } } as any}>
-              {INDUSTRIES.map((ind) => <MenuItem key={ind} value={ind}>{ind}</MenuItem>)}
+              {industries.map((ind) => <MenuItem key={ind} value={ind}>{ind}</MenuItem>)}
             </Select>
+            {form.businessType === "Other" && (
+              <Box sx={{ mt: 1.5 }}>
+                <TextField fullWidth placeholder="e.g. Driving School, Pet Grooming..."
+                  value={customType}
+                  onChange={(e) => setCustomType(e.target.value)}
+                  InputProps={{ sx: fieldInputSx(false) }}
+                  InputLabelProps={{ shrink: false }}
+                  sx={{ "& .MuiInputLabel-root": { display: "none" } }}
+                />
+                {customType.trim() && (
+                  <Typography sx={{ color: "#7c6df0", fontSize: 11, mt: 0.6 }}>
+                    This will be saved as a new business type option for future use.
+                  </Typography>
+                )}
+              </Box>
+            )}
+            {/* Saved custom types — edit or delete */}
+            {(() => {
+              const saved = (() => { try { const s = localStorage.getItem(CUSTOM_INDUSTRIES_KEY); return s ? JSON.parse(s) : []; } catch { return []; } })();
+              if (!saved.length) return null;
+              return (
+                <Box sx={{ mt: 1.5, bgcolor: "#0d0d0f", border: "0.5px solid #2a2a35", borderRadius: "8px", p: "10px 12px" }}>
+                  <Typography sx={{ color: "#555", fontSize: 11, mb: 1, textTransform: "uppercase", letterSpacing: "0.08em" }}>Saved Custom Types</Typography>
+                  {saved.map((t: string) => (
+                    <Box key={t} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.8 }}>
+                      {editingCustomType?.original === t ? (
+                        <>
+                          <TextField
+                            size="small"
+                            value={editingCustomType.value}
+                            onChange={(e) => setEditingCustomType({ original: t, value: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && editingCustomType.value.trim()) {
+                                setIndustries(updateCustomIndustry(t, editingCustomType.value.trim()));
+                                if (form.businessType === t) handleFieldChange("businessType", editingCustomType.value.trim());
+                                setEditingCustomType(null);
+                              }
+                              if (e.key === "Escape") setEditingCustomType(null);
+                            }}
+                            autoFocus
+                            sx={{ flex: 1, "& .MuiOutlinedInput-root": { bgcolor: "#1a1a28", color: "#fff", fontSize: 13, "& fieldset": { borderColor: "#7c6df0" } } }}
+                          />
+                          <IconButton size="small"
+                            onClick={() => {
+                              if (editingCustomType.value.trim()) {
+                                setIndustries(updateCustomIndustry(t, editingCustomType.value.trim()));
+                                if (form.businessType === t) handleFieldChange("businessType", editingCustomType.value.trim());
+                                setEditingCustomType(null);
+                              }
+                            }}
+                            sx={{ color: "#22c55e", "&:hover": { bgcolor: "rgba(34,197,94,0.1)" } }}>
+                            <CheckIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </>
+                      ) : (
+                        <>
+                          <Typography sx={{ flex: 1, color: "#e0dcf8", fontSize: 13 }}>{t}</Typography>
+                          <IconButton size="small" onClick={() => setEditingCustomType({ original: t, value: t })}
+                            sx={{ color: "#7c6df0", "&:hover": { bgcolor: "rgba(124,109,240,0.12)" } }}>
+                            <EditOutlinedIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => {
+                            setIndustries(deleteCustomIndustry(t));
+                            if (form.businessType === t) handleFieldChange("businessType", "Other");
+                          }}
+                            sx={{ color: "#ef4444", "&:hover": { bgcolor: "rgba(239,68,68,0.1)" } }}>
+                            <DeleteOutlineIcon sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        </>
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+              );
+            })()}
           </Box>
           {/* Owner fields — only on create */}
           {!editingBusiness && (
