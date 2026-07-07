@@ -66,8 +66,7 @@ const emptyErrors = { businessName: "", ownerEmail: "", ownerName: "" };
 
 const INDUSTRIES = ["Retail", "Food & Beverage", "Technology", "Healthcare", "Education", "Finance", "Real Estate", "Entertainment", "Other"];
 
-export default function BusinessManagement() {
-  const navigate = useNavigate();
+export function BusinessManagementPanel() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
@@ -177,26 +176,8 @@ export default function BusinessManagement() {
   console.log("form:", form, "isFormValid:", isFormValid);
 
   return (
-    <Box sx={{ height: "100vh", bgcolor: "#0d0d0f", display: "flex", flexDirection: "column" }}>
-      {/* Navbar */}
-      <Box sx={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        px: { xs: 2, sm: 3, md: 4 }, py: 1.75,
-        borderBottom: "1px solid rgba(255,255,255,0.07)", bgcolor: "#111", flexShrink: 0,
-      }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <AutoAwesomeIcon sx={{ color: "#8b5cf6" }} />
-          <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>MarketingAI</Typography>
-        </Box>
-        <Button onClick={() => navigate("/dashboard")} startIcon={<ArrowBackIcon />}
-          sx={{ color: "#a0aec0", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}>
-          Dashboard
-        </Button>
-      </Box>
-
-      {/* Content */}
-      <Box sx={{ flex: 1, overflowY: "auto", p: { xs: 2, sm: 3, md: 4 } }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
+    <Box>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <BusinessIcon sx={{ color: "#7c6df0", fontSize: 24 }} />
             <Typography sx={{ color: "#f0eeff", fontSize: 20, fontWeight: 600 }}>Business Management</Typography>
@@ -332,7 +313,6 @@ export default function BusinessManagement() {
             </Box>
           </Box>
         )}
-      </Box>
 
       {/* Success Dialog */}
       <Dialog open={!!createdBusinessId} onClose={() => setCreatedBusinessId(null)} fullWidth maxWidth="xs"
@@ -454,6 +434,27 @@ export default function BusinessManagement() {
           </Button>
         </DialogActions>
       </Dialog>
+    </Box>
+  );
+}
+
+export default function BusinessManagement() {
+  const navigate = useNavigate();
+  return (
+    <Box sx={{ height: "100vh", bgcolor: "#0d0d0f", display: "flex", flexDirection: "column" }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: { xs: 2, sm: 3, md: 4 }, py: 1.75, borderBottom: "1px solid rgba(255,255,255,0.07)", bgcolor: "#111", flexShrink: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <AutoAwesomeIcon sx={{ color: "#8b5cf6" }} />
+          <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>MarketingAI</Typography>
+        </Box>
+        <Button onClick={() => navigate("/dashboard")} startIcon={<ArrowBackIcon />}
+          sx={{ color: "#a0aec0", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}>
+          Dashboard
+        </Button>
+      </Box>
+      <Box sx={{ flex: 1, overflowY: "auto", p: { xs: 2, sm: 3, md: 4 } }}>
+        <BusinessManagementPanel />
+      </Box>
     </Box>
   );
 }

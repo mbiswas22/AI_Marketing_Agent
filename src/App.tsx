@@ -11,11 +11,15 @@ import UserManagement from "./pages/UserManagement";
 import BusinessManagement from "./pages/BusinessManagement";
 import SettingsPage from "./pages/SettingsPage";
 import Onboard from "./pages/Onboard";
+import InviteAccept from "./pages/InviteAccept";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { authStatus } = useAuthenticator();
   if (authStatus === "configuring") return null;
-  if (authStatus !== "authenticated") return <Navigate to="/login" replace />;
+  if (authStatus !== "authenticated") {
+    sessionStorage.setItem("redirectAfterLogin", window.location.pathname + window.location.search);
+    return <Navigate to="/login" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -23,8 +27,9 @@ function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Welcome />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/invite" element={<ProtectedRoute><InviteAccept /></ProtectedRoute>} />
         <Route
           path="/welcome"
           element={

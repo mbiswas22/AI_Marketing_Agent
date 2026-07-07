@@ -89,7 +89,11 @@ export default function Dashboard() {
   const [fromHistoryBanner, setFromHistoryBanner] = useState(false);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
   const [publishingToLinkedIn, setPublishingToLinkedIn] = useState(false);
-  const [publishSnackbar, setPublishSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
+  const [publishSnackbar, setPublishSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error";
+  }>({ open: false, message: "", severity: "success" });
   const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [inputTab, setInputTab] =
@@ -163,7 +167,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     getSocialConnections()
-      .then((conns) => setLinkedinConnected(conns.some((c) => c.platform === "linkedin" && c.status === "connected")))
+      .then((conns) =>
+        setLinkedinConnected(
+          conns.some(
+            (c) => c.platform === "linkedin" && c.status === "connected",
+          ),
+        ),
+      )
       .catch(() => {});
   }, []);
 
@@ -179,7 +189,9 @@ export default function Dashboard() {
         if (!url) return null;
         try {
           const urlObj = new URL(url);
-          return urlObj.pathname.startsWith('/') ? urlObj.pathname.slice(1) : urlObj.pathname;
+          return urlObj.pathname.startsWith("/")
+            ? urlObj.pathname.slice(1)
+            : urlObj.pathname;
         } catch {
           return null;
         }
@@ -191,9 +203,15 @@ export default function Dashboard() {
         text: caption || undefined,
         ...(imageKey && { image_key: imageKey }),
       });
-      setPublishSnackbar({ open: true, message: "Posted to LinkedIn successfully", severity: "success" });
+      setPublishSnackbar({
+        open: true,
+        message: "Posted to LinkedIn successfully",
+        severity: "success",
+      });
     } catch (err) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || "Failed to post to LinkedIn";
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Failed to post to LinkedIn";
       setPublishSnackbar({ open: true, message: msg, severity: "error" });
     } finally {
       setPublishingToLinkedIn(false);
@@ -341,29 +359,16 @@ export default function Dashboard() {
           </Button>
           {role === "ADMIN" && (
             <Button
-              onClick={() => navigate("/users")}
-              startIcon={<PeopleIcon />}
-              sx={{ color: "#a78bfa", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}
-            >
-              User Management
-            </Button>
-          )}
-          {role === "ADMIN" && (
-            <Button
               onClick={() => navigate("/settings")}
               startIcon={<SettingsIcon />}
-              sx={{ color: "#a78bfa", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}
+              sx={{
+                color: "#a78bfa",
+                textTransform: "none",
+                fontSize: 14,
+                "&:hover": { color: "#fff" },
+              }}
             >
               Settings
-            </Button>
-          )}
-          {role === "ADMIN" && (
-            <Button
-              onClick={() => navigate("/businesses")}
-              startIcon={<BusinessIcon />}
-              sx={{ color: "#a78bfa", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}
-            >
-              Businesses
             </Button>
           )}
           <Typography
@@ -1412,7 +1417,11 @@ export default function Dashboard() {
                 )}
                 {caption && (
                   <Tooltip
-                    title={linkedinConnected ? "" : "Connect LinkedIn in Account Settings"}
+                    title={
+                      linkedinConnected
+                        ? ""
+                        : "Connect LinkedIn in Account Settings"
+                    }
                     placement="top"
                   >
                     <span>
@@ -1422,9 +1431,14 @@ export default function Dashboard() {
                         disabled={!linkedinConnected || publishingToLinkedIn}
                         onClick={handleLinkedInPublish}
                         startIcon={
-                          publishingToLinkedIn
-                            ? <CircularProgress size={12} sx={{ color: "#fff" }} />
-                            : <LinkedInIcon fontSize="small" />
+                          publishingToLinkedIn ? (
+                            <CircularProgress
+                              size={12}
+                              sx={{ color: "#fff" }}
+                            />
+                          ) : (
+                            <LinkedInIcon fontSize="small" />
+                          )
                         }
                         sx={{
                           bgcolor: "#0077b5",
@@ -1432,7 +1446,10 @@ export default function Dashboard() {
                           borderRadius: "6px",
                           fontSize: 12,
                           "&:hover": { bgcolor: "#005f8f" },
-                          "&.Mui-disabled": { bgcolor: "#003850", color: "#335870" },
+                          "&.Mui-disabled": {
+                            bgcolor: "#003850",
+                            color: "#335870",
+                          },
                         }}
                       >
                         Post to LinkedIn
@@ -1455,10 +1472,15 @@ export default function Dashboard() {
           severity={publishSnackbar.severity}
           onClose={() => setPublishSnackbar((p) => ({ ...p, open: false }))}
           sx={{
-            bgcolor: publishSnackbar.severity === "success" ? "#0d2010" : "#1a0808",
-            color: publishSnackbar.severity === "success" ? "#22c55e" : "#ef4444",
+            bgcolor:
+              publishSnackbar.severity === "success" ? "#0d2010" : "#1a0808",
+            color:
+              publishSnackbar.severity === "success" ? "#22c55e" : "#ef4444",
             border: `0.5px solid ${publishSnackbar.severity === "success" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
-            "& .MuiAlert-icon": { color: publishSnackbar.severity === "success" ? "#22c55e" : "#ef4444" },
+            "& .MuiAlert-icon": {
+              color:
+                publishSnackbar.severity === "success" ? "#22c55e" : "#ef4444",
+            },
           }}
         >
           {publishSnackbar.message}

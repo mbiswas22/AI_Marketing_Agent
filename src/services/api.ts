@@ -125,9 +125,11 @@ export const getUsers = async (businessId: string): Promise<User[]> => {
 
 export const createUser = async (data: {
   businessId: string;
+  userId: string;
   email: string;
   role: string;
   displayName: string;
+  phoneNumber?: string;
 }): Promise<User> => {
   const res = await api.post(`/users`, data);
   return res.data;
@@ -142,7 +144,7 @@ export const deleteUser = async (
 
 export const updateUser = async (
   userId: string,
-  data: { businessId: string; email: string; role: string; displayName: string }
+  data: { businessId: string; email: string; role: string; displayName: string; phoneNumber?: string }
 ): Promise<User> => {
   const res = await api.put(`/users/${userId}`, data);
   return res.data;
@@ -181,6 +183,7 @@ export const publishToLinkedIn = async (payload: {
 
 export interface InviteUserPayload {
   businessName: string;
+  businessId?: string;
   userName: string;
   userId: string;
   role: string;
@@ -188,6 +191,7 @@ export interface InviteUserPayload {
   userPhoneNumber: string;
   invitationLink: string;
   expirationTime: string;
+  invitationId: string;
 }
 
 export const inviteUser = async (payload: InviteUserPayload): Promise<void> => {
@@ -201,3 +205,33 @@ export const sendInviteEmail = async (payload: {
 }): Promise<void> => {
   await api.post(`/send-email`, payload);
 };
+
+export interface InvitationResponse {
+  invitationId: string;
+  businessId: string;
+  businessName: string;
+  userName: string;
+  userId: string;
+  role: string;
+  userEmail: string;
+  userPhoneNumber: string;
+  status: string;
+}
+
+export const getInvitation = async (invitationId: string): Promise<InvitationResponse> => {
+  const res = await api.get(`/invitations/${invitationId}`);
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  return data?.invitation ?? data;
+};
+
+export const createBusiness = async (payload: {
+  businessId: string;
+  businessName: string;
+  businessType: string;
+  ownerName: string;
+  ownerEmail: string;
+}): Promise<void> => {
+  await api.post(`/business`, payload);
+};
+
+

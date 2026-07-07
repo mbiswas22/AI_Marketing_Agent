@@ -19,9 +19,10 @@ import { inviteUser, sendInviteEmail } from "../services/api";
 import type { InviteUserPayload } from "../services/api";
 import "../styles/onboard.css";
 
-// ── Unique user ID generator ──────────────────────────────────────────────────
 const generateUserId = () =>
   "USR-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+const generateBusinessId = () =>
+  "BIZ-" + Math.random().toString(36).slice(2, 8).toUpperCase();
 
 // ── Dynamic input sx (depends on error state) ─────────────────────────────────
 const inputSx = (hasError: boolean) => ({
@@ -56,13 +57,15 @@ const fieldSx = {
 // ── Initial state ─────────────────────────────────────────────────────────────
 const emptyForm: InviteUserPayload = {
   businessName: "",
+  businessId: "",
   userName: "",
   userId: generateUserId(),
-  role: "VIEWER",
+  role: "ADMIN",
   userEmail: "",
   userPhoneNumber: "",
   invitationLink: "",
   expirationTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  invitationId: "",
 };
 const emptyErrors = { businessName: "", userName: "", email: "", phone: "" };
 
@@ -119,8 +122,23 @@ export default function Onboard() {
     setApiError(null);
     const token = crypto.randomUUID();
     const invitationLink = `${window.location.origin}/invite?token=${token}`;
+    const invitationId = token;
+    const businessId = generateBusinessId();
+    const businessName = form.businessName.trim()
+      ? form.businessName
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9-]/g, "")
+      : form.businessName.trim();
     try {
-      await inviteUser({ ...form, invitationLink });
+      await inviteUser({
+        ...form,
+        invitationLink,
+        businessId,
+        businessName,
+        invitationId,
+      });
       await sendInviteEmail({
         toEmail: form.userEmail,
         subject: "You're invited to MarketingAI",
@@ -252,59 +270,20 @@ export default function Onboard() {
               <div className="onboard-section-user">
                 <p className="onboard-section-label">User Details</p>
 
-                {/* Row 1: User Name + User ID */}
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                    gap: 2.5,
-                    mb: 2.5,
-                  }}
-                >
-                  <div className="onboard-field" style={{ marginBottom: 0 }}>
-                    <Typography sx={labelSx}>User Name</Typography>
-                    <TextField
-                      fullWidth
-                      placeholder="e.g. Jane Smith"
-                      value={form.userName}
-                      onChange={(e) => set("userName", e.target.value)}
-                      error={!!errors.userName}
-                      helperText={errors.userName}
-                      slotProps={{ input: { sx: inputSx(!!errors.userName) } }}
-                      sx={fieldSx}
-                    />
-                  </div>
-                  <div className="onboard-field" style={{ marginBottom: 0 }}>
-                    <Typography sx={labelSx}>
-                      User ID{" "}
-                      <span className="onboard-optional">(auto-generated)</span>
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      value={form.userId}
-                      slotProps={{
-                        input: {
-                          readOnly: true,
-                          sx: {
-                            ...inputSx(false),
-                            opacity: 0.7,
-                            "& input": {
-                              color: "#a78bfa",
-                              fontSize: 14,
-                              py: "13px",
-                              px: "14px",
-                              cursor: "not-allowed",
-                            },
-                          },
-                        },
-                      }}
-                      sx={{
-                        "& .MuiInputLabel-root": { display: "none" },
-                        cursor: "not-allowed",
-                      }}
-                    />
-                  </div>
-                </Box>
+                {/* Row 1: User Name */}
+                <div className="onboard-field">
+                  <Typography sx={labelSx}>User Name</Typography>
+                  <TextField
+                    fullWidth
+                    placeholder="e.g. Jane Smith"
+                    value={form.userName}
+                    onChange={(e) => set("userName", e.target.value)}
+                    error={!!errors.userName}
+                    helperText={errors.userName}
+                    slotProps={{ input: { sx: inputSx(!!errors.userName) } }}
+                    sx={fieldSx}
+                  />
+                </div>
 
                 {/* Row 2: Role + Phone */}
                 <Box
@@ -347,9 +326,9 @@ export default function Onboard() {
                         } as any
                       }
                     >
+                      <MenuItem value="ADMIN">ADMIN</MenuItem>
                       <MenuItem value="VIEWER">VIEWER</MenuItem>
                       <MenuItem value="EDITOR">EDITOR</MenuItem>
-                      <MenuItem value="ADMIN">ADMIN</MenuItem>
                     </Select>
                   </div>
                   <div className="onboard-field" style={{ marginBottom: 0 }}>

@@ -10,7 +10,11 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (authStatus === "authenticated") navigate("/welcome");
+    if (authStatus === "authenticated") {
+      const redirect = sessionStorage.getItem("redirectAfterLogin") || "/welcome";
+      sessionStorage.removeItem("redirectAfterLogin");
+      navigate(redirect, { replace: true });
+    }
   }, [authStatus, navigate]);
 
   return (

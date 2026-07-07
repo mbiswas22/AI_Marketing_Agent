@@ -58,8 +58,9 @@ def create_user(event):
 
         item = {
             "businessId": body["businessId"],   # PK
-            "userId":     user_id,               # SK
+            "userId":     body.get("userId") or user_id,   # SK
             "email":      body["email"],
+            "phoneNumber": body["phoneNumber"],
             "role":       body["role"],
             "displayName": body["displayName"],
             "status":     "ACTIVE",
