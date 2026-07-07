@@ -15,7 +15,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { authStatus } = useAuthenticator();
   if (authStatus === "configuring") return null;
   if (authStatus !== "authenticated") {
-    sessionStorage.setItem("redirectAfterLogin", window.location.pathname + window.location.search);
+    sessionStorage.setItem(
+      "redirectAfterLogin",
+      window.location.pathname + window.location.search,
+    );
     return <Navigate to="/login" replace />;
   }
   return <>{children}</>;
@@ -27,7 +30,14 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/invite" element={<ProtectedRoute><InviteAccept /></ProtectedRoute>} />
+        <Route
+          path="/invite"
+          element={
+            <ProtectedRoute>
+              <InviteAccept />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/welcome"
           element={
