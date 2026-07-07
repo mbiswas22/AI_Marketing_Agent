@@ -16,8 +16,6 @@ import {
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LogoutIcon from "@mui/icons-material/Logout";
 import HistoryIcon from "@mui/icons-material/History";
-import PeopleIcon from "@mui/icons-material/People";
-import BusinessIcon from "@mui/icons-material/Business";
 import SettingsIcon from "@mui/icons-material/Settings";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -341,29 +339,11 @@ export default function Dashboard() {
           </Button>
           {role === "ADMIN" && (
             <Button
-              onClick={() => navigate("/users")}
-              startIcon={<PeopleIcon />}
-              sx={{ color: "#a78bfa", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}
-            >
-              User Management
-            </Button>
-          )}
-          {role === "ADMIN" && (
-            <Button
               onClick={() => navigate("/settings")}
               startIcon={<SettingsIcon />}
               sx={{ color: "#a78bfa", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}
             >
               Settings
-            </Button>
-          )}
-          {role === "ADMIN" && (
-            <Button
-              onClick={() => navigate("/businesses")}
-              startIcon={<BusinessIcon />}
-              sx={{ color: "#a78bfa", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}
-            >
-              Businesses
             </Button>
           )}
           <Typography

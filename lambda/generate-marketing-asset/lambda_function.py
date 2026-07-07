@@ -1,13 +1,17 @@
 import json
+import re
 import uuid
 import os
 import boto3
 import base64
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from html.parser import HTMLParser
+from auth import get_user
+from response import api_response
+from authorization import require_role
 
-# AWS Clients
+# AWS Clients (module-level - reused across warm invocations, already correct)
 s3 = boto3.client("s3")
 dynamodb = boto3.resource("dynamodb")
 
@@ -40,14 +44,9 @@ def lambda_handler(event, context):
 
         action_id = str(uuid.uuid4())
 
-        # Pull user_id from Cognito JWT claims if available, else anonymous
-        user_id = (
-            event.get("requestContext", {})
-            .get("authorizer", {})
-            .get("jwt", {})
-            .get("claims", {})
-            .get("sub", "anonymous-user")
-        )
+        user = get_user(event)
+        print(f"Genarate_caption: User ID: {user}")
+        user_id = user['user_id']
 
         input_type    = body.get("input_type", "text")
         input_value   = body.get("input_value", "")
@@ -56,7 +55,7 @@ def lambda_handler(event, context):
         output_format = body.get("output_format", "plain_text")
         image_model_id = body.get("modelId", DEFAULT_IMAGE_MODEL)
 
-        # FIX: capture the original user-typed prompt BEFORE input_value
+        # Capture the original user-typed prompt BEFORE input_value
         # gets overwritten with an S3 key during image uploads
         original_prompt = body.get("prompt", input_value)
 
@@ -82,6 +81,8 @@ def lambda_handler(event, context):
 
         # ---------------------------------------------------
         # GENERATE MARKETING CONTENT
+        # (Nova Lite call — this is on the critical path, since
+        # image_prompt below depends on its output)
         # ---------------------------------------------------
 
         marketing_data = generate_marketing_content(
@@ -95,51 +96,65 @@ def lambda_handler(event, context):
 
         # ---------------------------------------------------
         # GENERATE IMAGE
+        # (Stability call — genuinely sequential after Nova Lite,
+        # since it needs image_prompt)
         # ---------------------------------------------------
 
         image_bytes = generate_image(image_prompt, image_model_id)
 
         image_key = f"generated/{user_id}/{action_id}.png"
+        created_at = datetime.utcnow().isoformat()
 
-        s3.put_object(
-            Bucket=BUCKET,
-            Key=image_key,
-            Body=image_bytes,
-            ContentType="image/png"
-        )
+        # ---------------------------------------------------
+        # S3 UPLOAD + DYNAMODB WRITE — run concurrently.
+        # Neither depends on the other's result: the DynamoDB
+        # item only needs image_key (already known), not the
+        # upload's return value.
+        # ---------------------------------------------------
 
+        def upload_image():
+            s3.put_object(
+                Bucket=BUCKET,
+                Key=image_key,
+                Body=image_bytes,
+                ContentType="image/png"
+            )
+
+        def write_record():
+            table.put_item(
+                Item={
+                    "action_id":     action_id,
+                    "user_id":       user_id,
+                    "business":      business,
+                    "content_type":  content_type,
+                    "output_format": output_format,
+                    "input_type":    input_type,
+                    "input_value":   input_value,
+                    "prompt":        original_prompt,
+                    "caption":       marketing_data["caption"],
+                    "hashtags":      marketing_data["hashtags"],
+                    "image_prompt":  image_prompt,
+                    "image_key":     image_key,
+                    "image_model":   image_model_id,
+                    "status":        "draft",
+                    "created_at":    created_at
+                }
+            )
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            upload_future = executor.submit(upload_image)
+            write_future = executor.submit(write_record)
+            # surface exceptions from either thread
+            upload_future.result()
+            write_future.result()
+
+        # presigned URL generation is a local signing operation
+        # (no network round trip), so it doesn't need parallelizing —
+        # it just needs to run after the upload completes
         image_url = s3.generate_presigned_url(
             "get_object",
             Params={"Bucket": BUCKET, "Key": image_key},
             ExpiresIn=86400
-        )
-
-        # ---------------------------------------------------
-        # SAVE TO DYNAMODB
-        # FIX: store original_prompt separately from input_value
-        # FIX: store real content_type from request body
-        # ---------------------------------------------------
-
-        created_at = datetime.utcnow().isoformat()
-
-        table.put_item(
-            Item={
-                "action_id":     action_id,
-                "user_id":       user_id,
-                "business":      business,
-                "content_type":  content_type,   # FIX: now stores real value e.g. "flyer", "blog"
-                "output_format": output_format,
-                "input_type":    input_type,
-                "input_value":   input_value,    # S3 key if image, original text if text/website
-                "prompt":        original_prompt, # FIX: always stores what user typed
-                "caption":       marketing_data["caption"],
-                "hashtags":      marketing_data["hashtags"],
-                "image_prompt":  image_prompt,
-                "image_key":     image_key,
-                "image_model":   image_model_id,
-                "status":        "draft",
-                "created_at":    created_at
-            }
         )
 
         return api_response(
@@ -151,8 +166,8 @@ def lambda_handler(event, context):
                 "image_prompt": image_prompt,
                 "image_url":    image_url,
                 "image_model":  image_model_id,
-                "content_type": content_type,   # FIX: return it so frontend can confirm
-                "prompt":       original_prompt, # FIX: return original prompt
+                "content_type": content_type,
+                "prompt":       original_prompt,
                 "status":       "draft",
                 "created_at":   created_at
             }
@@ -280,6 +295,16 @@ def generate_image(image_prompt, model_id=None):
 # ============================================================
 # Website Crawl
 # ============================================================
+# CHANGED: previously returned the first 5000 chars of raw HTML,
+# which meant most of the Nova Lite prompt budget was spent on
+# <script>, <style>, nav/footer markup, and tag noise instead of
+# actual page content. This strips scripts/styles and tags first,
+# so the same character budget carries far more real signal —
+# faster Nova Lite call, and better context for the caption/flyer copy.
+
+_SCRIPT_STYLE_RE = re.compile(r"<(script|style)[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL)
+_TAG_RE = re.compile(r"<[^>]+>")
+_WHITESPACE_RE = re.compile(r"\s+")
 
 def crawl_website(url):
 
@@ -290,24 +315,12 @@ def crawl_website(url):
         )
         with urllib.request.urlopen(req, timeout=10) as response:
             html = response.read().decode("utf-8", errors="ignore")
-        return html[:5000]
+
+        text = _SCRIPT_STYLE_RE.sub(" ", html)
+        text = _TAG_RE.sub(" ", text)
+        text = _WHITESPACE_RE.sub(" ", text).strip()
+
+        return text[:5000] if text else f"Website URL: {url}"
     except Exception as e:
         print(str(e))
         return f"Website URL: {url}"
-
-
-# ============================================================
-# API Response
-# ============================================================
-
-def api_response(status_code, body):
-    return {
-        "statusCode": status_code,
-        "headers": {
-            "Access-Control-Allow-Origin":  "*",
-            "Access-Control-Allow-Headers": "Content-Type,Authorization",
-            "Access-Control-Allow-Methods": "POST,OPTIONS",
-            "Content-Type":                 "application/json"
-        },
-        "body": json.dumps(body, default=str)
-    }

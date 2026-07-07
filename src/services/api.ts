@@ -171,6 +171,24 @@ export const disconnectSocialPlatform = async (platform: string): Promise<void> 
   await api.delete(`/social/connections/${platform}`);
 };
 
+export const getMetaAuthUrl = async (): Promise<string> => {
+  const res = await api.get(`/social/meta/authorize`);
+  return res.data.authUrl;
+};
+
+export interface MetaPageInfo {
+  platform: string;
+  status: string;
+  pageName?: string;
+  pageId?: string;
+  connectedAt?: string;
+}
+
+export const getMetaPages = async (): Promise<MetaPageInfo> => {
+  const res = await api.get(`/social/meta/pages`);
+  return res.data;
+};
+
 export const publishToLinkedIn = async (payload: {
   text?: string;
   image_key?: string;
