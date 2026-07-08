@@ -12,6 +12,8 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+// ================== Generate
+
 export interface GenerateCaptionResponse {
   caption?: string;
   hashtags?: string[];
@@ -71,6 +73,17 @@ export const generateImage = async (prompt: string): Promise<string> => {
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return data.imageUrl;
 };
+// =========== Model
+export interface BedrockModel {
+  modelId: string;
+  label: string;
+  description: string;
+}
+
+export const getModels = async (category: string): Promise<BedrockModel[]> => {
+  const res = await api.get<BedrockModel[]>(`/models`, { params: { category } });
+  return Array.isArray(res.data) ? res.data : [];
+};
 
 export interface HistoryItem {
   action_id: string;
@@ -88,23 +101,13 @@ export interface HistoryItem {
   status?: string;
 }
 
-export interface BedrockModel {
-  modelId: string;
-  label: string;
-  description: string;
-}
-
-export const getModels = async (category: string): Promise<BedrockModel[]> => {
-  const res = await api.get<BedrockModel[]>(`/models`, { params: { category } });
-  return Array.isArray(res.data) ? res.data : [];
-};
-
 export const getHistory = async (userId?: string): Promise<HistoryItem[]> => {
   const res = await api.get(`/history`, { params: userId ? { userId } : {} });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return Array.isArray(data) ? data : [];
 };
 
+// =============== USER
 export interface User {
   userId: string;
   businessId: string;
@@ -151,6 +154,92 @@ export const updateUser = async (
 };
 
 
+// =============== Invite User
+export interface InviteUserPayload {
+  businessName: string;
+  businessId?: string;
+  userName: string;
+  userId: string;
+  role: string;
+  userEmail: string;
+  userPhoneNumber: string;
+  invitationLink: string;
+  expirationTime: string;
+  invitationId: string;
+}
+
+export const inviteUser = async (payload: InviteUserPayload): Promise<void> => {
+  await api.post(`/invitations`, payload);
+};
+
+export const sendInviteEmail = async (payload: {
+  toEmail: string;
+  subject: string;
+  message: string;
+}): Promise<void> => {
+  await api.post(`/send-email`, payload);
+};
+
+export interface InvitationResponse {
+  invitationId: string;
+  businessId: string;
+  businessName: string;
+  userName: string;
+  userId: string;
+  role: string;
+  userEmail: string;
+  userPhoneNumber: string;
+  status: string;
+}
+
+export const getInvitation = async (invitationId: string): Promise<InvitationResponse> => {
+  const res = await api.get(`/invitations/${invitationId}`);
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  return data?.invitation ?? data;
+};
+
+// =========== Business
+export interface Business {
+  businessId: string;
+  businessName: string;
+  businessType: string;
+  status: string;
+  createdAt: string;
+  phone?: string;
+  region?: string;
+}
+
+export const getBusinesses = async (): Promise<Business[]> => {
+  const res = await api.get(`/business`);
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  return Array.isArray(data) ? data : data?.businesses ?? [];
+};
+
+export const createBusiness = async (payload: {
+  businessId?: string;
+  businessName: string;
+  businessType: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  status?: string;
+}): Promise<{ businessId?: string }> => {
+  const res = await api.post(`/business`, payload);
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  return data?.business ?? data;
+};
+
+export const updateBusiness = async (
+  businessId: string,
+  payload: { businessName: string; businessType: string; status: string }
+): Promise<void> => {
+  await api.put(`/business/${businessId}`, payload);
+};
+
+export const deleteBusiness = async (businessId: string): Promise<void> => {
+  await api.delete(`/business/${businessId}`);
+};
+
+// =============== SocialConnection
 export interface SocialConnection {
   platform: string;
   status: string;
@@ -199,31 +288,6 @@ export const publishToLinkedIn = async (payload: {
   return res.data;
 };
 
-export interface InviteUserPayload {
-  businessName: string;
-  businessId?: string;
-  userName: string;
-  userId: string;
-  role: string;
-  userEmail: string;
-  userPhoneNumber: string;
-  invitationLink: string;
-  expirationTime: string;
-  invitationId: string;
-}
-
-export const inviteUser = async (payload: InviteUserPayload): Promise<void> => {
-  await api.post(`/invitations`, payload);
-};
-
-export const sendInviteEmail = async (payload: {
-  toEmail: string;
-  subject: string;
-  message: string;
-}): Promise<void> => {
-  await api.post(`/send-email`, payload);
-};
-
 export interface CrawlWebsiteResponse {
   websiteData: { title: string; h1: string[]; h2: string[] };
   businessType: string;
@@ -247,34 +311,6 @@ export const crawlWebsite = async (
     platforms,
   });
   return res.data;
-};
-
-export interface InvitationResponse {
-  invitationId: string;
-  businessId: string;
-  businessName: string;
-  userName: string;
-  userId: string;
-  role: string;
-  userEmail: string;
-  userPhoneNumber: string;
-  status: string;
-}
-
-export const getInvitation = async (invitationId: string): Promise<InvitationResponse> => {
-  const res = await api.get(`/invitations/${invitationId}`);
-  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
-  return data?.invitation ?? data;
-};
-
-export const createBusiness = async (payload: {
-  businessId: string;
-  businessName: string;
-  businessType: string;
-  ownerName: string;
-  ownerEmail: string;
-}): Promise<void> => {
-  await api.post(`/business`, payload);
 };
 
 

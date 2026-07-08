@@ -1,4 +1,4 @@
-import { getCurrentUser, fetchAuthSession } from "aws-amplify/auth";
+import { getCurrentUser, fetchAuthSession, fetchUserAttributes } from "aws-amplify/auth";
 
 export async function getLoggedInUser() {
   try {
@@ -9,6 +9,19 @@ export async function getLoggedInUser() {
       userId: user.userId,
     };
   } catch {
+    return null;
+  }
+}
+
+export async function getUserAttributes() {
+  try {
+    const attributes = await fetchUserAttributes();
+
+    console.log(attributes);
+
+    return attributes;
+  } catch (err) {
+    console.error(err);
     return null;
   }
 }
