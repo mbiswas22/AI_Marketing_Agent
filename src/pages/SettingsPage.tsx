@@ -32,6 +32,7 @@ import { BusinessManagementPanel } from "./BusinessManagement";
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  // ── Tab (0=Team Members, 1=Businesses, 2=Connected Services) ──
   const [activeTab, setActiveTab] = useState(0);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
@@ -306,6 +307,7 @@ export default function SettingsPage() {
                 </Typography>
               </Box>
             )}
+
             {connectionsLoading ? (
               <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
                 <CircularProgress sx={{ color: "#7c6df0" }} />
@@ -427,10 +429,10 @@ export default function SettingsPage() {
                   )}
                 </Box>
 
-                {/* Meta card — coming soon */}
+                {/* Meta / Facebook card */}
                 <Box
                   sx={{
-                    border: "0.5px solid #2a2a35",
+                    border: `0.5px solid ${facebookConnected ? "rgba(24,119,242,0.4)" : "#2a2a35"}`,
                     borderRadius: "12px",
                     p: { xs: 2, sm: 3 },
                     bgcolor: "#111118",
@@ -439,8 +441,6 @@ export default function SettingsPage() {
                     justifyContent: "space-between",
                     gap: 2,
                     flexWrap: "wrap",
-                    opacity: 0.5,
-                    pointerEvents: "none",
                   }}
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -461,29 +461,87 @@ export default function SettingsPage() {
                       >
                         Meta (Facebook / Instagram)
                       </Typography>
-                      <Typography sx={{ color: "#64748b", fontSize: 12 }}>
-                        Not connected
-                      </Typography>
+                      {facebookConnected ? (
+                        <>
+                          <Typography sx={{ color: "#a0b0c8", fontSize: 12 }}>
+                            Connected as {facebookPage?.pageName ?? "—"}
+                          </Typography>
+                          {facebookPage?.connectedAt && (
+                            <Typography
+                              sx={{ color: "#64748b", fontSize: 11, mt: 0.2 }}
+                            >
+                              Since{" "}
+                              {new Date(
+                                facebookPage.connectedAt,
+                              ).toLocaleDateString()}
+                            </Typography>
+                          )}
+                        </>
+                      ) : (
+                        <Typography sx={{ color: "#64748b", fontSize: 12 }}>
+                          Not connected
+                        </Typography>
+                      )}
                     </Box>
                   </Box>
-                  <Chip
-                    label="Coming soon"
-                    size="small"
-                    sx={{
-                      bgcolor: "rgba(124,109,240,0.12)",
-                      color: "#7c6df0",
-                      border: "0.5px solid rgba(124,109,240,0.25)",
-                      fontSize: 11,
-                      height: 24,
-                    }}
-                  />
+                  {facebookConnected ? (
+                    <Button
+                      onClick={handleFbDisconnect}
+                      disabled={fbDisconnecting}
+                      variant="outlined"
+                      size="small"
+                      sx={{
+                        color: "#ef4444",
+                        borderColor: "rgba(239,68,68,0.4)",
+                        textTransform: "none",
+                        fontSize: 13,
+                        borderRadius: "8px",
+                        minWidth: 100,
+                        "&:hover": {
+                          bgcolor: "rgba(239,68,68,0.08)",
+                          borderColor: "#ef4444",
+                        },
+                      }}
+                    >
+                      {fbDisconnecting ? (
+                        <CircularProgress size={14} sx={{ color: "#ef4444" }} />
+                      ) : (
+                        "Disconnect"
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleFbConnect}
+                      disabled={fbConnecting}
+                      variant="contained"
+                      size="small"
+                      sx={{
+                        bgcolor: "#1877f2",
+                        textTransform: "none",
+                        fontSize: 13,
+                        borderRadius: "8px",
+                        minWidth: 100,
+                        "&:hover": { bgcolor: "#1462cc" },
+                        "&.Mui-disabled": {
+                          bgcolor: "#0c2f60",
+                          color: "#2a5090",
+                        },
+                      }}
+                    >
+                      {fbConnecting ? (
+                        <CircularProgress size={14} sx={{ color: "#fff" }} />
+                      ) : (
+                        "Connect"
+                      )}
+                    </Button>
+                  )}
                 </Box>
               </Box>
             )}
           </Box>
         )}
       </Box>
-
+      {/* Toast notifications */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={5000}
