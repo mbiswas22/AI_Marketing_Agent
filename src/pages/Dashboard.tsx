@@ -94,6 +94,8 @@ export default function Dashboard() {
     severity: "success" | "error";
   }>({ open: false, message: "", severity: "success" });
   const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
+  const [resultActionId, setResultActionId] = useState<string | null>(null);
+  const [resultCreatedAt, setResultCreatedAt] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [inputTab, setInputTab] =
     useState<(typeof INPUT_TABS)[number]["value"]>("text");
@@ -203,6 +205,8 @@ export default function Dashboard() {
       await publishToLinkedIn({
         text: caption || undefined,
         ...(imageKey && { image_key: imageKey }),
+        ...(resultActionId && { action_id: resultActionId }),
+        ...(resultCreatedAt && { createdAt: resultCreatedAt }),
       });
       setPublishSnackbar({
         open: true,
@@ -247,11 +251,13 @@ export default function Dashboard() {
         setHashtags(result.marketing.hashtags ?? []);
         if (result.imageUrl) setResultImageUrl(result.imageUrl);
       } else if (contentType === "image") {
-        const url = await generateImage(prompt);
+        const enrichedImagePrompt = `Professional marketing image for ${effectiveBusiness}. ${prompt}. High quality, photorealistic, commercial photography style, vibrant colors, no text, no words, no letters, no watermarks.`;
+        const url = await generateImage(enrichedImagePrompt);
         setResultImageUrl(url);
       } else if (config.type === "caption") {
+        const enrichedPrompt = `You are an expert marketing copywriter. Create detailed, compelling ${contentType} content for the business "${effectiveBusiness}". ${prompt}. Write at least 3-4 paragraphs with a strong headline, body copy, and a clear call to action. Be specific, persuasive and professional.`;
         const response = await generateCaption(
-          effectiveInput,
+          enrichedPrompt,
           effectiveBusiness,
           contentType,
           selectedPlatforms,
@@ -259,9 +265,12 @@ export default function Dashboard() {
         );
         setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
+        if ((response.data as any).action_id) setResultActionId((response.data as any).action_id);
+        if ((response.data as any).created_at) setResultCreatedAt((response.data as any).created_at);
       } else {
+        const enrichedPrompt = `You are an expert marketing copywriter. Create detailed, compelling ${contentType} content for the business "${effectiveBusiness}". ${prompt}. Write at least 3-4 paragraphs with a strong headline, body copy, and a clear call to action. Be specific, persuasive and professional.`;
         const response = await generateMarketAsset(
-          effectiveInput,
+          enrichedPrompt,
           effectiveBusiness,
           contentType,
           selectedFormat,
@@ -271,6 +280,8 @@ export default function Dashboard() {
         setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
         if (response.data.image_url) setResultImageUrl(response.data.image_url);
+        if ((response.data as any).action_id) setResultActionId((response.data as any).action_id);
+        if ((response.data as any).created_at) setResultCreatedAt((response.data as any).created_at);
       }
     } catch {
       setError("Failed to generate content. Please try again.");
@@ -315,6 +326,8 @@ export default function Dashboard() {
     setOffer(null);
     setCallToAction(null);
     setResultImageUrl(null);
+    setResultActionId(null);
+    setResultCreatedAt(null);
     setInputTab("text");
   };
 

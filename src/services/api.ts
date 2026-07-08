@@ -99,6 +99,7 @@ export interface HistoryItem {
   platforms?: string[];
   hashtags?: string[];
   status?: string;
+  scheduleAt?: string;
 }
 
 export const getHistory = async (userId?: string): Promise<HistoryItem[]> => {
@@ -283,6 +284,8 @@ export const getMetaPages = async (): Promise<MetaPageInfo> => {
 export const publishToLinkedIn = async (payload: {
   text?: string;
   image_key?: string;
+  action_id?: string;
+  createdAt?: string;
 }): Promise<{ success: boolean; postId: string }> => {
   const res = await api.post(`/social/linkedin/publish`, payload);
   return res.data;
@@ -313,4 +316,15 @@ export const crawlWebsite = async (
   return res.data;
 };
 
-
+export const schedulePost = async (payload: {
+  action_id: string;
+  userId: string;
+  createdAt: string;
+  caption: string;
+  imageUrl?: string;
+  platforms: string[];
+  scheduleAt: string;
+}): Promise<{ success: boolean; ruleName: string }> => {
+  const res = await api.post(`/schedule`, payload);
+  return res.data;
+};

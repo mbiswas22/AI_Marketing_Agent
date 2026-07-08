@@ -5,7 +5,8 @@ import { useNavigate } from "react-router-dom";
 import {
   Box, Typography, Button, Paper,
   CircularProgress, Chip, Collapse, IconButton,
-  Tooltip, Snackbar, Alert,
+  Tooltip, Snackbar, Alert, Dialog, DialogContent,
+  DialogActions, TextField, Divider,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -21,7 +22,8 @@ import FacebookIcon from "@mui/icons-material/Facebook";
 import InstagramIcon from "@mui/icons-material/Instagram";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
-import { getHistory, getSocialConnections, publishToLinkedIn } from "../services/api";
+import ScheduleIcon from "@mui/icons-material/Schedule";
+import { getHistory, getSocialConnections, publishToLinkedIn, schedulePost } from "../services/api";
 import type { HistoryItem } from "../services/api";
 import "../styles/history.css";
 
@@ -78,14 +80,22 @@ function HistoryRow({
   item,
   linkedinConnected,
   onPublishResult,
+  userId,
 }: {
   item: HistoryItem;
   linkedinConnected: boolean;
   onPublishResult: (success: boolean, msg: string) => void;
+  userId: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [schedulePlatforms, setSchedulePlatforms] = useState<string[]>(["linkedin"]);
+  const [scheduling, setScheduling] = useState(false);
   const navigate = useNavigate();
+  const [localStatus, setLocalStatus] = useState<string | undefined>(item.status);
+  const [localScheduleAt, setLocalScheduleAt] = useState<string | undefined>(item.scheduleAt);
 
   const handleLinkedInPublish = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -103,10 +113,43 @@ function HistoryRow({
     }
   };
 
+  const handleSchedule = async () => {
+    if (!scheduleAt || schedulePlatforms.length === 0) return;
+    setScheduling(true);
+    try {
+      await schedulePost({
+        action_id: item.action_id,
+        userId,
+        createdAt: item.created_at,
+        caption: item.caption || "",
+        imageUrl: item.image_url || "",
+        platforms: schedulePlatforms,
+        scheduleAt: new Date(scheduleAt).toISOString(),
+      });
+      setScheduleOpen(false);
+      setLocalStatus("scheduled");
+      setLocalScheduleAt(new Date(scheduleAt).toISOString());
+      onPublishResult(true, `Scheduled for ${new Date(scheduleAt).toLocaleString()}`);
+    } catch {
+      onPublishResult(false, "Failed to schedule post.");
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const toggleSchedulePlatform = (p: string) =>
+    setSchedulePlatforms((prev) =>
+      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
+    );
+
   const statusConfig =
-    item.status === "generated" || item.status === "published"
-      ? { label: item.status === "generated" ? "Generated" : "Published", bgcolor: "#0f3d2a", color: "#4caf7d", border: "#1a5c3a" }
-      : item.status === "draft"
+    localStatus === "generated" || localStatus === "published"
+      ? { label: localStatus === "generated" ? "Generated" : "Published", bgcolor: "#0f3d2a", color: "#4caf7d", border: "#1a5c3a" }
+      : localStatus === "scheduled"
+      ? { label: "Scheduled", bgcolor: "#1a1530", color: "#a78bfa", border: "#4c3a8a" }
+      : localStatus === "publish_failed"
+      ? { label: "Failed", bgcolor: "#1a0808", color: "#ef4444", border: "#5c1a1a" }
+      : localStatus === "draft"
       ? { label: "Draft", bgcolor: "#1a1a1a", color: "#888", border: "#333" }
       : null;
 
@@ -114,15 +157,16 @@ function HistoryRow({
     CONTENT_TYPE_ICONS[(item.content_type ?? "").toLowerCase()] ?? <TextSnippetIcon sx={{ fontSize: 14 }} />;
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        bgcolor: "#161616", border: "1px solid rgba(255,255,255,0.07)",
-        borderRadius: 2.5, mb: 1.25, overflow: "hidden",
-        transition: "border-color 0.2s, box-shadow 0.2s",
-        "&:hover": { borderColor: "rgba(139,92,246,0.35)", boxShadow: "0 0 0 1px rgba(139,92,246,0.12)" },
-      }}
-    >
+    <>
+      <Paper
+        elevation={0}
+        sx={{
+          bgcolor: "#161616", border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: 2.5, mb: 1.25, overflow: "hidden",
+          transition: "border-color 0.2s, box-shadow 0.2s",
+          "&:hover": { borderColor: "rgba(139,92,246,0.35)", boxShadow: "0 0 0 1px rgba(139,92,246,0.12)" },
+        }}
+      >
       <Box
         onClick={() => setExpanded((v) => !v)}
         sx={{ display: "flex", alignItems: "center", gap: 2, px: 2.5, py: 1.5, cursor: "pointer" }}
@@ -166,6 +210,11 @@ function HistoryRow({
               border: `1px solid ${statusConfig.border}`, fontSize: 12, fontWeight: 600, flexShrink: 0,
             }}
           />
+        )}
+        {localStatus === "scheduled" && localScheduleAt && (
+          <Typography sx={{ color: "#a78bfa", fontSize: 11, flexShrink: 0, display: { xs: "none", lg: "block" } }}>
+            {new Date(localScheduleAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+          </Typography>
         )}
         <IconButton
           size="small"
@@ -253,28 +302,39 @@ function HistoryRow({
           </Box>
 
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Tooltip
-              title={linkedinConnected ? "Post to LinkedIn" : "Connect LinkedIn in Account Settings"}
-              placement="top"
-            >
-              <span>
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+              <Tooltip
+                title={linkedinConnected ? "Post to LinkedIn" : "Connect LinkedIn in Account Settings"}
+                placement="top"
+              >
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleLinkedInPublish}
+                    disabled={!linkedinConnected || publishing}
+                    sx={{
+                      color: linkedinConnected ? "#0077b5" : "#334455",
+                      p: "6px",
+                      "&:hover": { bgcolor: "rgba(0,119,181,0.12)" },
+                      "&.Mui-disabled": { color: "#2a3a4a" },
+                    }}
+                  >
+                    {publishing
+                      ? <CircularProgress size={16} sx={{ color: "#0077b5" }} />
+                      : <LinkedInIcon sx={{ fontSize: 18 }} />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="Schedule post" placement="top">
                 <IconButton
                   size="small"
-                  onClick={handleLinkedInPublish}
-                  disabled={!linkedinConnected || publishing}
-                  sx={{
-                    color: linkedinConnected ? "#0077b5" : "#334455",
-                    p: "6px",
-                    "&:hover": { bgcolor: "rgba(0,119,181,0.12)" },
-                    "&.Mui-disabled": { color: "#2a3a4a" },
-                  }}
+                  onClick={(e) => { e.stopPropagation(); setScheduleOpen(true); }}
+                  sx={{ color: "#a78bfa", p: "6px", "&:hover": { bgcolor: "rgba(139,92,246,0.1)" } }}
                 >
-                  {publishing
-                    ? <CircularProgress size={16} sx={{ color: "#0077b5" }} />
-                    : <LinkedInIcon sx={{ fontSize: 18 }} />}
+                  <ScheduleIcon sx={{ fontSize: 18 }} />
                 </IconButton>
-              </span>
-            </Tooltip>
+              </Tooltip>
+            </Box>
             <button
               className="use-again-btn"
               onClick={() => navigate("/dashboard", {
@@ -298,6 +358,79 @@ function HistoryRow({
         </Box>
       </Collapse>
     </Paper>
+
+    {/* Schedule Dialog */}
+    <Dialog open={scheduleOpen} onClose={() => setScheduleOpen(false)} fullWidth maxWidth="xs"
+      PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } }}>
+      <Box sx={{ px: 3, pt: 3, pb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
+        <ScheduleIcon sx={{ color: "#a78bfa", fontSize: 22 }} />
+        <Box>
+          <Typography sx={{ color: "#e0dcf8", fontWeight: 700, fontSize: 16 }}>Schedule Post</Typography>
+          <Typography sx={{ color: "#64748b", fontSize: 12, mt: 0.3 }}>Choose when to publish this content</Typography>
+        </Box>
+      </Box>
+      <Divider sx={{ borderColor: "#2e2e42" }} />
+      <DialogContent sx={{ px: 3, pt: "20px !important", pb: 2 }}>
+        {/* Date/time picker */}
+        <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Schedule Date & Time</Typography>
+        <TextField
+          type="datetime-local"
+          fullWidth
+          value={scheduleAt}
+          onChange={(e) => setScheduleAt(e.target.value)}
+          inputProps={{ min: new Date().toISOString().slice(0, 16) }}
+          sx={{
+            mb: 2.5,
+            "& .MuiOutlinedInput-root": {
+              color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
+              "& fieldset": { borderColor: "#383850" },
+              "&:hover fieldset": { borderColor: "#7c6df0" },
+              "&.Mui-focused fieldset": { borderColor: "#7c6df0" },
+            },
+            "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
+          }}
+        />
+        {/* Platform selection */}
+        <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 1 }}>Publish To</Typography>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          {Object.entries(PLATFORM_INFO).map(([key, info]) => {
+            const selected = schedulePlatforms.includes(key);
+            return (
+              <Button key={key} onClick={() => toggleSchedulePlatform(key)}
+                startIcon={info.icon}
+                variant={selected ? "contained" : "outlined"}
+                size="small"
+                sx={{
+                  textTransform: "none", fontSize: 12, borderRadius: "8px",
+                  borderColor: selected ? info.color : "rgba(255,255,255,0.12)",
+                  color: selected ? "#fff" : "#64748b",
+                  bgcolor: selected ? info.color : "transparent",
+                  "&:hover": { bgcolor: info.color, color: "#fff", borderColor: info.color },
+                }}
+              >
+                {info.label}
+              </Button>
+            );
+          })}
+        </Box>
+      </DialogContent>
+      <Divider sx={{ borderColor: "#2e2e42" }} />
+      <DialogActions sx={{ px: 3, py: 2, gap: 1.5 }}>
+        <Button onClick={() => setScheduleOpen(false)}
+          sx={{ color: "#7070a0", textTransform: "none", border: "1px solid #44445a", borderRadius: "10px", px: 2.5,
+            "&:hover": { bgcolor: "rgba(255,255,255,0.06)" } }}>
+          Cancel
+        </Button>
+        <Button onClick={handleSchedule}
+          disabled={scheduling || !scheduleAt || schedulePlatforms.length === 0}
+          variant="contained"
+          sx={{ bgcolor: "#7c3aed", textTransform: "none", fontWeight: 600, borderRadius: "10px", px: 3, flexGrow: 1,
+            "&:hover": { bgcolor: "#6d28d9" }, "&.Mui-disabled": { bgcolor: "#3d2d60", color: "#7c5cbf" } }}>
+          {scheduling ? <CircularProgress size={16} sx={{ color: "#a89cf0" }} /> : "Schedule"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  </>
   );
 }
 
@@ -388,6 +521,7 @@ export default function History() {
                 item={item}
                 linkedinConnected={linkedinConnected}
                 onPublishResult={handlePublishResult}
+                userId={user?.userId ?? user?.username ?? "unknown"}
               />
             ))}
 
