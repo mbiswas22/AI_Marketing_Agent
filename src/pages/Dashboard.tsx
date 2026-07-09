@@ -22,6 +22,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckIcon from "@mui/icons-material/Check";
 import DownloadIcon from "@mui/icons-material/Download";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import FacebookIcon from "@mui/icons-material/Facebook";
 import {
   generateCaption,
   generateMarketAsset,
@@ -29,6 +30,8 @@ import {
   getModels,
   getSocialConnections,
   publishToLinkedIn,
+  getMetaPages,
+  publishToFacebook,
   crawlWebsite,
   getUser,
   getBusinesses,
@@ -91,6 +94,8 @@ export default function Dashboard() {
   const [fromHistoryBanner, setFromHistoryBanner] = useState(false);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
   const [publishingToLinkedIn, setPublishingToLinkedIn] = useState(false);
+  const [facebookConnected, setFacebookConnected] = useState(false);
+  const [publishingToFacebook, setPublishingToFacebook] = useState(false);
   const [publishSnackbar, setPublishSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -197,6 +202,9 @@ export default function Dashboard() {
         ),
       )
       .catch(() => {});
+    getMetaPages()
+      .then((info) => setFacebookConnected(info.status === "connected"))
+      .catch(() => {});
   }, []);
 
   const handleSignOut = () => {
@@ -237,6 +245,42 @@ export default function Dashboard() {
       setPublishSnackbar({ open: true, message: msg, severity: "error" });
     } finally {
       setPublishingToLinkedIn(false);
+    }
+  };
+
+  const handleFacebookPublish = async () => {
+    setPublishingToFacebook(true);
+    try {
+      const extractS3Key = (url: string): string | null => {
+        if (!url) return null;
+        try {
+          const urlObj = new URL(url);
+          return urlObj.pathname.startsWith("/")
+            ? urlObj.pathname.slice(1)
+            : urlObj.pathname;
+        } catch {
+          return null;
+        }
+      };
+
+      const imageKey = resultImageUrl ? extractS3Key(resultImageUrl) : null;
+
+      await publishToFacebook({
+        text: caption || undefined,
+        ...(imageKey && { image_key: imageKey }),
+      });
+      setPublishSnackbar({
+        open: true,
+        message: "Posted to Facebook successfully",
+        severity: "success",
+      });
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Failed to post to Facebook";
+      setPublishSnackbar({ open: true, message: msg, severity: "error" });
+    } finally {
+      setPublishingToFacebook(false);
     }
   };
 
@@ -1480,6 +1524,48 @@ export default function Dashboard() {
                         }}
                       >
                         Post to LinkedIn
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
+                {caption && (
+                  <Tooltip
+                    title={
+                      facebookConnected
+                        ? ""
+                        : "Connect Facebook in Account Settings"
+                    }
+                    placement="top"
+                  >
+                    <span>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        disabled={!facebookConnected || publishingToFacebook}
+                        onClick={handleFacebookPublish}
+                        startIcon={
+                          publishingToFacebook ? (
+                            <CircularProgress
+                              size={12}
+                              sx={{ color: "#fff" }}
+                            />
+                          ) : (
+                            <FacebookIcon fontSize="small" />
+                          )
+                        }
+                        sx={{
+                          bgcolor: "#1877f2",
+                          textTransform: "none",
+                          borderRadius: "6px",
+                          fontSize: 12,
+                          "&:hover": { bgcolor: "#145dbf" },
+                          "&.Mui-disabled": {
+                            bgcolor: "#0f3a73",
+                            color: "#4e78ac",
+                          },
+                        }}
+                      >
+                        Post to Facebook
                       </Button>
                     </span>
                   </Tooltip>
