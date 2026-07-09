@@ -26,7 +26,7 @@ import {
   disconnectSocialPlatform,
   getBusinesses,
 } from "../services/api";
-import type { SocialConnection, Business } from "../services/api";
+import type { SocialConnection, Business, MetaPageInfo } from "../services/api";
 import { UserManagementPanel } from "./UserManagement";
 import { BusinessManagementPanel } from "./BusinessManagement";
 

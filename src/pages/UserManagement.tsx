@@ -31,7 +31,6 @@ import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
 import { getUsers, createUser, deleteUser, updateUser } from "../services/api";
 import type { User } from "../services/api";
 import { sendUserInvite } from "../services/inviteService";
-import { getUserAttributes } from "../services/auth";
 
 const HARDCODED_BUSINESS_ID = "BUS001";
 

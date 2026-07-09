@@ -65,8 +65,8 @@ export default function Dashboard() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [fileName, setFileName] = useState<string | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [url, setUrl] = useState("");
+  // const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [url] = useState("");
   const [business, setBusiness] = useState(DEMO_BUSINESSES[0]);
   const [customBusiness, setCustomBusiness] = useState("");
   const [contentType, setContentType] = useState("flyer");
@@ -126,7 +126,7 @@ export default function Dashboard() {
         if (models.length > 0) {
           setModelsCache((prev) => ({ ...prev, [category]: models }));
           setSelectedModel((prev) =>
-            models.some((m) => m.modelId === prev) ? prev : models[0].modelId
+            models.some((m) => m.modelId === prev) ? prev : models[0].modelId,
           );
         }
       } catch {
@@ -263,7 +263,11 @@ export default function Dashboard() {
     setResultImageUrl(null);
     try {
       if (inputTab === "url") {
-        const result = await crawlWebsite(websiteUrl, contentType, selectedPlatforms);
+        const result = await crawlWebsite(
+          websiteUrl,
+          contentType,
+          selectedPlatforms,
+        );
         setCaption(result.marketing.caption ?? null);
         setHashtags(result.marketing.hashtags ?? []);
         if (result.imageUrl) setResultImageUrl(result.imageUrl);
