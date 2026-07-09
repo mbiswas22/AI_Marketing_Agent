@@ -1,6 +1,6 @@
 # social-meta-handler
 
-Handles Facebook Page OAuth and connection management via the Meta Graph API.
+Handles Facebook Page and Instagram Business Account OAuth/connection management via the Meta Graph API.
 API Gateway id: `l9k0b4he7h`, region `us-east-2`.
 
 ## Routes
@@ -10,7 +10,9 @@ API Gateway id: `l9k0b4he7h`, region `us-east-2`.
 | GET | /social/meta/authorize | Cognito JWT |
 | GET | /social/meta/callback | PUBLIC (no authorizer) |
 | GET | /social/meta/pages | Cognito JWT |
+| GET | /social/meta/instagram | Cognito JWT |
 | DELETE | /social/connections/facebook | Cognito JWT |
+| DELETE | /social/connections/instagram | Cognito JWT |
 
 ## Environment Variables
 
@@ -51,3 +53,20 @@ Table: `social-connections`
 `handle_callback()` takes the first Page returned by `/me/accounts` after the asset-picker consent and stores its `pageId`/`pageAccessToken`/`pageName` in DynamoDB under the connecting `businessId` — no hardcoded Page ID. This already supports different businesses connecting different Pages.
 
 **Known follow-up**: if a business selects multiple Pages in the asset picker, only the first is used. A real page-picker UI (letting the user choose among multiple returned Pages) is not yet built.
+
+## Instagram
+
+No separate OAuth flow — Instagram Business/Creator accounts are only accessible via a linked Facebook Page, so `handle_callback()` additionally calls `GET /{page_id}?fields=instagram_business_account` using the same Page Access Token right after storing the Facebook connection. If a linked account is found, a second DynamoDB item is written with `platform: "instagram"` (same table, same `businessId` partition key), storing `instagramBusinessAccountId` and reusing the Page's access token — Instagram Graph API publishing authenticates with the Page token, not a separate Instagram-specific token. This requires `instagram_basic`/`instagram_content_publish` to be present on the `META_CONFIG_ID` Login Configuration (added under App Dashboard → Use cases → "Manage messaging & content on Instagram" first, then selectable in the Configuration's Permissions step). Instagram lookup failure is non-fatal — it never blocks the Facebook connection from succeeding.
+
+## DynamoDB Schema — instagram item
+
+| Key | Type | Description |
+|-----|------|--------------|
+| `businessId` (PK) | String | Cognito `sub` from JWT |
+| `platform` (SK) | String | `"instagram"` |
+| `instagramBusinessAccountId` | String | Instagram Business Account ID (from `instagram_business_account.id`) |
+| `pageAccessToken` | String | Same token as the linked Facebook Page — never returned to client |
+| `pageId` / `pageName` | String | The linked Facebook Page, for reference |
+| `connectedAt` | String | ISO-8601, preserved on reconnect |
+| `status` | String | `"connected"` |
+| `expiresAt` | Number | Same expiry as the Facebook connection (shared token) |

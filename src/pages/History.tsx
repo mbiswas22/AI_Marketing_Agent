@@ -21,7 +21,7 @@ import FacebookIcon from "@mui/icons-material/Facebook";
 import InstagramIcon from "@mui/icons-material/Instagram";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
-import { getHistory, getSocialConnections, publishToLinkedIn, getMetaPages, publishToFacebook } from "../services/api";
+import { getHistory, getSocialConnections, publishToLinkedIn, getMetaPages, publishToFacebook, getInstagramStatus, publishToInstagram } from "../services/api";
 import type { HistoryItem } from "../services/api";
 import "../styles/history.css";
 
@@ -78,16 +78,19 @@ function HistoryRow({
   item,
   linkedinConnected,
   facebookConnected,
+  instagramConnected,
   onPublishResult,
 }: {
   item: HistoryItem;
   linkedinConnected: boolean;
   facebookConnected: boolean;
+  instagramConnected: boolean;
   onPublishResult: (success: boolean, msg: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishingFacebook, setPublishingFacebook] = useState(false);
+  const [publishingInstagram, setPublishingInstagram] = useState(false);
   const navigate = useNavigate();
 
   const handleLinkedInPublish = async (e: React.MouseEvent) => {
@@ -119,6 +122,30 @@ function HistoryRow({
       onPublishResult(false, msg);
     } finally {
       setPublishingFacebook(false);
+    }
+  };
+
+  const handleInstagramPublish = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = item.caption || getDisplayPrompt(item);
+    const image_key = item.image_key || item.s3_key;
+    if (!image_key) {
+      onPublishResult(false, "Instagram requires an image");
+      return;
+    }
+    setPublishingInstagram(true);
+    try {
+      const result = await publishToInstagram({ text: text || undefined, image_key });
+      if (result.processing) {
+        onPublishResult(false, result.error || "Instagram is still processing — try again shortly");
+      } else {
+        onPublishResult(true, "Posted to Instagram successfully");
+      }
+    } catch (err) {
+      const msg = (err as any)?.response?.data?.error || "Failed to post to Instagram";
+      onPublishResult(false, msg);
+    } finally {
+      setPublishingInstagram(false);
     }
   };
 
@@ -316,6 +343,28 @@ function HistoryRow({
                 </IconButton>
               </span>
             </Tooltip>
+            <Tooltip
+              title={instagramConnected ? "Post to Instagram" : "Connect Facebook (with linked Instagram) in Account Settings"}
+              placement="top"
+            >
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={handleInstagramPublish}
+                  disabled={!instagramConnected || publishingInstagram}
+                  sx={{
+                    color: instagramConnected ? "#e1306c" : "#334455",
+                    p: "6px",
+                    "&:hover": { bgcolor: "rgba(225,48,108,0.12)" },
+                    "&.Mui-disabled": { color: "#2a3a4a" },
+                  }}
+                >
+                  {publishingInstagram
+                    ? <CircularProgress size={16} sx={{ color: "#e1306c" }} />
+                    : <InstagramIcon sx={{ fontSize: 18 }} />}
+                </IconButton>
+              </span>
+            </Tooltip>
             <button
               className="use-again-btn"
               onClick={() => navigate("/dashboard", {
@@ -350,6 +399,7 @@ export default function History() {
   const [error, setError] = useState<string | null>(null);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
   const [facebookConnected, setFacebookConnected] = useState(false);
+  const [instagramConnected, setInstagramConnected] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
 
   const handleSignOut = () => { signOut(); navigate("/login"); };
@@ -374,6 +424,9 @@ export default function History() {
       .catch(() => {});
     getMetaPages()
       .then((info) => setFacebookConnected(info.status === "connected"))
+      .catch(() => {});
+    getInstagramStatus()
+      .then((info) => setInstagramConnected(info.status === "connected"))
       .catch(() => {});
   }, []);
 
@@ -433,6 +486,7 @@ export default function History() {
                 item={item}
                 linkedinConnected={linkedinConnected}
                 facebookConnected={facebookConnected}
+                instagramConnected={instagramConnected}
                 onPublishResult={handlePublishResult}
               />
             ))}

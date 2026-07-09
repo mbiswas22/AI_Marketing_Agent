@@ -23,6 +23,7 @@ import CheckIcon from "@mui/icons-material/Check";
 import DownloadIcon from "@mui/icons-material/Download";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import FacebookIcon from "@mui/icons-material/Facebook";
+import InstagramIcon from "@mui/icons-material/Instagram";
 import {
   generateCaption,
   generateMarketAsset,
@@ -32,6 +33,8 @@ import {
   publishToLinkedIn,
   getMetaPages,
   publishToFacebook,
+  getInstagramStatus,
+  publishToInstagram,
   crawlWebsite,
   getUser,
   getBusinesses,
@@ -96,6 +99,8 @@ export default function Dashboard() {
   const [publishingToLinkedIn, setPublishingToLinkedIn] = useState(false);
   const [facebookConnected, setFacebookConnected] = useState(false);
   const [publishingToFacebook, setPublishingToFacebook] = useState(false);
+  const [instagramConnected, setInstagramConnected] = useState(false);
+  const [publishingToInstagram, setPublishingToInstagram] = useState(false);
   const [publishSnackbar, setPublishSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -205,6 +210,9 @@ export default function Dashboard() {
     getMetaPages()
       .then((info) => setFacebookConnected(info.status === "connected"))
       .catch(() => {});
+    getInstagramStatus()
+      .then((info) => setInstagramConnected(info.status === "connected"))
+      .catch(() => {});
   }, []);
 
   const handleSignOut = () => {
@@ -281,6 +289,58 @@ export default function Dashboard() {
       setPublishSnackbar({ open: true, message: msg, severity: "error" });
     } finally {
       setPublishingToFacebook(false);
+    }
+  };
+
+  const handleInstagramPublish = async () => {
+    setPublishingToInstagram(true);
+    try {
+      const extractS3Key = (url: string): string | null => {
+        if (!url) return null;
+        try {
+          const urlObj = new URL(url);
+          return urlObj.pathname.startsWith("/")
+            ? urlObj.pathname.slice(1)
+            : urlObj.pathname;
+        } catch {
+          return null;
+        }
+      };
+
+      const imageKey = resultImageUrl ? extractS3Key(resultImageUrl) : null;
+      if (!imageKey) {
+        setPublishSnackbar({
+          open: true,
+          message: "Instagram requires an image — generate one first",
+          severity: "error",
+        });
+        return;
+      }
+
+      const result = await publishToInstagram({
+        text: caption || undefined,
+        image_key: imageKey,
+      });
+      if (result.processing) {
+        setPublishSnackbar({
+          open: true,
+          message: result.error || "Instagram is still processing — try again shortly",
+          severity: "error",
+        });
+      } else {
+        setPublishSnackbar({
+          open: true,
+          message: "Posted to Instagram successfully",
+          severity: "success",
+        });
+      }
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Failed to post to Instagram";
+      setPublishSnackbar({ open: true, message: msg, severity: "error" });
+    } finally {
+      setPublishingToInstagram(false);
     }
   };
 
@@ -1570,6 +1630,48 @@ export default function Dashboard() {
                         }}
                       >
                         Post to Facebook
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
+                {caption && (
+                  <Tooltip
+                    title={
+                      instagramConnected
+                        ? ""
+                        : "Connect Facebook (with a linked Instagram account) in Account Settings"
+                    }
+                    placement="top"
+                  >
+                    <span>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        disabled={!instagramConnected || publishingToInstagram}
+                        onClick={handleInstagramPublish}
+                        startIcon={
+                          publishingToInstagram ? (
+                            <CircularProgress
+                              size={12}
+                              sx={{ color: "#fff" }}
+                            />
+                          ) : (
+                            <InstagramIcon fontSize="small" />
+                          )
+                        }
+                        sx={{
+                          bgcolor: "#e1306c",
+                          textTransform: "none",
+                          borderRadius: "6px",
+                          fontSize: 12,
+                          "&:hover": { bgcolor: "#b81f57" },
+                          "&.Mui-disabled": {
+                            bgcolor: "#5c1430",
+                            color: "#a06080",
+                          },
+                        }}
+                      >
+                        Post to Instagram
                       </Button>
                     </span>
                   </Tooltip>

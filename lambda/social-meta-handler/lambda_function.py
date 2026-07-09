@@ -84,8 +84,14 @@ def lambda_handler(event, context):
     if method == "GET" and path == "/social/meta/pages":
         return handle_get_pages(event)
 
+    if method == "GET" and path == "/social/meta/instagram":
+        return handle_get_instagram(event)
+
     if method == "DELETE" and path == "/social/connections/facebook":
         return handle_delete_facebook(event)
+
+    if method == "DELETE" and path == "/social/connections/instagram":
+        return handle_delete_instagram(event)
 
     return json_response(404, {"error": "Route not found", "path": path, "method": method})
 
@@ -238,6 +244,43 @@ def handle_callback(event):
             business_id,
             page_name,
         )
+
+        # ── Discover linked Instagram Business Account (reuses the Page token) ──
+        try:
+            ig_url = (
+                f"https://graph.facebook.com/v19.0/{page_id}?"
+                + urlencode({"fields": "instagram_business_account", "access_token": page_access_token})
+            )
+            with urlopen(Request(ig_url, method="GET")) as resp:
+                ig_data = json.loads(resp.read().decode())
+
+            ig_account = ig_data.get("instagram_business_account")
+            if ig_account and ig_account.get("id"):
+                ig_existing = table.get_item(Key={"businessId": business_id, "platform": "instagram"})
+                ig_connected_at = ig_existing.get("Item", {}).get("connectedAt", now_iso)
+
+                table.put_item(Item={
+                    "businessId": business_id,
+                    "platform": "instagram",
+                    "instagramBusinessAccountId": ig_account["id"],
+                    "pageAccessToken": page_access_token,
+                    "pageId": page_id,
+                    "pageName": page_name,
+                    "connectedAt": ig_connected_at,
+                    "status": "connected",
+                    "expiresAt": expires_at,
+                })
+                logger.info(
+                    "callback: saved instagram connection for businessId=%s igAccountId=%s",
+                    business_id,
+                    ig_account["id"],
+                )
+            else:
+                logger.info("callback: no instagram_business_account linked to page id=%s", page_id)
+        except Exception as e:
+            # Instagram linkage is a bonus, not required for Facebook connect to succeed
+            logger.error("callback: instagram lookup failed (non-fatal): %s", str(e))
+
         return redirect_response(f"{FRONTEND_URL}/settings?facebook=success")
 
     except Exception as e:
@@ -287,3 +330,47 @@ def handle_delete_facebook(event):
     except Exception as e:
         logger.error("handle_delete_facebook error: %s", str(e))
         return json_response(500, {"error": "Failed to delete Facebook connection"})
+
+
+# ── GET /social/meta/instagram ────────────────────────────────────────────────
+
+def handle_get_instagram(event):
+    sub = get_sub_from_claims(event)
+    if not sub:
+        return json_response(400, {"error": "businessId not found in JWT claims"})
+
+    try:
+        result = table.get_item(Key={"businessId": sub, "platform": "instagram"})
+        item = result.get("Item")
+        if not item:
+            return json_response(200, {"platform": "instagram", "status": "not_connected"})
+
+        # Never expose access tokens to the client
+        return json_response(200, {
+            "platform": "instagram",
+            "status": item.get("status"),
+            "pageName": item.get("pageName"),
+            "instagramBusinessAccountId": item.get("instagramBusinessAccountId"),
+            "connectedAt": item.get("connectedAt"),
+        })
+
+    except Exception as e:
+        logger.error("handle_get_instagram error: %s", str(e))
+        return json_response(500, {"error": "Failed to retrieve Instagram account info"})
+
+
+# ── DELETE /social/connections/instagram ──────────────────────────────────────
+
+def handle_delete_instagram(event):
+    sub = get_sub_from_claims(event)
+    if not sub:
+        return json_response(400, {"error": "businessId not found in JWT claims"})
+
+    try:
+        table.delete_item(Key={"businessId": sub, "platform": "instagram"})
+        logger.info("delete_instagram: deleted connection for businessId=%s", sub)
+        return json_response(200, {"deleted": True})
+
+    except Exception as e:
+        logger.error("handle_delete_instagram error: %s", str(e))
+        return json_response(500, {"error": "Failed to delete Instagram connection"})

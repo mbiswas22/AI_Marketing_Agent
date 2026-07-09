@@ -1,8 +1,10 @@
 import json
 import os
+import time
 import uuid
 import logging
 from urllib.request import Request, urlopen
+from urllib.parse import urlencode
 from urllib.error import HTTPError
 import boto3
 
@@ -80,6 +82,9 @@ def lambda_handler(event, context):
 
     if method == "POST" and path == "/social/meta/publish":
         return handle_publish(event)
+
+    if method == "POST" and path == "/social/meta/instagram/publish":
+        return handle_instagram_publish(event)
 
     return json_response(404, {"error": "Route not found", "path": path, "method": method})
 
@@ -185,4 +190,140 @@ def handle_publish(event):
 
     except Exception as e:
         logger.error("handle_publish unhandled error: %s", str(e))
+        return json_response(500, {"error": f"Unexpected error: {str(e)}"})
+
+
+# ── POST /social/meta/instagram/publish ─────────────────────────────────────
+
+# API Gateway / Lambda have a hard ~30s response ceiling here, so video
+# processing is polled best-effort within that budget rather than async.
+IG_POLL_INTERVAL_SECONDS = 3
+IG_POLL_BUDGET_SECONDS = 22
+
+
+def graph_post_json(url: str, payload: dict) -> dict:
+    data = urlencode(payload).encode()
+    with urlopen(Request(url, data=data, method="POST")) as resp:
+        return json.loads(resp.read().decode())
+
+
+def graph_get_json(url: str) -> dict:
+    with urlopen(Request(url, method="GET")) as resp:
+        return json.loads(resp.read().decode())
+
+
+def handle_instagram_publish(event):
+    try:
+        sub = get_sub_from_claims(event)
+        if not sub:
+            return json_response(400, {"error": "User not authenticated"})
+
+        body = {}
+        if event.get("body"):
+            body = json.loads(event["body"])
+
+        text = body.get("text", "")
+        image_key = body.get("image_key")
+        video_key = body.get("video_key")
+
+        if not image_key and not video_key:
+            return json_response(400, {"error": "Instagram requires an image_key or video_key"})
+
+        # Get Instagram connection from DynamoDB (created alongside the Facebook
+        # connection in social-meta-handler — same Page Access Token is reused)
+        result = table.get_item(Key={"businessId": sub, "platform": "instagram"})
+        item = result.get("Item")
+        if not item:
+            return json_response(400, {"error": "Instagram not connected. Connect Facebook in Account Settings first."})
+
+        access_token = item.get("pageAccessToken")
+        ig_user_id = item.get("instagramBusinessAccountId")
+        if not access_token or not ig_user_id:
+            return json_response(400, {"error": "Instagram connection is incomplete. Please reconnect Facebook."})
+
+        media_key = video_key or image_key
+        media_url = s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": S3_BUCKET_NAME, "Key": media_key},
+            ExpiresIn=3600,
+        )
+        logger.info("ig_publish: igUserId=%s media_key=%s is_video=%s", ig_user_id, media_key, bool(video_key))
+
+        # ── Step 1: create media container ────────────────────────────────
+        container_payload = {"access_token": access_token}
+        if text:
+            container_payload["caption"] = text
+
+        if video_key:
+            container_payload["video_url"] = media_url
+            container_payload["media_type"] = "REELS"
+        else:
+            container_payload["image_url"] = media_url
+
+        try:
+            container_resp = graph_post_json(
+                f"https://graph.facebook.com/v19.0/{ig_user_id}/media",
+                container_payload,
+            )
+        except HTTPError as e:
+            detail = read_http_error(e)
+            logger.error("ig media container failed: %s %s", e.code, detail)
+            return json_response(500, {"error": f"Instagram media container failed (HTTP {e.code})", "detail": detail})
+
+        creation_id = container_resp.get("id")
+        if not creation_id:
+            logger.error("ig media container bad response: %s", container_resp)
+            return json_response(500, {"error": "Instagram did not return a media container id", "detail": str(container_resp)})
+
+        # ── Step 2 (video only): poll until processing finishes, best-effort ──
+        if video_key:
+            deadline = time.monotonic() + IG_POLL_BUDGET_SECONDS
+            status_code = "IN_PROGRESS"
+            while time.monotonic() < deadline:
+                status_url = (
+                    f"https://graph.facebook.com/v19.0/{creation_id}?"
+                    + urlencode({"fields": "status_code", "access_token": access_token})
+                )
+                try:
+                    status_resp = graph_get_json(status_url)
+                except HTTPError as e:
+                    detail = read_http_error(e)
+                    logger.error("ig status poll failed: %s %s", e.code, detail)
+                    return json_response(500, {"error": f"Instagram status check failed (HTTP {e.code})", "detail": detail})
+
+                status_code = status_resp.get("status_code", "IN_PROGRESS")
+                logger.info("ig_publish: creation_id=%s status_code=%s", creation_id, status_code)
+
+                if status_code == "FINISHED":
+                    break
+                if status_code in ("ERROR", "EXPIRED"):
+                    return json_response(500, {"error": f"Instagram video processing failed (status={status_code})"})
+
+                time.sleep(IG_POLL_INTERVAL_SECONDS)
+
+            if status_code != "FINISHED":
+                return json_response(202, {
+                    "success": False,
+                    "processing": True,
+                    "error": "Instagram is still processing this video. Please try publishing again in a moment.",
+                    "creationId": creation_id,
+                })
+
+        # ── Step 3: publish the container ───────────────────────────────────
+        try:
+            publish_resp = graph_post_json(
+                f"https://graph.facebook.com/v19.0/{ig_user_id}/media_publish",
+                {"creation_id": creation_id, "access_token": access_token},
+            )
+        except HTTPError as e:
+            detail = read_http_error(e)
+            logger.error("ig media_publish failed: %s %s", e.code, detail)
+            return json_response(500, {"error": f"Instagram publish failed (HTTP {e.code})", "detail": detail})
+
+        post_id = publish_resp.get("id", "")
+        logger.info("ig_publish: published successfully post_id=%s", post_id)
+        return json_response(200, {"success": True, "postId": post_id})
+
+    except Exception as e:
+        logger.error("handle_instagram_publish unhandled error: %s", str(e))
         return json_response(500, {"error": f"Unexpected error: {str(e)}"})

@@ -317,6 +317,28 @@ export const publishToFacebook = async (payload: {
   return res.data;
 };
 
+export interface InstagramInfo {
+  platform: string;
+  status: string;
+  pageName?: string;
+  instagramBusinessAccountId?: string;
+  connectedAt?: string;
+}
+
+export const getInstagramStatus = async (): Promise<InstagramInfo> => {
+  const res = await api.get(`/social/meta/instagram`);
+  return res.data;
+};
+
+export const publishToInstagram = async (payload: {
+  text?: string;
+  image_key?: string;
+  video_key?: string;
+}): Promise<{ success: boolean; postId?: string; processing?: boolean; error?: string }> => {
+  const res = await api.post(`/social/meta/instagram/publish`, payload);
+  return res.data;
+};
+
 export interface CrawlWebsiteResponse {
   websiteData: { title: string; h1: string[]; h2: string[] };
   businessType: string;
