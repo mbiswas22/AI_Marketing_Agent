@@ -275,39 +275,45 @@ def handle_instagram_publish(event):
             logger.error("ig media container bad response: %s", container_resp)
             return json_response(500, {"error": "Instagram did not return a media container id", "detail": str(container_resp)})
 
-        # ── Step 2 (video only): poll until processing finishes, best-effort ──
-        if video_key:
-            deadline = time.monotonic() + IG_POLL_BUDGET_SECONDS
-            status_code = "IN_PROGRESS"
-            while time.monotonic() < deadline:
-                status_url = (
-                    f"https://graph.facebook.com/v19.0/{creation_id}?"
-                    + urlencode({"fields": "status_code", "access_token": access_token})
-                )
-                try:
-                    status_resp = graph_get_json(status_url)
-                except HTTPError as e:
-                    detail = read_http_error(e)
-                    logger.error("ig status poll failed: %s %s", e.code, detail)
-                    return json_response(500, {"error": f"Instagram status check failed (HTTP {e.code})", "detail": detail})
+        # ── Step 2: poll until container processing finishes, best-effort ──
+        # Instagram needs a brief moment to fetch/process the media from the
+        # provided URL even for photos, not just video — publishing
+        # immediately after container creation intermittently fails with
+        # "Media ID is not available" (code 9007) if we don't wait for it.
+        poll_interval = IG_POLL_INTERVAL_SECONDS if video_key else 1.5
+        deadline = time.monotonic() + IG_POLL_BUDGET_SECONDS
+        status_code = "IN_PROGRESS"
+        while time.monotonic() < deadline:
+            status_url = (
+                f"https://graph.facebook.com/v19.0/{creation_id}?"
+                + urlencode({"fields": "status_code", "access_token": access_token})
+            )
+            try:
+                status_resp = graph_get_json(status_url)
+            except HTTPError as e:
+                detail = read_http_error(e)
+                logger.error("ig status poll failed: %s %s", e.code, detail)
+                return json_response(500, {"error": f"Instagram status check failed (HTTP {e.code})", "detail": detail})
 
-                status_code = status_resp.get("status_code", "IN_PROGRESS")
-                logger.info("ig_publish: creation_id=%s status_code=%s", creation_id, status_code)
+            status_code = status_resp.get("status_code", "IN_PROGRESS")
+            logger.info("ig_publish: creation_id=%s status_code=%s", creation_id, status_code)
 
-                if status_code == "FINISHED":
-                    break
-                if status_code in ("ERROR", "EXPIRED"):
-                    return json_response(500, {"error": f"Instagram video processing failed (status={status_code})"})
+            if status_code == "FINISHED":
+                break
+            if status_code in ("ERROR", "EXPIRED"):
+                media_kind = "video" if video_key else "image"
+                return json_response(500, {"error": f"Instagram {media_kind} processing failed (status={status_code})"})
 
-                time.sleep(IG_POLL_INTERVAL_SECONDS)
+            time.sleep(poll_interval)
 
-            if status_code != "FINISHED":
-                return json_response(202, {
-                    "success": False,
-                    "processing": True,
-                    "error": "Instagram is still processing this video. Please try publishing again in a moment.",
-                    "creationId": creation_id,
-                })
+        if status_code != "FINISHED":
+            media_kind = "video" if video_key else "image"
+            return json_response(202, {
+                "success": False,
+                "processing": True,
+                "error": f"Instagram is still processing this {media_kind}. Please try publishing again in a moment.",
+                "creationId": creation_id,
+            })
 
         # ── Step 3: publish the container ───────────────────────────────────
         try:
