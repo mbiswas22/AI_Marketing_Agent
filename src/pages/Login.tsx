@@ -4,13 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { Typography } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import "../styles/login.css";
-import { getUserAttributes } from "../services/auth";
 
 export default function Login() {
   const { authStatus } = useAuthenticator();
   const navigate = useNavigate();
-
-  const currentUser = getUserAttributes();
 
   useEffect(() => {
     if (authStatus === "authenticated") {
