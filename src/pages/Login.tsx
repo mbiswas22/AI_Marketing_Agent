@@ -6,7 +6,7 @@ import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import "../styles/login.css";
 
 export default function Login() {
-  const { authStatus } = useAuthenticator();
+  const { authStatus } = useAuthenticator((context) => [context.authStatus]);
   const navigate = useNavigate();
 
   useEffect(() => {
