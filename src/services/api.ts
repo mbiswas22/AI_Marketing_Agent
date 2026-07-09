@@ -156,7 +156,7 @@ export const updateUserCognitoId = async (
   cognitoUserId: string,
   businessId: string
 ): Promise<void> => {
-  await api.put(`/users/${invitationUserId}}?businessId=${businessId}`, { userId: cognitoUserId });
+  await api.put(`/users/${invitationUserId}`, { userId: cognitoUserId, businessId });
 };
 
 export const updateUser = async (
