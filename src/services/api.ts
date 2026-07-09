@@ -309,6 +309,14 @@ export const publishToLinkedIn = async (payload: {
   return res.data;
 };
 
+export const publishToFacebook = async (payload: {
+  text?: string;
+  image_key?: string;
+}): Promise<{ success: boolean; postId: string }> => {
+  const res = await api.post(`/social/meta/publish`, payload);
+  return res.data;
+};
+
 export interface CrawlWebsiteResponse {
   websiteData: { title: string; h1: string[]; h2: string[] };
   businessType: string;

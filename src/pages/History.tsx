@@ -21,7 +21,7 @@ import FacebookIcon from "@mui/icons-material/Facebook";
 import InstagramIcon from "@mui/icons-material/Instagram";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
-import { getHistory, getSocialConnections, publishToLinkedIn } from "../services/api";
+import { getHistory, getSocialConnections, publishToLinkedIn, getMetaPages, publishToFacebook } from "../services/api";
 import type { HistoryItem } from "../services/api";
 import "../styles/history.css";
 
@@ -77,14 +77,17 @@ const truncate = (text: string | undefined, max = 40) =>
 function HistoryRow({
   item,
   linkedinConnected,
+  facebookConnected,
   onPublishResult,
 }: {
   item: HistoryItem;
   linkedinConnected: boolean;
+  facebookConnected: boolean;
   onPublishResult: (success: boolean, msg: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [publishingFacebook, setPublishingFacebook] = useState(false);
   const navigate = useNavigate();
 
   const handleLinkedInPublish = async (e: React.MouseEvent) => {
@@ -100,6 +103,22 @@ function HistoryRow({
       onPublishResult(false, msg);
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const handleFacebookPublish = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = item.caption || getDisplayPrompt(item);
+    const image_key = item.image_key || item.s3_key;
+    setPublishingFacebook(true);
+    try {
+      await publishToFacebook({ text: text || undefined, image_key: image_key || undefined });
+      onPublishResult(true, "Posted to Facebook successfully");
+    } catch (err) {
+      const msg = (err as any)?.response?.data?.error || "Failed to post to Facebook";
+      onPublishResult(false, msg);
+    } finally {
+      setPublishingFacebook(false);
     }
   };
 
@@ -275,6 +294,28 @@ function HistoryRow({
                 </IconButton>
               </span>
             </Tooltip>
+            <Tooltip
+              title={facebookConnected ? "Post to Facebook" : "Connect Facebook in Account Settings"}
+              placement="top"
+            >
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={handleFacebookPublish}
+                  disabled={!facebookConnected || publishingFacebook}
+                  sx={{
+                    color: facebookConnected ? "#1877f2" : "#334455",
+                    p: "6px",
+                    "&:hover": { bgcolor: "rgba(24,119,242,0.12)" },
+                    "&.Mui-disabled": { color: "#2a3a4a" },
+                  }}
+                >
+                  {publishingFacebook
+                    ? <CircularProgress size={16} sx={{ color: "#1877f2" }} />
+                    : <FacebookIcon sx={{ fontSize: 18 }} />}
+                </IconButton>
+              </span>
+            </Tooltip>
             <button
               className="use-again-btn"
               onClick={() => navigate("/dashboard", {
@@ -308,6 +349,7 @@ export default function History() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
+  const [facebookConnected, setFacebookConnected] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
 
   const handleSignOut = () => { signOut(); navigate("/login"); };
@@ -329,6 +371,9 @@ export default function History() {
   useEffect(() => {
     getSocialConnections()
       .then((conns) => setLinkedinConnected(conns.some((c) => c.platform === "linkedin" && c.status === "connected")))
+      .catch(() => {});
+    getMetaPages()
+      .then((info) => setFacebookConnected(info.status === "connected"))
       .catch(() => {});
   }, []);
 
@@ -387,6 +432,7 @@ export default function History() {
                 key={item.action_id}
                 item={item}
                 linkedinConnected={linkedinConnected}
+                facebookConnected={facebookConnected}
                 onPublishResult={handlePublishResult}
               />
             ))}

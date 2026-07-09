@@ -20,7 +20,7 @@ API Gateway id: `l9k0b4he7h`, region `us-east-2`.
 | `META_APP_SECRET` | Facebook App Secret |
 | `META_REDIRECT_URI` | OAuth callback URL pointing to this Lambda's `/social/meta/callback` route |
 | `FRONTEND_URL` | Base URL of the frontend (e.g. `https://app.example.com`) — used for post-OAuth redirects |
-| `FACEBOOK_PAGE_ID` | ID of the Facebook Page to post to (see note below) |
+| `META_CONFIG_ID` | Facebook Login for Business Configuration ID (App Dashboard → Facebook Login for Business → Configurations). Bundles the Pages asset type + permissions and drives the asset-picker consent screen — see note below |
 
 ## DynamoDB Schema
 
@@ -40,8 +40,14 @@ Table: `social-connections`
 | `status` | String | `"connected"` |
 | `expiresAt` | Number | Unix timestamp: `now + 5184000` (60 days) |
 
-## Note on FACEBOOK_PAGE_ID
+## OAuth flow: Facebook Login for Business (config_id)
 
-`FACEBOOK_PAGE_ID` is currently hardcoded as a Lambda environment variable, meaning all users of this deployment post to the same Facebook Page. This is intentional for the MVP.
+`handle_authorize()` builds the OAuth URL with `config_id=<META_CONFIG_ID>` rather than a `scope=` param. This is Meta's required flow for Pages owned by a Business Portfolio (as opposed to a personal profile) — the Configuration bundles `pages_show_list`, `pages_read_engagement`, and `pages_manage_posts`, and drives an asset-picker consent screen where the connecting user explicitly selects which Page to share. The classic scope-based `/dialog/oauth` flow does **not** expose Business-Portfolio-owned Pages via `/me/accounts` — this was the root cause of a `page_not_found` failure during initial testing (confirmed via a direct Graph API Explorer call: `/me/accounts` returned `{"data": []}` even with all three permissions granted under the classic flow).
 
-In a future iteration this should be made dynamic per user: during the OAuth callback, instead of matching against a fixed ID, the user should be presented with a page-picker UI that lets them select which of their administered pages to connect. The selected `pageId` would then be stored in DynamoDB and looked up at publish time.
+`pages_manage_posts` is required for the publish endpoint (`social-meta-publish-handler`) to post to the Page — without it, publish calls fail with a Graph API permissions error. Connections made before this Configuration existed only have the older, narrower token and must disconnect/reconnect via Settings.
+
+## Page selection
+
+`handle_callback()` takes the first Page returned by `/me/accounts` after the asset-picker consent and stores its `pageId`/`pageAccessToken`/`pageName` in DynamoDB under the connecting `businessId` — no hardcoded Page ID. This already supports different businesses connecting different Pages.
+
+**Known follow-up**: if a business selects multiple Pages in the asset picker, only the first is used. A real page-picker UI (letting the user choose among multiple returned Pages) is not yet built.

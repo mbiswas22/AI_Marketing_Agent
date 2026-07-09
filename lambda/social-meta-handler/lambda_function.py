@@ -19,7 +19,7 @@ META_APP_ID = os.environ["META_APP_ID"]
 META_APP_SECRET = os.environ["META_APP_SECRET"]
 META_REDIRECT_URI = os.environ["META_REDIRECT_URI"]
 FRONTEND_URL = os.environ["FRONTEND_URL"]
-FACEBOOK_PAGE_ID = os.environ["FACEBOOK_PAGE_ID"]
+META_CONFIG_ID = os.environ["META_CONFIG_ID"]
 
 CORS_HEADERS = {
     "Content-Type": "application/json",
@@ -108,7 +108,8 @@ def handle_authorize(event):
         "client_id": META_APP_ID,
         "redirect_uri": META_REDIRECT_URI,
         "state": state,
-        "scope": "pages_show_list,pages_read_engagement",
+        "response_type": "code",
+        "config_id": META_CONFIG_ID,
     })
     auth_url = f"https://www.facebook.com/v19.0/dialog/oauth?{params}"
 
@@ -190,18 +191,15 @@ def handle_callback(event):
             accounts_data = json.loads(resp.read().decode())
 
         pages = accounts_data.get("data", [])
-        page = next((p for p in pages if p.get("id") == FACEBOOK_PAGE_ID), None)
+        page = pages[0] if pages else None
         if not page:
-            logger.error(
-                "callback: page %s not found in /me/accounts — found ids: %s",
-                FACEBOOK_PAGE_ID,
-                [p.get("id") for p in pages],
-            )
+            logger.error("callback: no pages granted in /me/accounts for businessId=%s", business_id)
             return redirect_response(f"{FRONTEND_URL}/settings?facebook=error&message=page_not_found")
 
+        page_id = page.get("id")
         page_access_token = page.get("access_token")
         page_name = page.get("name", "")
-        logger.info("callback: found page '%s' (id=%s)", page_name, FACEBOOK_PAGE_ID)
+        logger.info("callback: found page '%s' (id=%s)", page_name, page_id)
 
         # Get user identity
         me_url = (
@@ -226,7 +224,7 @@ def handle_callback(event):
             "platform": "facebook",
             "userAccessToken": long_lived_token,
             "pageAccessToken": page_access_token,
-            "pageId": FACEBOOK_PAGE_ID,
+            "pageId": page_id,
             "pageName": page_name,
             "facebookUserId": facebook_user_id,
             "facebookUserName": facebook_user_name,
