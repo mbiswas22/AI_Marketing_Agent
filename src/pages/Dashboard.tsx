@@ -30,8 +30,11 @@ import {
   getSocialConnections,
   publishToLinkedIn,
   crawlWebsite,
+  getUser,
+  getBusinesses,
 } from "../services/api";
 import type { BedrockModel } from "../services/api";
+import { getUserAttributes } from "../services/auth";
 import {
   DEMO_BUSINESSES,
   FALLBACK_MODELS,
@@ -57,7 +60,7 @@ const getApiConfig = (ct: string) => {
 export default function Dashboard() {
   const { user, signOut } = useAuthenticator();
   const navigate = useNavigate();
-  const role = "ADMIN";
+  const [role, setRole] = useState<string>("VIEWER");
   const location = useLocation();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -164,6 +167,24 @@ export default function Dashboard() {
     if (hi.image_url) setResultImageUrl(hi.image_url);
     setFromHistoryBanner(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const attrs = await getUserAttributes();
+        const sub = (attrs as any)?.sub;
+        if (!sub) return;
+        const businesses = await getBusinesses();
+        const businessId = businesses[0]?.businessId;
+        if (!businessId) return;
+        const userData = await getUser(sub, businessId);
+        if (userData?.role) setRole(userData.role);
+      } catch {
+        // keep default VIEWER
+      }
+    };
+    fetchRole();
   }, []);
 
   useEffect(() => {

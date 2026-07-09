@@ -14,8 +14,15 @@ import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
-import { getInvitation, createBusiness, createUser } from "../services/api";
+import {
+  getInvitation,
+  createBusiness,
+  createUser,
+  updateUserCognitoId,
+  updateInvitation,
+} from "../services/api";
 import type { InvitationResponse } from "../services/api";
+import { getUserAttributes } from "../services/auth";
 
 const INDUSTRIES = [
   "Retail",
@@ -89,8 +96,9 @@ export default function InviteAccept() {
       setStatus("invalid");
       return;
     }
-    getInvitation(token)
-      .then((inv) => {
+    const load = async () => {
+      try {
+        const inv = await getInvitation(token);
         if (inv.status !== "Invited") {
           setErrorMsg(
             "This invitation is no longer valid or has already been used.",
@@ -99,6 +107,20 @@ export default function InviteAccept() {
           return;
         }
         if (inv.role !== "ADMIN") {
+          try {
+            const attrs = await getUserAttributes();
+            const cognitoUserId = (attrs as any)?.sub;
+            if (cognitoUserId) {
+              await updateUserCognitoId(
+                inv.userId,
+                cognitoUserId,
+                inv.businessId,
+              );
+              await updateInvitation(token, { status: "Accepted" });
+            }
+          } catch {
+            // proceed to dashboard regardless
+          }
           navigate("/dashboard", { replace: true });
           return;
         }
@@ -108,11 +130,12 @@ export default function InviteAccept() {
         setUserEmail(inv.userEmail ?? "");
         setUserPhone(inv.userPhoneNumber ?? "");
         setStatus("ready");
-      })
-      .catch(() => {
+      } catch {
         setErrorMsg("Invitation not found or has expired.");
         setStatus("invalid");
-      });
+      }
+    };
+    load();
   }, [token, navigate]);
 
   const validate = () => {
@@ -141,6 +164,9 @@ export default function InviteAccept() {
     if (!validate() || !invitation) return;
     setStatus("submitting");
     try {
+      const attrs = await getUserAttributes();
+      const userId = (attrs as any)?.sub ?? invitation.userId;
+      console.log("userId ==> InviteAccept", userId);
       await createBusiness({
         businessId: invitation.businessId,
         businessName: businessName.trim(),
@@ -150,7 +176,7 @@ export default function InviteAccept() {
       });
       await createUser({
         businessId: invitation.businessId,
-        userId: invitation.userId,
+        userId,
         email: userEmail.trim(),
         role: invitation.role,
         displayName: userName.trim(),

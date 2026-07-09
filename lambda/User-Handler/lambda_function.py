@@ -31,6 +31,9 @@ def lambda_handler(event, context):
     elif method == "POST":
         return create_user(event)
     elif method == "GET":
+        path_params = event.get("pathParameters") or {}
+        if path_params.get("userId"):
+            return get_user_by_id(event)
         return get_users(event)
     elif method == "PUT":
         return update_user(event)
@@ -94,6 +97,64 @@ def get_users(event):
     except Exception as e:
         print(f"[get_users] Error: {e}")
         return response(500, {"error": str(e)})
+
+# ── GET /users/{userId}?businessId=BUS001 ─────────────────────────────────────────────────
+def get_user_by_id(event):
+    try:
+        params = event.get("queryStringParameters") or {}
+        path = event.get("pathParameters") or {}
+
+        business_id = params.get("businessId")
+        user_id = path.get("userId")
+
+        if not business_id:
+            return response(
+                400,
+                {
+                    "error": "businessId query parameter is required"
+                }
+            )
+
+        if not user_id:
+            return response(
+                400,
+                {
+                    "error": "userId path parameter is required"
+                }
+            )
+
+        result = table.get_item(
+            Key={
+                "businessId": business_id,
+                "userId": user_id
+            }
+        )
+
+        item = result.get("Item")
+
+        if not item:
+            return response(
+                404,
+                {
+                    "error": "User not found"
+                }
+            )
+
+        return response(
+            200,
+            {
+                "user": item
+            }
+        )
+
+    except Exception as e:
+        print(f"[get_user_by_id] Error: {e}")
+        return response(
+            500,
+            {
+                "error": str(e)
+            }
+        )
 
 # ── PUT /users/{userId} ──────────────────────────────────────────────────────────
 # userId comes from URL, businessId comes from body

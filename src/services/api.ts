@@ -145,6 +145,20 @@ export const deleteUser = async (
   await api.delete(`/users/${userId}`, { params: { businessId } });
 };
 
+export const getUser = async (userId: string, businessId: string): Promise<User> => {
+  const res = await api.get(`/users/${userId}`, { params: { businessId } });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  return data?.user ?? data;
+};
+
+export const updateUserCognitoId = async (
+  invitationUserId: string,
+  cognitoUserId: string,
+  businessId: string
+): Promise<void> => {
+  await api.put(`/users/${invitationUserId}}?businessId=${businessId}`, { userId: cognitoUserId });
+};
+
 export const updateUser = async (
   userId: string,
   data: { businessId: string; email: string; role: string; displayName: string; phoneNumber?: string }
@@ -196,6 +210,13 @@ export const getInvitation = async (invitationId: string): Promise<InvitationRes
   const res = await api.get(`/invitations/${invitationId}`);
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return data?.invitation ?? data;
+};
+
+export const updateInvitation = async (
+  invitationId: string,
+  payload: { status: string }
+): Promise<void> => {
+  await api.put(`/invitations/${invitationId}`, payload);
 };
 
 // =========== Business

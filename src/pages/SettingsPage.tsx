@@ -24,9 +24,9 @@ import {
   getMetaAuthUrl,
   getMetaPages,
   disconnectSocialPlatform,
-  api,
+  getBusinesses,
 } from "../services/api";
-import type { SocialConnection } from "../services/api";
+import type { SocialConnection, Business } from "../services/api";
 import { UserManagementPanel } from "./UserManagement";
 import { BusinessManagementPanel } from "./BusinessManagement";
 
@@ -34,6 +34,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   // ── Tab (0=Team Members, 1=Businesses, 2=Connected Services) ──
   const [activeTab, setActiveTab] = useState(0);
+  const [business, setBusiness] = useState<Business | null>(null);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -52,6 +53,9 @@ export default function SettingsPage() {
 
   useEffect(() => {
     checkUrlParams();
+    getBusinesses()
+      .then((list) => setBusiness(list[0] ?? null))
+      .catch(() => {});
   }, []);
   useEffect(() => {
     if (activeTab === 2) fetchConnections();
@@ -284,7 +288,12 @@ export default function SettingsPage() {
         </Tabs>
 
         {/* Team Members Tab */}
-        {activeTab === 0 && <UserManagementPanel />}
+        {activeTab === 0 && (
+          <UserManagementPanel
+            businessId={business?.businessId}
+            businessName={business?.businessName}
+          />
+        )}
 
         {/* Businesses Tab */}
         {activeTab === 1 && <BusinessManagementPanel />}

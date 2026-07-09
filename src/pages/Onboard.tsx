@@ -15,8 +15,8 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
 import SendIcon from "@mui/icons-material/Send";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
-import { inviteUser, sendInviteEmail } from "../services/api";
 import type { InviteUserPayload } from "../services/api";
+import { sendUserInvite } from "../services/inviteService";
 import "../styles/onboard.css";
 
 const generateUserId = () =>
@@ -120,29 +120,18 @@ export default function Onboard() {
     if (!validate()) return;
     setSubmitting(true);
     setApiError(null);
-    const token = crypto.randomUUID();
-    const invitationLink = `${window.location.origin}/invite?token=${token}`;
-    const invitationId = token;
     const businessId = generateBusinessId();
-    const businessName = form.businessName.trim()
-      ? form.businessName
-          .trim()
-          .toLowerCase()
-          .replace(/\s+/g, "-")
-          .replace(/[^a-z0-9-]/g, "")
-      : form.businessName.trim();
+    const businessName = form.businessName.trim();
+    const token = crypto.randomUUID();
     try {
-      await inviteUser({
-        ...form,
-        invitationLink,
+      await sendUserInvite({
         businessId,
         businessName,
-        invitationId,
-      });
-      await sendInviteEmail({
-        toEmail: form.userEmail,
-        subject: "You're invited to MarketingAI",
-        message: `Hi ${form.userName},\n\nYou've been invited to join MarketingAI as ${form.role}.\n\nAccept your invitation here: ${invitationLink}\n\nThis link expires in 24 hours.`,
+        userName: form.userName,
+        userId: token,
+        role: form.role,
+        userEmail: form.userEmail,
+        userPhoneNumber: form.userPhoneNumber,
       });
       setSuccess(true);
     } catch {
