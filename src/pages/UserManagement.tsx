@@ -10,18 +10,17 @@ import {
   TableRow,
   TableCell,
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
   Select,
   MenuItem,
-  FormControl,
-  InputLabel,
   CircularProgress,
   IconButton,
   Tooltip,
   Divider,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import PeopleIcon from "@mui/icons-material/People";
@@ -31,11 +30,12 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
 import { getUsers, createUser, deleteUser, updateUser } from "../services/api";
 import type { User } from "../services/api";
+import { sendUserInvite } from "../services/inviteService";
 
 const HARDCODED_BUSINESS_ID = "BUS001";
 
 const fieldInputSx = (hasError: boolean) => ({
-  bgcolor: "#a78bfa",
+  bgcolor: "#1a1a28",
   borderRadius: "10px",
   "& fieldset": {
     borderColor: hasError ? "#ef4444" : "#383850",
@@ -57,20 +57,34 @@ const fieldInputSx = (hasError: boolean) => ({
   "& .MuiSvgIcon-root": { color: "#9090c0" },
 });
 
-const emptyForm = {
-  email: "",
-  displayName: "",
-  role: "VIEWER",
-  businessId: HARDCODED_BUSINESS_ID,
-};
 const emptyErrors = { email: "", displayName: "", businessId: "" };
 
 function validateEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-export default function UserManagement() {
-  const navigate = useNavigate();
+interface UserManagementPanelProps {
+  businessId?: string;
+  businessName?: string;
+}
+
+export function UserManagementPanel({
+  businessId,
+  businessName,
+}: UserManagementPanelProps) {
+  const effectiveBusinessId = businessId ?? HARDCODED_BUSINESS_ID;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
+
+  const emptyForm = {
+    email: "",
+    displayName: "",
+    role: "VIEWER",
+    businessId: effectiveBusinessId,
+    phoneNumber: "",
+  };
+
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,13 +97,13 @@ export default function UserManagement() {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [effectiveBusinessId]);
 
   const fetchUsers = async () => {
     setLoading(true);
     setError(null);
     try {
-      setUsers(await getUsers(HARDCODED_BUSINESS_ID));
+      setUsers(await getUsers(effectiveBusinessId));
     } catch {
       setError("Failed to load users.");
     } finally {
@@ -111,6 +125,7 @@ export default function UserManagement() {
       displayName: user.displayName,
       role: user.role,
       businessId: user.businessId,
+      phoneNumber: (user as any).phoneNumber ?? "",
     });
     setFieldErrors(emptyErrors);
     setDialogOpen(true);
@@ -143,9 +158,32 @@ export default function UserManagement() {
     setSubmitting(true);
     try {
       if (editingUser) {
-        await updateUser(editingUser.userId, form);
+        await updateUser(editingUser.userId, {
+          ...form,
+          phoneNumber: form.phoneNumber || undefined,
+        });
       } else {
-        await createUser(form);
+        // Creating user should not take current user id
+        // const attrs = await getUserAttributes();
+        // const userId =
+        //   (attrs as any)?.sub ??
+        //   "USR-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+        const token = crypto.randomUUID();
+        const userId = token;
+        await createUser({
+          ...form,
+          userId,
+          phoneNumber: form.phoneNumber || undefined,
+        });
+        await sendUserInvite({
+          businessId: effectiveBusinessId,
+          businessName: businessName ?? effectiveBusinessId,
+          userName: form.displayName,
+          userId,
+          role: form.role,
+          userEmail: form.email,
+          userPhoneNumber: form.phoneNumber || undefined,
+        });
       }
       setDialogOpen(false);
       await fetchUsers();
@@ -161,7 +199,7 @@ export default function UserManagement() {
   const handleDelete = async (userId: string) => {
     setDeletingId(userId);
     try {
-      await deleteUser(HARDCODED_BUSINESS_ID, userId);
+      await deleteUser(effectiveBusinessId, userId);
       setUsers((prev) => prev.filter((u) => u.userId !== userId));
     } catch {
       setError("Failed to delete user.");
@@ -170,117 +208,183 @@ export default function UserManagement() {
     }
   };
 
-  const handleFieldChange = (field: keyof typeof form, value: string) => {
+  const handleFieldChange = (field: keyof typeof emptyForm, value: string) => {
     setForm((p) => ({ ...p, [field]: value }));
     if (fieldErrors[field as keyof typeof fieldErrors])
       setFieldErrors((p) => ({ ...p, [field]: "" }));
   };
 
   return (
-    <Box
-      sx={{
-        height: "100vh",
-        bgcolor: "#0d0d0f",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {/* Navbar */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          px: { xs: 2, sm: 3, md: 4 },
-          py: 1.75,
-          borderBottom: "1px solid rgba(255,255,255,0.07)",
-          bgcolor: "#111",
-          flexShrink: 0,
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <AutoAwesomeIcon sx={{ color: "#8b5cf6" }} />
-          <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>
-            MarketingAI
-          </Typography>
-        </Box>
+    <Box>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
         <Button
-          onClick={() => navigate("/dashboard")}
-          startIcon={<ArrowBackIcon />}
+          variant="contained"
+          onClick={openAddDialog}
+          startIcon={<PersonAddAltIcon sx={{ fontSize: 16 }} />}
           sx={{
-            color: "#a0aec0",
+            bgcolor: "#5a4fd0",
             textTransform: "none",
-            fontSize: 14,
-            "&:hover": { color: "#fff" },
+            fontSize: 13,
+            borderRadius: "8px",
+            "&:hover": { bgcolor: "#6b5fe0" },
           }}
         >
-          Dashboard
+          Add User
         </Button>
       </Box>
 
-      {/* Content */}
-      <Box sx={{ flex: 1, overflowY: "auto", p: { xs: 2, sm: 3, md: 4 } }}>
+      {error && (
         <Box
           sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            mb: 3,
+            bgcolor: "#1a0808",
+            border: "0.5px solid #5c1a1a",
+            borderRadius: "8px",
+            p: "12px",
+            mb: 2,
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <PeopleIcon sx={{ color: "#7c6df0", fontSize: 24 }} />
-            <Typography
-              sx={{ color: "#f0eeff", fontSize: 20, fontWeight: 600 }}
-            >
-              User Management
-            </Typography>
-          </Box>
-          <Button
-            variant="contained"
-            onClick={openAddDialog}
-            startIcon={<PersonAddAltIcon sx={{ fontSize: 16 }} />}
-            sx={{
-              bgcolor: "#5a4fd0",
-              textTransform: "none",
-              fontSize: 13,
-              borderRadius: "8px",
-              "&:hover": { bgcolor: "#6b5fe0" },
-            }}
-          >
-            Add User
-          </Button>
+          <Typography sx={{ color: "#ef4444", fontSize: 13 }}>
+            {error}
+          </Typography>
         </Box>
+      )}
 
-        {error && (
-          <Box
-            sx={{
-              bgcolor: "#1a0808",
-              border: "0.5px solid #5c1a1a",
-              borderRadius: "8px",
-              p: "12px",
-              mb: 2,
-            }}
-          >
-            <Typography sx={{ color: "#ef4444", fontSize: 13 }}>
-              {error}
-            </Typography>
-          </Box>
-        )}
-
-        {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
-            <CircularProgress sx={{ color: "#7c6df0" }} />
-          </Box>
-        ) : (
-          <Box
-            sx={{
-              border: "0.5px solid #2a2a35",
-              borderRadius: "10px",
-              overflow: "hidden",
-            }}
-          >
-            <Table>
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
+          <CircularProgress sx={{ color: "#7c6df0" }} />
+        </Box>
+      ) : users.length === 0 ? (
+        <Box
+          sx={{
+            border: "0.5px solid #2a2a35",
+            borderRadius: "10px",
+            p: 4,
+            textAlign: "center",
+          }}
+        >
+          <Typography sx={{ color: "#555", fontSize: 13 }}>
+            No users found.
+          </Typography>
+        </Box>
+      ) : isMobile ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          {users.map((user) => (
+            <Box
+              key={user.userId}
+              sx={{
+                border: "0.5px solid #2a2a35",
+                borderRadius: "10px",
+                bgcolor: "#111118",
+                p: 2,
+                "&:hover": { borderColor: "rgba(124,109,240,0.4)" },
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  mb: 1,
+                }}
+              >
+                <Box>
+                  <Typography
+                    sx={{ color: "#e0dcf8", fontSize: 14, fontWeight: 600 }}
+                  >
+                    {user.displayName}
+                  </Typography>
+                  <Typography sx={{ color: "#8090a8", fontSize: 12, mt: 0.3 }}>
+                    {user.email}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", gap: 0.5 }}>
+                  <IconButton
+                    size="small"
+                    onClick={() => openEditDialog(user)}
+                    sx={{
+                      color: "#7c6df0",
+                      "&:hover": { bgcolor: "rgba(124,109,240,0.12)" },
+                    }}
+                  >
+                    <EditOutlinedIcon sx={{ fontSize: 17 }} />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDelete(user.userId)}
+                    disabled={deletingId === user.userId}
+                    sx={{
+                      color: "#ef4444",
+                      "&:hover": { bgcolor: "rgba(239,68,68,0.1)" },
+                      "&.Mui-disabled": { color: "#5a2020" },
+                    }}
+                  >
+                    {deletingId === user.userId ? (
+                      <CircularProgress size={14} sx={{ color: "#ef4444" }} />
+                    ) : (
+                      <DeleteOutlineIcon sx={{ fontSize: 17 }} />
+                    )}
+                  </IconButton>
+                </Box>
+              </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  flexWrap: "wrap",
+                }}
+              >
+                <Box
+                  sx={{
+                    px: "8px",
+                    py: "2px",
+                    borderRadius: "20px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    bgcolor:
+                      user.role === "ADMIN"
+                        ? "rgba(139,92,246,0.15)"
+                        : "rgba(124,109,240,0.1)",
+                    color: user.role === "ADMIN" ? "#a78bfa" : "#7c6df0",
+                    border: `0.5px solid ${user.role === "ADMIN" ? "rgba(139,92,246,0.3)" : "rgba(124,109,240,0.25)"}`,
+                  }}
+                >
+                  {user.role}
+                </Box>
+                <Box
+                  sx={{
+                    px: "8px",
+                    py: "2px",
+                    borderRadius: "20px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    bgcolor:
+                      user.status === "ACTIVE"
+                        ? "rgba(34,197,94,0.1)"
+                        : "rgba(100,116,139,0.1)",
+                    color: user.status === "ACTIVE" ? "#22c55e" : "#64748b",
+                    border: `0.5px solid ${user.status === "ACTIVE" ? "rgba(34,197,94,0.25)" : "rgba(100,116,139,0.25)"}`,
+                  }}
+                >
+                  {user.status}
+                </Box>
+                <Typography sx={{ color: "#6070a0", fontSize: 11, ml: "auto" }}>
+                  {new Date(user.createdAt).toLocaleDateString()}
+                </Typography>
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      ) : (
+        <Box
+          sx={{
+            border: "0.5px solid #2a2a35",
+            borderRadius: "10px",
+            overflow: "hidden",
+          }}
+        >
+          <Box sx={{ overflowX: "auto" }}>
+            <Table sx={{ minWidth: isTablet ? 500 : 650 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: "#141418" }}>
                   {[
@@ -288,7 +392,7 @@ export default function UserManagement() {
                     "Email",
                     "Role",
                     "Status",
-                    "Created At",
+                    ...(!isTablet ? ["Created At"] : []),
                     "Actions",
                   ].map((h) => (
                     <TableCell
@@ -301,6 +405,7 @@ export default function UserManagement() {
                         letterSpacing: "0.08em",
                         borderBottom: "0.5px solid #2a2a35",
                         py: 1.5,
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {h}
@@ -309,152 +414,142 @@ export default function UserManagement() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {users.length === 0 ? (
-                  <TableRow>
+                {users.map((user) => (
+                  <TableRow
+                    key={user.userId}
+                    sx={{
+                      "&:hover": { bgcolor: "rgba(124,109,240,0.04)" },
+                      "&:last-child td": { borderBottom: "none" },
+                    }}
+                  >
                     <TableCell
-                      colSpan={6}
                       sx={{
-                        color: "#555",
+                        color: "#e0dcf8",
                         fontSize: 13,
-                        textAlign: "center",
-                        py: 4,
-                        borderBottom: "none",
+                        borderBottom: "0.5px solid #1e1e2e",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      No users found.
+                      {user.displayName}
                     </TableCell>
-                  </TableRow>
-                ) : (
-                  users.map((user) => (
-                    <TableRow
-                      key={user.userId}
+                    <TableCell
                       sx={{
-                        "&:hover": { bgcolor: "rgba(124,109,240,0.04)" },
-                        "&:last-child td": { borderBottom: "none" },
+                        color: "#c8d0e0",
+                        fontSize: 13,
+                        borderBottom: "0.5px solid #1e1e2e",
+                        maxWidth: isTablet ? 140 : "none",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      <TableCell
+                      {user.email}
+                    </TableCell>
+                    <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
+                      <Box
                         sx={{
-                          color: "#e0dcf8",
-                          fontSize: 13,
-                          borderBottom: "0.5px solid #1e1e2e",
+                          display: "inline-block",
+                          px: "10px",
+                          py: "2px",
+                          borderRadius: "20px",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          bgcolor:
+                            user.role === "ADMIN"
+                              ? "rgba(139,92,246,0.15)"
+                              : "rgba(124,109,240,0.1)",
+                          color: user.role === "ADMIN" ? "#a78bfa" : "#7c6df0",
+                          border: `0.5px solid ${user.role === "ADMIN" ? "rgba(139,92,246,0.3)" : "rgba(124,109,240,0.25)"}`,
                         }}
                       >
-                        {user.displayName}
-                      </TableCell>
-                      <TableCell
+                        {user.role}
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
+                      <Box
                         sx={{
-                          color: "#c8d0e0",
-                          fontSize: 13,
-                          borderBottom: "0.5px solid #1e1e2e",
+                          display: "inline-block",
+                          px: "10px",
+                          py: "2px",
+                          borderRadius: "20px",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          bgcolor:
+                            user.status === "ACTIVE"
+                              ? "rgba(34,197,94,0.1)"
+                              : "rgba(100,116,139,0.1)",
+                          color:
+                            user.status === "ACTIVE" ? "#22c55e" : "#64748b",
+                          border: `0.5px solid ${user.status === "ACTIVE" ? "rgba(34,197,94,0.25)" : "rgba(100,116,139,0.25)"}`,
                         }}
                       >
-                        {user.email}
-                      </TableCell>
-                      <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
-                        <Box
-                          sx={{
-                            display: "inline-block",
-                            px: "10px",
-                            py: "2px",
-                            borderRadius: "20px",
-                            fontSize: 11,
-                            fontWeight: 600,
-                            bgcolor:
-                              user.role === "ADMIN"
-                                ? "rgba(139,92,246,0.15)"
-                                : "rgba(124,109,240,0.1)",
-                            color:
-                              user.role === "ADMIN" ? "#a78bfa" : "#7c6df0",
-                            border: `0.5px solid ${user.role === "ADMIN" ? "rgba(139,92,246,0.3)" : "rgba(124,109,240,0.25)"}`,
-                          }}
-                        >
-                          {user.role}
-                        </Box>
-                      </TableCell>
-                      <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
-                        <Box
-                          sx={{
-                            display: "inline-block",
-                            px: "10px",
-                            py: "2px",
-                            borderRadius: "20px",
-                            fontSize: 11,
-                            fontWeight: 600,
-                            bgcolor:
-                              user.status === "ACTIVE"
-                                ? "rgba(34,197,94,0.1)"
-                                : "rgba(100,116,139,0.1)",
-                            color:
-                              user.status === "ACTIVE" ? "#22c55e" : "#64748b",
-                            border: `0.5px solid ${user.status === "ACTIVE" ? "rgba(34,197,94,0.25)" : "rgba(100,116,139,0.25)"}`,
-                          }}
-                        >
-                          {user.status}
-                        </Box>
-                      </TableCell>
+                        {user.status}
+                      </Box>
+                    </TableCell>
+                    {!isTablet && (
                       <TableCell
                         sx={{
                           color: "#a0b0c8",
                           fontSize: 12,
                           borderBottom: "0.5px solid #1e1e2e",
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {new Date(user.createdAt).toLocaleDateString()}
                       </TableCell>
-                      <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
-                        <Box sx={{ display: "flex", gap: 0.5 }}>
-                          <Tooltip title="Edit user" placement="top">
-                            <IconButton
-                              size="small"
-                              onClick={() => openEditDialog(user)}
-                              sx={{
-                                color: "#7c6df0",
-                                "&:hover": {
-                                  bgcolor: "rgba(124,109,240,0.12)",
-                                  color: "#a89cf0",
-                                },
-                              }}
-                            >
-                              <EditOutlinedIcon sx={{ fontSize: 17 }} />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete user" placement="top">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleDelete(user.userId)}
-                              disabled={deletingId === user.userId}
-                              sx={{
-                                color: "#ef4444",
-                                "&:hover": {
-                                  bgcolor: "rgba(239,68,68,0.1)",
-                                  color: "#f87171",
-                                },
-                                "&.Mui-disabled": { color: "#5a2020" },
-                              }}
-                            >
-                              {deletingId === user.userId ? (
-                                <CircularProgress
-                                  size={14}
-                                  sx={{ color: "#ef4444" }}
-                                />
-                              ) : (
-                                <DeleteOutlineIcon sx={{ fontSize: 17 }} />
-                              )}
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                    )}
+                    <TableCell sx={{ borderBottom: "0.5px solid #1e1e2e" }}>
+                      <Box sx={{ display: "flex", gap: 0.5 }}>
+                        <Tooltip title="Edit user" placement="top">
+                          <IconButton
+                            size="small"
+                            onClick={() => openEditDialog(user)}
+                            sx={{
+                              color: "#7c6df0",
+                              "&:hover": {
+                                bgcolor: "rgba(124,109,240,0.12)",
+                                color: "#a89cf0",
+                              },
+                            }}
+                          >
+                            <EditOutlinedIcon sx={{ fontSize: 17 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete user" placement="top">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDelete(user.userId)}
+                            disabled={deletingId === user.userId}
+                            sx={{
+                              color: "#ef4444",
+                              "&:hover": {
+                                bgcolor: "rgba(239,68,68,0.1)",
+                                color: "#f87171",
+                              },
+                              "&.Mui-disabled": { color: "#5a2020" },
+                            }}
+                          >
+                            {deletingId === user.userId ? (
+                              <CircularProgress
+                                size={14}
+                                sx={{ color: "#ef4444" }}
+                              />
+                            ) : (
+                              <DeleteOutlineIcon sx={{ fontSize: 17 }} />
+                            )}
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </Box>
-        )}
-      </Box>
+        </Box>
+      )}
 
-      {/* Add / Edit User Dialog */}
+      {/* Add / Edit Dialog */}
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
@@ -471,7 +566,6 @@ export default function UserManagement() {
           },
         }}
       >
-        {/* Dialog Header */}
         <Box
           sx={{
             px: { xs: 3, sm: 4 },
@@ -515,13 +609,10 @@ export default function UserManagement() {
             </Typography>
           </Box>
         </Box>
-
         <Divider sx={{ borderColor: "#2e2e42" }} />
-
         <DialogContent
           sx={{ px: { xs: 3, sm: 4 }, pt: "24px !important", pb: 2 }}
         >
-          {/* Email */}
           <Box sx={{ mb: 2.5 }}>
             <Typography
               sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}
@@ -549,7 +640,6 @@ export default function UserManagement() {
               helperText={fieldErrors.email}
             />
           </Box>
-          {/* Display Name */}
           <Box sx={{ mb: 2.5 }}>
             <Typography
               sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}
@@ -576,7 +666,6 @@ export default function UserManagement() {
               helperText={fieldErrors.displayName}
             />
           </Box>
-          {/* Role */}
           <Box sx={{ mb: 2.5 }}>
             <Typography
               sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}
@@ -613,13 +702,10 @@ export default function UserManagement() {
             >
               <MenuItem value="VIEWER">VIEWER</MenuItem>
               <MenuItem value="EDITOR">EDITOR</MenuItem>
-              <MenuItem value="ADMIN" disabled sx={{ color: "#4a4a6a" }}>
-                ADMIN (restricted)
-              </MenuItem>
+              <MenuItem value="ADMIN">ADMIN</MenuItem>
             </Select>
           </Box>
-          {/* Business ID */}
-          <Box sx={{ mb: 1 }}>
+          <Box sx={{ mb: 2.5 }}>
             <Typography
               sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}
             >
@@ -645,10 +731,27 @@ export default function UserManagement() {
               helperText={fieldErrors.businessId}
             />
           </Box>
+          <Box sx={{ mb: 1 }}>
+            <Typography
+              sx={{ color: "#5140d0", fontSize: 13, fontWeight: 600, mb: 0.8 }}
+            >
+              Phone Number{" "}
+              <span style={{ color: "#6060a0", fontWeight: 400 }}>
+                (optional)
+              </span>
+            </Typography>
+            <TextField
+              fullWidth
+              placeholder="e.g. +1 555 000 0000"
+              value={form.phoneNumber}
+              onChange={(e) => handleFieldChange("phoneNumber", e.target.value)}
+              InputProps={{ sx: fieldInputSx(false) }}
+              InputLabelProps={{ shrink: false }}
+              sx={{ "& .MuiInputLabel-root": { display: "none" } }}
+            />
+          </Box>
         </DialogContent>
-
         <Divider sx={{ borderColor: "#2e2e42" }} />
-
         <DialogActions sx={{ px: { xs: 3, sm: 4 }, py: 2.5, gap: 1.5 }}>
           <Button
             onClick={() => setDialogOpen(false)}
@@ -662,7 +765,6 @@ export default function UserManagement() {
               "&:hover": {
                 bgcolor: "rgba(255,255,255,0.06)",
                 borderColor: "#7070a0",
-                color: "#070707",
               },
             }}
           >
@@ -700,6 +802,61 @@ export default function UserManagement() {
           </Button>
         </DialogActions>
       </Dialog>
+    </Box>
+  );
+}
+
+export default function UserManagement() {
+  const navigate = useNavigate();
+  return (
+    <Box
+      sx={{
+        height: "100vh",
+        bgcolor: "#0d0d0f",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          px: { xs: 2, sm: 3, md: 4 },
+          py: 1.75,
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          bgcolor: "#111",
+          flexShrink: 0,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <AutoAwesomeIcon sx={{ color: "#8b5cf6" }} />
+          <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>
+            MarketingAI
+          </Typography>
+        </Box>
+        <Button
+          onClick={() => navigate("/dashboard")}
+          startIcon={<ArrowBackIcon />}
+          sx={{
+            color: "#a0aec0",
+            textTransform: "none",
+            fontSize: 14,
+            "&:hover": { color: "#fff" },
+          }}
+        >
+          Dashboard
+        </Button>
+      </Box>
+      <Box sx={{ flex: 1, overflowY: "auto", p: { xs: 2, sm: 3, md: 4 } }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
+          <PeopleIcon sx={{ color: "#7c6df0", fontSize: 24 }} />
+          <Typography sx={{ color: "#f0eeff", fontSize: 20, fontWeight: 600 }}>
+            User Management
+          </Typography>
+        </Box>
+        <UserManagementPanel />
+      </Box>
     </Box>
   );
 }

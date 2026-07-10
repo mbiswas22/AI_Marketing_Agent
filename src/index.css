@@ -1,7 +1,7 @@
 :root {
   --text: #6b6375;
   --text-h: #08060d;
-  --bg: #fff;
+  --bg: #0d0d0f;
   --border: #e5e4e7;
   --code-bg: #f4f3ec;
   --accent: #aa3bff;
@@ -57,6 +57,7 @@
 
 body {
   margin: 0;
+  background: #0d0d0f;
 }
 
 h1,

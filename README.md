@@ -1,18 +1,63 @@
 # AI Marketing Agent
 
 A React + TypeScript + Vite web application with AWS Cognito authentication and a multi-page dark UI for AI-powered marketing content generation.
-hello world
 
-### Pages
+## Pages
 
-| Route        | Description                                                 |
-| ------------ | ----------------------------------------------------------- |
-| `/login`     | Sign in / Sign up via AWS Cognito (Amplify UI)              |
-| `/welcome`   | Landing screen after login with a "Get Started" CTA         |
-| `/dashboard` | Generate marketing content via prompt, URL, or image upload |
-| `/history`   | Table of past AI-generated content with status indicators   |
+| Route            | Description                                                        |
+| ---------------- | ------------------------------------------------------------------ |
+| `/login`         | Sign in / Sign up via AWS Cognito (Amplify UI)                     |
+| `/welcome`       | Landing screen after login with a "Get Started" CTA                |
+| `/dashboard`     | Generate marketing content via prompt, URL, or image upload        |
+| `/history`       | Table of past AI-generated content with status indicators          |
+| `/settings`      | Manage team members, businesses, and connected social platforms    |
+| `/onboard`       | Business onboarding flow for new admin users                       |
+| `/invite-accept` | Invitation acceptance flow for new users joining an existing business |
 
-All routes except `/login` are protected — unauthenticated users are redirected to `/login` automatically.
+All routes except `/login` and `/invite-accept` are protected — unauthenticated users are redirected to `/login` automatically.
+
+---
+
+## Project Structure
+
+```
+marketing-ai/
+├── src/
+│   ├── pages/              # All page components
+│   │   ├── Login.tsx
+│   │   ├── Welcome.tsx
+│   │   ├── Dashboard.tsx
+│   │   ├── History.tsx
+│   │   ├── Onboard.tsx
+│   │   ├── SettingsPage.tsx
+│   │   ├── UserManagement.tsx
+│   │   ├── BusinessManagement.tsx
+│   │   └── InviteAccept.tsx
+│   ├── services/
+│   │   ├── api.ts          # All API calls to API Gateway
+│   │   ├── auth.ts         # Cognito auth helpers
+│   │   └── inviteService.ts
+│   ├── constants/
+│   │   └── dashboardConstants.ts
+│   ├── aws-config.ts       # Amplify / Cognito configuration
+│   ├── App.tsx             # Routes and auth guard
+│   └── main.tsx
+├── lambda/                 # AWS Lambda functions (Python)
+│   ├── User-Handler/
+│   ├── businessManagement/
+│   ├── Invitation-handler/
+│   ├── generate-marketing-asset/
+│   ├── generate_caption/
+│   ├── get_history/
+│   ├── get_models/
+│   ├── onboarding-business/
+│   ├── send-email/
+│   ├── social-oauth-handler/
+│   ├── social-meta-handler/
+│   ├── social-meta-publish-handler/
+│   └── social-publish-handler/
+└── public/
+```
 
 ---
 
@@ -93,7 +138,7 @@ This installs all required packages, including:
 | `@mui/icons-material`                | MUI icon set used across all pages          |
 | `@emotion/react` / `@emotion/styled` | Required peer deps for MUI                  |
 | `react-router-dom`                   | Client-side routing between pages           |
-| `axios`                              | HTTP client for future API calls            |
+| `axios`                              | HTTP client for API calls                   |
 
 > **Windows users:** If you see a `rolldown` native binding error, run:
 >
@@ -101,7 +146,7 @@ This installs all required packages, including:
 > npm install @rolldown/binding-win32-x64-msvc
 > ```
 
-> **Note:** You may see peer dependency warnings about `@xstate/react` requiring React 16-18 while this project uses React 19. These warnings are harmless — npm overrides the peer dep and the app works correctly.
+> **Note:** You may see peer dependency warnings about `@xstate/react` requiring React 16-18 while this project uses React 19. These warnings are harmless — the app works correctly.
 
 ---
 
@@ -120,7 +165,7 @@ Amplify.configure({
 });
 ```
 
-**Important:** The App Client in Cognito must be a **Public client** with **no client secret**. If your client has a secret, Amplify will throw a `SECRET_HASH was not received` error on sign-up/sign-in. To fix it, create a new App Client in the AWS Console with "Generate a client secret" unchecked, or via CLI:
+**Important:** The App Client must be a **Public client** with **no client secret**. If your client has a secret, Amplify will throw a `SECRET_HASH was not received` error. To fix it, create a new App Client in the AWS Console with "Generate a client secret" unchecked, or via CLI:
 
 ```bash
 aws cognito-idp create-user-pool-client \
@@ -134,7 +179,47 @@ Then update `userPoolClientId` in `src/aws-config.ts` with the new client ID.
 
 ---
 
-## 7. Run the App
+## 7. API Gateway
+
+All frontend API calls go through `src/services/api.ts` to the base URL:
+
+```
+https://<api-id>.execute-api.us-east-2.amazonaws.com/dev
+```
+
+Key endpoints:
+
+| Method | Endpoint                        | Description                        |
+| ------ | ------------------------------- | ---------------------------------- |
+| GET    | `/users?businessId=`            | List users for a business          |
+| POST   | `/users`                        | Create a user                      |
+| PUT    | `/users/{userId}`               | Update a user (businessId in body) |
+| DELETE | `/users/{userId}?businessId=`   | Delete a user                      |
+| GET    | `/business`                     | List all businesses                |
+| POST   | `/business`                     | Create a business                  |
+| PUT    | `/business/{businessId}`        | Update a business                  |
+| DELETE | `/business/{businessId}`        | Delete a business                  |
+| GET    | `/invitations/{invitationId}`   | Get an invitation                  |
+| POST   | `/invitations`                  | Create an invitation               |
+| PUT    | `/invitations/{invitationId}`   | Update invitation status           |
+| POST   | `/generate`                     | Generate marketing content         |
+| GET    | `/history`                      | Get generation history             |
+| GET    | `/models`                       | List available Bedrock models      |
+| POST   | `/send-email`                   | Send invitation email              |
+
+---
+
+## 8. User Invitation Flow
+
+1. An ADMIN invites a user from **Settings → Team Members**
+2. An invitation record is created in DynamoDB and an email is sent via SendGrid
+3. The invitee clicks the link → `/invite-accept?token=<invitationId>`
+4. **Non-ADMIN roles**: Cognito ID is linked to the existing user record, invitation marked `Accepted`, redirected to dashboard
+5. **ADMIN role**: Full onboarding form shown — creates business + user, then marks invitation `Accepted`
+
+---
+
+## 9. Run the App
 
 ```bash
 npm run dev
@@ -152,33 +237,22 @@ npm run lint     # run ESLint
 
 ---
 
-## 8. Making Changes & Committing
-
-### Check status of your changes
+## 10. Making Changes & Committing
 
 ```bash
+# Check status
 git status
-```
 
-### Stage files
-
-```bash
-# Stage a specific file
-git add src/App.tsx
-
-# Stage all changes
+# Stage files
 git add .
-```
 
-### Commit your changes
-
-```bash
+# Commit
 git commit -m "short description of what you changed"
 ```
 
 ---
 
-## 9. Push Your Branch
+## 11. Push Your Branch
 
 ```bash
 git push origin your-branch-name
@@ -192,7 +266,7 @@ git push -u origin your-branch-name
 
 ---
 
-## 10. Pull Before You Push (stay in sync)
+## 12. Stay in Sync
 
 Always pull the latest `master` before pushing to avoid conflicts:
 
@@ -200,10 +274,10 @@ Always pull the latest `master` before pushing to avoid conflicts:
 git pull origin master
 ```
 
-Resolve any merge conflicts, then push your branch as shown in step 9.
+Resolve any merge conflicts, then push your branch.
 
 ---
 
-## 11. Open a Pull Request
+## 13. Open a Pull Request
 
 Once pushed, go to `https://github.com/mbiswas22/AI_Marketing_Agent` and open a **Pull Request** from your branch into `master`.

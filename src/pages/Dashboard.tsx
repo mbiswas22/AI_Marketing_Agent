@@ -10,21 +10,37 @@ import {
   MenuItem,
   Select,
   Tooltip,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LogoutIcon from "@mui/icons-material/Logout";
 import HistoryIcon from "@mui/icons-material/History";
-import PeopleIcon from "@mui/icons-material/People";
+import SettingsIcon from "@mui/icons-material/Settings";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckIcon from "@mui/icons-material/Check";
 import DownloadIcon from "@mui/icons-material/Download";
+import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import FacebookIcon from "@mui/icons-material/Facebook";
+import InstagramIcon from "@mui/icons-material/Instagram";
 import {
   generateCaption,
   generateMarketAsset,
+  generateImage,
   getModels,
+  getSocialConnections,
+  publishToLinkedIn,
+  getMetaPages,
+  publishToFacebook,
+  getInstagramStatus,
+  publishToInstagram,
+  crawlWebsite,
+  getUser,
+  getBusinesses,
 } from "../services/api";
 import type { BedrockModel } from "../services/api";
+import { getUserAttributes } from "../services/auth";
 import {
   DEMO_BUSINESSES,
   FALLBACK_MODELS,
@@ -50,13 +66,13 @@ const getApiConfig = (ct: string) => {
 export default function Dashboard() {
   const { user, signOut } = useAuthenticator();
   const navigate = useNavigate();
-  const role = "ADMIN";
+  const [role, setRole] = useState<string>("VIEWER");
   const location = useLocation();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [fileName, setFileName] = useState<string | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [url, setUrl] = useState("");
+  // const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [url] = useState("");
   const [business, setBusiness] = useState(DEMO_BUSINESSES[0]);
   const [customBusiness, setCustomBusiness] = useState("");
   const [contentType, setContentType] = useState("flyer");
@@ -71,7 +87,6 @@ export default function Dashboard() {
   const [prompt, setPrompt] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [caption, setCaption] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [title, setTitle] = useState<string | null>(null);
   const [offer, setOffer] = useState<string | null>(null);
@@ -80,6 +95,17 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [fromHistoryBanner, setFromHistoryBanner] = useState(false);
+  const [linkedinConnected, setLinkedinConnected] = useState(false);
+  const [publishingToLinkedIn, setPublishingToLinkedIn] = useState(false);
+  const [facebookConnected, setFacebookConnected] = useState(false);
+  const [publishingToFacebook, setPublishingToFacebook] = useState(false);
+  const [instagramConnected, setInstagramConnected] = useState(false);
+  const [publishingToInstagram, setPublishingToInstagram] = useState(false);
+  const [publishSnackbar, setPublishSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error";
+  }>({ open: false, message: "", severity: "success" });
   const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [inputTab, setInputTab] =
@@ -109,7 +135,9 @@ export default function Dashboard() {
         const models = await getModels(category);
         if (models.length > 0) {
           setModelsCache((prev) => ({ ...prev, [category]: models }));
-          setSelectedModel(models[0].modelId);
+          setSelectedModel((prev) =>
+            models.some((m) => m.modelId === prev) ? prev : models[0].modelId,
+          );
         }
       } catch {
         // silently fall back to FALLBACK_MODELS
@@ -151,9 +179,169 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const attrs = await getUserAttributes();
+        const sub = (attrs as any)?.sub;
+        if (!sub) return;
+        const businesses = await getBusinesses();
+        const businessId = businesses[0]?.businessId;
+        if (!businessId) return;
+        const userData = await getUser(sub, businessId);
+        if (userData?.role) setRole(userData.role);
+      } catch {
+        // keep default VIEWER
+      }
+    };
+    fetchRole();
+  }, []);
+
+  useEffect(() => {
+    getSocialConnections()
+      .then((conns) =>
+        setLinkedinConnected(
+          conns.some(
+            (c) => c.platform === "linkedin" && c.status === "connected",
+          ),
+        ),
+      )
+      .catch(() => {});
+    getMetaPages()
+      .then((info) => setFacebookConnected(info.status === "connected"))
+      .catch(() => {});
+    getInstagramStatus()
+      .then((info) => setInstagramConnected(info.status === "connected"))
+      .catch(() => {});
+  }, []);
+
   const handleSignOut = () => {
     signOut();
     navigate("/login");
+  };
+
+  const handleLinkedInPublish = async () => {
+    setPublishingToLinkedIn(true);
+    try {
+      const extractS3Key = (url: string): string | null => {
+        if (!url) return null;
+        try {
+          const urlObj = new URL(url);
+          return urlObj.pathname.startsWith("/")
+            ? urlObj.pathname.slice(1)
+            : urlObj.pathname;
+        } catch {
+          return null;
+        }
+      };
+
+      const imageKey = resultImageUrl ? extractS3Key(resultImageUrl) : null;
+
+      await publishToLinkedIn({
+        text: caption || undefined,
+        ...(imageKey && { image_key: imageKey }),
+      });
+      setPublishSnackbar({
+        open: true,
+        message: "Posted to LinkedIn successfully",
+        severity: "success",
+      });
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Failed to post to LinkedIn";
+      setPublishSnackbar({ open: true, message: msg, severity: "error" });
+    } finally {
+      setPublishingToLinkedIn(false);
+    }
+  };
+
+  const handleFacebookPublish = async () => {
+    setPublishingToFacebook(true);
+    try {
+      const extractS3Key = (url: string): string | null => {
+        if (!url) return null;
+        try {
+          const urlObj = new URL(url);
+          return urlObj.pathname.startsWith("/")
+            ? urlObj.pathname.slice(1)
+            : urlObj.pathname;
+        } catch {
+          return null;
+        }
+      };
+
+      const imageKey = resultImageUrl ? extractS3Key(resultImageUrl) : null;
+
+      await publishToFacebook({
+        text: caption || undefined,
+        ...(imageKey && { image_key: imageKey }),
+      });
+      setPublishSnackbar({
+        open: true,
+        message: "Posted to Facebook successfully",
+        severity: "success",
+      });
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Failed to post to Facebook";
+      setPublishSnackbar({ open: true, message: msg, severity: "error" });
+    } finally {
+      setPublishingToFacebook(false);
+    }
+  };
+
+  const handleInstagramPublish = async () => {
+    setPublishingToInstagram(true);
+    try {
+      const extractS3Key = (url: string): string | null => {
+        if (!url) return null;
+        try {
+          const urlObj = new URL(url);
+          return urlObj.pathname.startsWith("/")
+            ? urlObj.pathname.slice(1)
+            : urlObj.pathname;
+        } catch {
+          return null;
+        }
+      };
+
+      const imageKey = resultImageUrl ? extractS3Key(resultImageUrl) : null;
+      if (!imageKey) {
+        setPublishSnackbar({
+          open: true,
+          message: "Instagram requires an image — generate one first",
+          severity: "error",
+        });
+        return;
+      }
+
+      const result = await publishToInstagram({
+        text: caption || undefined,
+        image_key: imageKey,
+      });
+      if (result.processing) {
+        setPublishSnackbar({
+          open: true,
+          message: result.error || "Instagram is still processing — try again shortly",
+          severity: "error",
+        });
+      } else {
+        setPublishSnackbar({
+          open: true,
+          message: "Posted to Instagram successfully",
+          severity: "success",
+        });
+      }
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Failed to post to Instagram";
+      setPublishSnackbar({ open: true, message: msg, severity: "error" });
+    } finally {
+      setPublishingToInstagram(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -172,25 +360,36 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     setCaption(null);
-    setImageUrl(null);
     setHashtags([]);
     setTitle(null);
     setOffer(null);
     setCallToAction(null);
     setResultImageUrl(null);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let response: any;
-      if (config.type === "caption") {
-        response = await generateCaption(
+      if (inputTab === "url") {
+        const result = await crawlWebsite(
+          websiteUrl,
+          contentType,
+          selectedPlatforms,
+        );
+        setCaption(result.marketing.caption ?? null);
+        setHashtags(result.marketing.hashtags ?? []);
+        if (result.imageUrl) setResultImageUrl(result.imageUrl);
+      } else if (contentType === "image") {
+        const url = await generateImage(prompt);
+        setResultImageUrl(url);
+      } else if (config.type === "caption") {
+        const response = await generateCaption(
           effectiveInput,
           effectiveBusiness,
           contentType,
           selectedPlatforms,
           selectedModel,
         );
+        setCaption(response.data.caption ?? null);
+        setHashtags(response.data.hashtags ?? []);
       } else {
-        response = await generateMarketAsset(
+        const response = await generateMarketAsset(
           effectiveInput,
           effectiveBusiness,
           contentType,
@@ -198,13 +397,10 @@ export default function Dashboard() {
           selectedPlatforms,
           selectedModel,
         );
+        setCaption(response.data.caption ?? null);
+        setHashtags(response.data.hashtags ?? []);
+        if (response.data.image_url) setResultImageUrl(response.data.image_url);
       }
-      setCaption(response.data.caption ?? null);
-      setHashtags(response.data.hashtags ?? []);
-      setTitle(response.data.title ?? null);
-      setOffer(response.data.offer ?? null);
-      setCallToAction(response.data.call_to_action ?? null);
-      if (response.data.image_url) setResultImageUrl(response.data.image_url);
     } catch {
       setError("Failed to generate content. Please try again.");
     } finally {
@@ -298,8 +494,8 @@ export default function Dashboard() {
           </Button>
           {role === "ADMIN" && (
             <Button
-              onClick={() => navigate("/users")}
-              startIcon={<PeopleIcon />}
+              onClick={() => navigate("/settings")}
+              startIcon={<SettingsIcon />}
               sx={{
                 color: "#a78bfa",
                 textTransform: "none",
@@ -307,7 +503,7 @@ export default function Dashboard() {
                 "&:hover": { color: "#fff" },
               }}
             >
-              User Management
+              Settings
             </Button>
           )}
           <Typography
@@ -1354,11 +1550,161 @@ export default function Dashboard() {
                     Publish to {selectedPlatforms.join(", ")}
                   </Button>
                 )}
+                {caption && (
+                  <Tooltip
+                    title={
+                      linkedinConnected
+                        ? ""
+                        : "Connect LinkedIn in Account Settings"
+                    }
+                    placement="top"
+                  >
+                    <span>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        disabled={!linkedinConnected || publishingToLinkedIn}
+                        onClick={handleLinkedInPublish}
+                        startIcon={
+                          publishingToLinkedIn ? (
+                            <CircularProgress
+                              size={12}
+                              sx={{ color: "#fff" }}
+                            />
+                          ) : (
+                            <LinkedInIcon fontSize="small" />
+                          )
+                        }
+                        sx={{
+                          bgcolor: "#0077b5",
+                          textTransform: "none",
+                          borderRadius: "6px",
+                          fontSize: 12,
+                          "&:hover": { bgcolor: "#005f8f" },
+                          "&.Mui-disabled": {
+                            bgcolor: "#003850",
+                            color: "#335870",
+                          },
+                        }}
+                      >
+                        Post to LinkedIn
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
+                {caption && (
+                  <Tooltip
+                    title={
+                      facebookConnected
+                        ? ""
+                        : "Connect Facebook in Account Settings"
+                    }
+                    placement="top"
+                  >
+                    <span>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        disabled={!facebookConnected || publishingToFacebook}
+                        onClick={handleFacebookPublish}
+                        startIcon={
+                          publishingToFacebook ? (
+                            <CircularProgress
+                              size={12}
+                              sx={{ color: "#fff" }}
+                            />
+                          ) : (
+                            <FacebookIcon fontSize="small" />
+                          )
+                        }
+                        sx={{
+                          bgcolor: "#1877f2",
+                          textTransform: "none",
+                          borderRadius: "6px",
+                          fontSize: 12,
+                          "&:hover": { bgcolor: "#145dbf" },
+                          "&.Mui-disabled": {
+                            bgcolor: "#0f3a73",
+                            color: "#4e78ac",
+                          },
+                        }}
+                      >
+                        Post to Facebook
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
+                {caption && (
+                  <Tooltip
+                    title={
+                      instagramConnected
+                        ? ""
+                        : "Connect Facebook (with a linked Instagram account) in Account Settings"
+                    }
+                    placement="top"
+                  >
+                    <span>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        disabled={!instagramConnected || publishingToInstagram}
+                        onClick={handleInstagramPublish}
+                        startIcon={
+                          publishingToInstagram ? (
+                            <CircularProgress
+                              size={12}
+                              sx={{ color: "#fff" }}
+                            />
+                          ) : (
+                            <InstagramIcon fontSize="small" />
+                          )
+                        }
+                        sx={{
+                          bgcolor: "#e1306c",
+                          textTransform: "none",
+                          borderRadius: "6px",
+                          fontSize: 12,
+                          "&:hover": { bgcolor: "#b81f57" },
+                          "&.Mui-disabled": {
+                            bgcolor: "#5c1430",
+                            color: "#a06080",
+                          },
+                        }}
+                      >
+                        Post to Instagram
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
               </Box>
             </Box>
           )}
         </Box>
       </Box>
+      <Snackbar
+        open={publishSnackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setPublishSnackbar((p) => ({ ...p, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity={publishSnackbar.severity}
+          onClose={() => setPublishSnackbar((p) => ({ ...p, open: false }))}
+          sx={{
+            bgcolor:
+              publishSnackbar.severity === "success" ? "#0d2010" : "#1a0808",
+            color:
+              publishSnackbar.severity === "success" ? "#22c55e" : "#ef4444",
+            border: `0.5px solid ${publishSnackbar.severity === "success" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+            "& .MuiAlert-icon": {
+              color:
+                publishSnackbar.severity === "success" ? "#22c55e" : "#ef4444",
+            },
+          }}
+        >
+          {publishSnackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

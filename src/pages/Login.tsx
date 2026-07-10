@@ -6,11 +6,16 @@ import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import "../styles/login.css";
 
 export default function Login() {
-  const { authStatus } = useAuthenticator();
+  const { authStatus } = useAuthenticator((context) => [context.authStatus]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (authStatus === "authenticated") navigate("/welcome");
+    if (authStatus === "authenticated") {
+      const redirect =
+        sessionStorage.getItem("redirectAfterLogin") || "/welcome";
+      sessionStorage.removeItem("redirectAfterLogin");
+      navigate(redirect, { replace: true });
+    }
   }, [authStatus, navigate]);
 
   return (
