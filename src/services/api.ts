@@ -146,6 +146,20 @@ export const deleteUser = async (
   await api.delete(`/users/${userId}`, { params: { businessId } });
 };
 
+export const getUser = async (userId: string, businessId: string): Promise<User> => {
+  const res = await api.get(`/users/${userId}`, { params: { businessId } });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  return data?.user ?? data;
+};
+
+export const updateUserCognitoId = async (
+  invitationUserId: string,
+  cognitoUserId: string,
+  businessId: string
+): Promise<void> => {
+  await api.put(`/users/${invitationUserId}`, { userId: cognitoUserId, businessId });
+};
+
 export const updateUser = async (
   userId: string,
   data: { businessId: string; email: string; role: string; displayName: string; phoneNumber?: string }
@@ -197,6 +211,13 @@ export const getInvitation = async (invitationId: string): Promise<InvitationRes
   const res = await api.get(`/invitations/${invitationId}`);
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return data?.invitation ?? data;
+};
+
+export const updateInvitation = async (
+  invitationId: string,
+  payload: { status: string }
+): Promise<void> => {
+  await api.put(`/invitations/${invitationId}`, payload);
 };
 
 // =========== Business
@@ -288,6 +309,36 @@ export const publishToLinkedIn = async (payload: {
   createdAt?: string;
 }): Promise<{ success: boolean; postId: string }> => {
   const res = await api.post(`/social/linkedin/publish`, payload);
+  return res.data;
+};
+
+export const publishToFacebook = async (payload: {
+  text?: string;
+  image_key?: string;
+}): Promise<{ success: boolean; postId: string }> => {
+  const res = await api.post(`/social/meta/publish`, payload);
+  return res.data;
+};
+
+export interface InstagramInfo {
+  platform: string;
+  status: string;
+  pageName?: string;
+  instagramBusinessAccountId?: string;
+  connectedAt?: string;
+}
+
+export const getInstagramStatus = async (): Promise<InstagramInfo> => {
+  const res = await api.get(`/social/meta/instagram`);
+  return res.data;
+};
+
+export const publishToInstagram = async (payload: {
+  text?: string;
+  image_key?: string;
+  video_key?: string;
+}): Promise<{ success: boolean; postId?: string; processing?: boolean; error?: string }> => {
+  const res = await api.post(`/social/meta/instagram/publish`, payload);
   return res.data;
 };
 

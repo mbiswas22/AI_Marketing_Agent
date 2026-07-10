@@ -33,6 +33,12 @@ def lambda_handler(event, context):
     http_method = event.get("requestContext", {}).get("http", {}).get("method", "")
     raw_path = event.get("rawPath", "")
 
+    # Strip stage prefix e.g. /dev/invitations -> /invitations
+    for prefix in ["/dev", "/prod", "/staging"]:
+        if raw_path.startswith(prefix + "/") or raw_path == prefix:
+            raw_path = raw_path[len(prefix):]
+            break
+
     # Route: POST /invitations
     if http_method == "POST" and raw_path == "/invitations":
         return create_invitation(event)
@@ -47,6 +53,12 @@ def lambda_handler(event, context):
     if http_method == "GET" and raw_path == "/invitations":
         return get_invitations(event)
 
+    # Route: PUT /invitations/{invitationId}
+    if http_method == "PUT" and raw_path.startswith("/invitations/"):
+        invitation_id = raw_path.split("/invitations/")[-1]
+        if invitation_id:
+            return update_invitation(event, invitation_id)
+
     return response(404, {"error": "Route not found"})
 
 
@@ -58,17 +70,18 @@ def create_invitation(event):
     except json.JSONDecodeError:
         return response(400, {"error": "Invalid JSON body"})
 
-    required_fields = ["userEmail", "role", "invitationLink", "expirationTime"]
+    required_fields = ["userEmail", "role", "invitationLink", "userName", "userPhoneNumber", "invitationId"]
     missing = [f for f in required_fields if not body.get(f)]
     if missing:
         return response(400, {"error": f"Missing required fields: {', '.join(missing)}"})
 
-    invitation_id = str(uuid.uuid4())
+    # invitation_id = str(uuid.uuid4())
     created_time = datetime.now(timezone.utc).isoformat()
 
     item = {
-        "invitationId":     invitation_id,
+        "invitationId":     body.get("invitationId", ""),
         "businessId":       body.get("businessId", ""),
+        "businessName":     body.get("businessName", ""),
         "userName":         body.get("userName", ""),
         "userId":           body.get("userId", ""),
         "role":             body["role"],
@@ -146,3 +159,103 @@ def get_invitations(event):
             break
 
     return response(200, {"invitations": items, "count": len(items)})
+
+# ── PUT /invitations/{invitationId} ───────────────────────────────────────────
+def update_invitation(event, invitation_id):
+
+    try:
+        body = json.loads(event.get("body") or "{}")
+
+    except json.JSONDecodeError:
+        return response(400, {"error": "Invalid JSON body"})
+
+    # Verify invitation exists
+    try:
+        existing = table.get_item(
+            Key={
+                "invitationId": invitation_id
+            }
+        )
+
+    except Exception as e:
+        logger.error(str(e))
+        return response(500, {"error": "Unable to retrieve invitation"})
+
+    if "Item" not in existing:
+        return response(404, {"error": "Invitation not found"})
+
+    update_expression = []
+    expression_values = {}
+    expression_names = {}
+
+    allowed_fields = [
+        "businessId",
+        "businessName",
+        "userName",
+        "userId",
+        "userEmail",
+        "userPhoneNumber",
+        "role",
+        "status",
+        "expirationTime",
+        "invitationLink"
+    ]
+
+    for field in allowed_fields:
+
+        if field in body:
+
+            update_expression.append(f"#{field} = :{field}")
+
+            expression_names[f"#{field}"] = field
+
+            expression_values[f":{field}"] = body[field]
+
+    if not update_expression:
+        return response(400, {
+            "error": "No valid fields supplied for update"
+        })
+
+    # Update timestamp
+    update_expression.append("#updatedTime = :updatedTime")
+
+    expression_names["#updatedTime"] = "updatedTime"
+
+    expression_values[":updatedTime"] = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    try:
+
+        result = table.update_item(
+
+            Key={
+                "invitationId": invitation_id
+            },
+
+            UpdateExpression="SET " + ", ".join(update_expression),
+
+            ExpressionAttributeNames=expression_names,
+
+            ExpressionAttributeValues=expression_values,
+
+            ReturnValues="ALL_NEW"
+
+        )
+
+    except Exception as e:
+
+        logger.error(str(e))
+
+        return response(
+            500,
+            {"error": "Failed to update invitation"}
+        )
+
+    return response(
+        200,
+        {
+            "message": "Invitation updated successfully",
+            "invitation": result["Attributes"]
+        }
+    )

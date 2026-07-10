@@ -22,6 +22,8 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckIcon from "@mui/icons-material/Check";
 import DownloadIcon from "@mui/icons-material/Download";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import FacebookIcon from "@mui/icons-material/Facebook";
+import InstagramIcon from "@mui/icons-material/Instagram";
 import {
   generateCaption,
   generateMarketAsset,
@@ -29,9 +31,16 @@ import {
   getModels,
   getSocialConnections,
   publishToLinkedIn,
+  getMetaPages,
+  publishToFacebook,
+  getInstagramStatus,
+  publishToInstagram,
   crawlWebsite,
+  getUser,
+  getBusinesses,
 } from "../services/api";
 import type { BedrockModel } from "../services/api";
+import { getUserAttributes } from "../services/auth";
 import {
   DEMO_BUSINESSES,
   FALLBACK_MODELS,
@@ -57,13 +66,13 @@ const getApiConfig = (ct: string) => {
 export default function Dashboard() {
   const { user, signOut } = useAuthenticator();
   const navigate = useNavigate();
-  const role = "ADMIN";
+  const [role, setRole] = useState<string>("VIEWER");
   const location = useLocation();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [fileName, setFileName] = useState<string | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [url, setUrl] = useState("");
+  // const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [url] = useState("");
   const [business, setBusiness] = useState(DEMO_BUSINESSES[0]);
   const [customBusiness, setCustomBusiness] = useState("");
   const [contentType, setContentType] = useState("flyer");
@@ -88,6 +97,10 @@ export default function Dashboard() {
   const [fromHistoryBanner, setFromHistoryBanner] = useState(false);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
   const [publishingToLinkedIn, setPublishingToLinkedIn] = useState(false);
+  const [facebookConnected, setFacebookConnected] = useState(false);
+  const [publishingToFacebook, setPublishingToFacebook] = useState(false);
+  const [instagramConnected, setInstagramConnected] = useState(false);
+  const [publishingToInstagram, setPublishingToInstagram] = useState(false);
   const [publishSnackbar, setPublishSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -125,7 +138,7 @@ export default function Dashboard() {
         if (models.length > 0) {
           setModelsCache((prev) => ({ ...prev, [category]: models }));
           setSelectedModel((prev) =>
-            models.some((m) => m.modelId === prev) ? prev : models[0].modelId
+            models.some((m) => m.modelId === prev) ? prev : models[0].modelId,
           );
         }
       } catch {
@@ -169,6 +182,24 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const attrs = await getUserAttributes();
+        const sub = (attrs as any)?.sub;
+        if (!sub) return;
+        const businesses = await getBusinesses();
+        const businessId = businesses[0]?.businessId;
+        if (!businessId) return;
+        const userData = await getUser(sub, businessId);
+        if (userData?.role) setRole(userData.role);
+      } catch {
+        // keep default VIEWER
+      }
+    };
+    fetchRole();
+  }, []);
+
+  useEffect(() => {
     getSocialConnections()
       .then((conns) =>
         setLinkedinConnected(
@@ -177,6 +208,12 @@ export default function Dashboard() {
           ),
         ),
       )
+      .catch(() => {});
+    getMetaPages()
+      .then((info) => setFacebookConnected(info.status === "connected"))
+      .catch(() => {});
+    getInstagramStatus()
+      .then((info) => setInstagramConnected(info.status === "connected"))
       .catch(() => {});
   }, []);
 
@@ -223,6 +260,94 @@ export default function Dashboard() {
     }
   };
 
+  const handleFacebookPublish = async () => {
+    setPublishingToFacebook(true);
+    try {
+      const extractS3Key = (url: string): string | null => {
+        if (!url) return null;
+        try {
+          const urlObj = new URL(url);
+          return urlObj.pathname.startsWith("/")
+            ? urlObj.pathname.slice(1)
+            : urlObj.pathname;
+        } catch {
+          return null;
+        }
+      };
+
+      const imageKey = resultImageUrl ? extractS3Key(resultImageUrl) : null;
+
+      await publishToFacebook({
+        text: caption || undefined,
+        ...(imageKey && { image_key: imageKey }),
+      });
+      setPublishSnackbar({
+        open: true,
+        message: "Posted to Facebook successfully",
+        severity: "success",
+      });
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Failed to post to Facebook";
+      setPublishSnackbar({ open: true, message: msg, severity: "error" });
+    } finally {
+      setPublishingToFacebook(false);
+    }
+  };
+
+  const handleInstagramPublish = async () => {
+    setPublishingToInstagram(true);
+    try {
+      const extractS3Key = (url: string): string | null => {
+        if (!url) return null;
+        try {
+          const urlObj = new URL(url);
+          return urlObj.pathname.startsWith("/")
+            ? urlObj.pathname.slice(1)
+            : urlObj.pathname;
+        } catch {
+          return null;
+        }
+      };
+
+      const imageKey = resultImageUrl ? extractS3Key(resultImageUrl) : null;
+      if (!imageKey) {
+        setPublishSnackbar({
+          open: true,
+          message: "Instagram requires an image — generate one first",
+          severity: "error",
+        });
+        return;
+      }
+
+      const result = await publishToInstagram({
+        text: caption || undefined,
+        image_key: imageKey,
+      });
+      if (result.processing) {
+        setPublishSnackbar({
+          open: true,
+          message: result.error || "Instagram is still processing — try again shortly",
+          severity: "error",
+        });
+      } else {
+        setPublishSnackbar({
+          open: true,
+          message: "Posted to Instagram successfully",
+          severity: "success",
+        });
+      }
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Failed to post to Instagram";
+      setPublishSnackbar({ open: true, message: msg, severity: "error" });
+    } finally {
+      setPublishingToInstagram(false);
+    }
+  };
+
   const handleGenerate = async () => {
     const effectiveInput =
       inputTab === "text"
@@ -246,7 +371,11 @@ export default function Dashboard() {
     setResultImageUrl(null);
     try {
       if (inputTab === "url") {
-        const result = await crawlWebsite(websiteUrl, contentType, selectedPlatforms);
+        const result = await crawlWebsite(
+          websiteUrl,
+          contentType,
+          selectedPlatforms,
+        );
         setCaption(result.marketing.caption ?? null);
         setHashtags(result.marketing.hashtags ?? []);
         if (result.imageUrl) setResultImageUrl(result.imageUrl);
@@ -1472,6 +1601,90 @@ export default function Dashboard() {
                         }}
                       >
                         Post to LinkedIn
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
+                {caption && (
+                  <Tooltip
+                    title={
+                      facebookConnected
+                        ? ""
+                        : "Connect Facebook in Account Settings"
+                    }
+                    placement="top"
+                  >
+                    <span>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        disabled={!facebookConnected || publishingToFacebook}
+                        onClick={handleFacebookPublish}
+                        startIcon={
+                          publishingToFacebook ? (
+                            <CircularProgress
+                              size={12}
+                              sx={{ color: "#fff" }}
+                            />
+                          ) : (
+                            <FacebookIcon fontSize="small" />
+                          )
+                        }
+                        sx={{
+                          bgcolor: "#1877f2",
+                          textTransform: "none",
+                          borderRadius: "6px",
+                          fontSize: 12,
+                          "&:hover": { bgcolor: "#145dbf" },
+                          "&.Mui-disabled": {
+                            bgcolor: "#0f3a73",
+                            color: "#4e78ac",
+                          },
+                        }}
+                      >
+                        Post to Facebook
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
+                {caption && (
+                  <Tooltip
+                    title={
+                      instagramConnected
+                        ? ""
+                        : "Connect Facebook (with a linked Instagram account) in Account Settings"
+                    }
+                    placement="top"
+                  >
+                    <span>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        disabled={!instagramConnected || publishingToInstagram}
+                        onClick={handleInstagramPublish}
+                        startIcon={
+                          publishingToInstagram ? (
+                            <CircularProgress
+                              size={12}
+                              sx={{ color: "#fff" }}
+                            />
+                          ) : (
+                            <InstagramIcon fontSize="small" />
+                          )
+                        }
+                        sx={{
+                          bgcolor: "#e1306c",
+                          textTransform: "none",
+                          borderRadius: "6px",
+                          fontSize: 12,
+                          "&:hover": { bgcolor: "#b81f57" },
+                          "&.Mui-disabled": {
+                            bgcolor: "#5c1430",
+                            color: "#a06080",
+                          },
+                        }}
+                      >
+                        Post to Instagram
                       </Button>
                     </span>
                   </Tooltip>

@@ -18,15 +18,22 @@ import LinkIcon from "@mui/icons-material/Link";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import FacebookIcon from "@mui/icons-material/Facebook";
+import InstagramIcon from "@mui/icons-material/Instagram";
 import {
   getSocialConnections,
   getLinkedInAuthUrl,
   getMetaAuthUrl,
   getMetaPages,
+  getInstagramStatus,
   disconnectSocialPlatform,
-  api,
+  getBusinesses,
 } from "../services/api";
-import type { SocialConnection } from "../services/api";
+import type {
+  SocialConnection,
+  Business,
+  MetaPageInfo,
+  InstagramInfo,
+} from "../services/api";
 import { UserManagementPanel } from "./UserManagement";
 import { BusinessManagementPanel } from "./BusinessManagement";
 
@@ -34,6 +41,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   // ── Tab (0=Team Members, 1=Businesses, 2=Connected Services) ──
   const [activeTab, setActiveTab] = useState(0);
+  const [business, setBusiness] = useState<Business | null>(null);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -50,8 +58,14 @@ export default function SettingsPage() {
   const [fbConnecting, setFbConnecting] = useState(false);
   const [fbDisconnecting, setFbDisconnecting] = useState(false);
 
+  // ── Instagram state (reuses the Facebook connection, no separate connect flow) ──
+  const [instagramInfo, setInstagramInfo] = useState<InstagramInfo | null>(null);
+
   useEffect(() => {
     checkUrlParams();
+    getBusinesses()
+      .then((list) => setBusiness(list[0] ?? null))
+      .catch(() => {});
   }, []);
   useEffect(() => {
     if (activeTab === 2) fetchConnections();
@@ -105,12 +119,14 @@ export default function SettingsPage() {
     setConnectionsLoading(true);
     setConnectError(null);
     try {
-      const [conns, fbInfo] = await Promise.all([
+      const [conns, fbInfo, igInfo] = await Promise.all([
         getSocialConnections(),
         getMetaPages(),
+        getInstagramStatus(),
       ]);
       setConnections(conns);
       setFacebookPage(fbInfo);
+      setInstagramInfo(igInfo);
     } catch {
       setConnectError("Failed to load connections.");
     } finally {
@@ -195,6 +211,7 @@ export default function SettingsPage() {
       (c) => c.platform === "linkedin" && c.status === "connected",
     ) ?? null;
   const facebookConnected = facebookPage?.status === "connected";
+  const instagramConnected = instagramInfo?.status === "connected";
 
   return (
     <Box
@@ -284,7 +301,12 @@ export default function SettingsPage() {
         </Tabs>
 
         {/* Team Members Tab */}
-        {activeTab === 0 && <UserManagementPanel />}
+        {activeTab === 0 && (
+          <UserManagementPanel
+            businessId={business?.businessId}
+            businessName={business?.businessName}
+          />
+        )}
 
         {/* Businesses Tab */}
         {activeTab === 1 && <BusinessManagementPanel />}
@@ -476,6 +498,35 @@ export default function SettingsPage() {
                               ).toLocaleDateString()}
                             </Typography>
                           )}
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                              mt: 0.5,
+                            }}
+                          >
+                            <InstagramIcon
+                              sx={{
+                                fontSize: 14,
+                                color: instagramConnected
+                                  ? "#e1306c"
+                                  : "#475569",
+                              }}
+                            />
+                            <Typography
+                              sx={{
+                                color: instagramConnected
+                                  ? "#e1306c"
+                                  : "#64748b",
+                                fontSize: 11.5,
+                              }}
+                            >
+                              {instagramConnected
+                                ? "Instagram linked"
+                                : "No Instagram Business account linked to this Page"}
+                            </Typography>
+                          </Box>
                         </>
                       ) : (
                         <Typography sx={{ color: "#64748b", fontSize: 12 }}>

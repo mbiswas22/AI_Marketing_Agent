@@ -12,7 +12,7 @@ import Onboard from "./pages/Onboard";
 import InviteAccept from "./pages/InviteAccept";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { authStatus } = useAuthenticator();
+  const { authStatus } = useAuthenticator((context) => [context.authStatus]);
   if (authStatus === "configuring") return null;
   if (authStatus !== "authenticated") {
     sessionStorage.setItem(

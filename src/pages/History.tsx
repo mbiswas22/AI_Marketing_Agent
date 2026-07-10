@@ -23,7 +23,7 @@ import InstagramIcon from "@mui/icons-material/Instagram";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import ScheduleIcon from "@mui/icons-material/Schedule";
-import { getHistory, getSocialConnections, publishToLinkedIn, schedulePost } from "../services/api";
+import { getHistory, getSocialConnections, publishToLinkedIn, schedulePost, getMetaPages, publishToFacebook, getInstagramStatus, publishToInstagram } from "../services/api";
 import { getBusinessId } from "../services/auth";
 import type { HistoryItem } from "../services/api";
 import "../styles/history.css";
@@ -80,18 +80,24 @@ const truncate = (text: string | undefined, max = 40) =>
 function HistoryRow({
   item,
   linkedinConnected,
+  facebookConnected,
+  instagramConnected,
   onPublishResult,
   userId,
   businessId,
 }: {
   item: HistoryItem;
   linkedinConnected: boolean;
+  facebookConnected: boolean;
+  instagramConnected: boolean;
   onPublishResult: (success: boolean, msg: string) => void;
   userId: string;
   businessId: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [publishingFacebook, setPublishingFacebook] = useState(false);
+  const [publishingInstagram, setPublishingInstagram] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleAt, setScheduleAt] = useState("");
   const [schedulePlatforms, setSchedulePlatforms] = useState<string[]>(["linkedin"]);
@@ -144,6 +150,46 @@ function HistoryRow({
     setSchedulePlatforms((prev) =>
       prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
     );
+
+  const handleFacebookPublish = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = item.caption || getDisplayPrompt(item);
+    const image_key = item.image_key || item.s3_key;
+    setPublishingFacebook(true);
+    try {
+      await publishToFacebook({ text: text || undefined, image_key: image_key || undefined });
+      onPublishResult(true, "Posted to Facebook successfully");
+    } catch (err) {
+      const msg = (err as any)?.response?.data?.error || "Failed to post to Facebook";
+      onPublishResult(false, msg);
+    } finally {
+      setPublishingFacebook(false);
+    }
+  };
+
+  const handleInstagramPublish = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = item.caption || getDisplayPrompt(item);
+    const image_key = item.image_key || item.s3_key;
+    if (!image_key) {
+      onPublishResult(false, "Instagram requires an image");
+      return;
+    }
+    setPublishingInstagram(true);
+    try {
+      const result = await publishToInstagram({ text: text || undefined, image_key });
+      if (result.processing) {
+        onPublishResult(false, result.error || "Instagram is still processing — try again shortly");
+      } else {
+        onPublishResult(true, "Posted to Instagram successfully");
+      }
+    } catch (err) {
+      const msg = (err as any)?.response?.data?.error || "Failed to post to Instagram";
+      onPublishResult(false, msg);
+    } finally {
+      setPublishingInstagram(false);
+    }
+  };
 
   const statusConfig =
     localStatus === "generated" || localStatus === "published"
@@ -337,6 +383,50 @@ function HistoryRow({
                   <ScheduleIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
+              <Tooltip
+                title={facebookConnected ? "Post to Facebook" : "Connect Facebook in Account Settings"}
+                placement="top"
+              >
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleFacebookPublish}
+                    disabled={!facebookConnected || publishingFacebook}
+                    sx={{
+                      color: facebookConnected ? "#1877f2" : "#334455",
+                      p: "6px",
+                      "&:hover": { bgcolor: "rgba(24,119,242,0.12)" },
+                      "&.Mui-disabled": { color: "#2a3a4a" },
+                    }}
+                  >
+                    {publishingFacebook
+                      ? <CircularProgress size={16} sx={{ color: "#1877f2" }} />
+                      : <FacebookIcon sx={{ fontSize: 18 }} />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip
+                title={instagramConnected ? "Post to Instagram" : "Connect Facebook (with linked Instagram) in Account Settings"}
+                placement="top"
+              >
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleInstagramPublish}
+                    disabled={!instagramConnected || publishingInstagram}
+                    sx={{
+                      color: instagramConnected ? "#e1306c" : "#334455",
+                      p: "6px",
+                      "&:hover": { bgcolor: "rgba(225,48,108,0.12)" },
+                      "&.Mui-disabled": { color: "#2a3a4a" },
+                    }}
+                  >
+                    {publishingInstagram
+                      ? <CircularProgress size={16} sx={{ color: "#e1306c" }} />
+                      : <InstagramIcon sx={{ fontSize: 18 }} />}
+                  </IconButton>
+                </span>
+              </Tooltip>
             </Box>
             <button
               className="use-again-btn"
@@ -444,6 +534,8 @@ export default function History() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
+  const [facebookConnected, setFacebookConnected] = useState(false);
+  const [instagramConnected, setInstagramConnected] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
 
@@ -470,6 +562,12 @@ export default function History() {
   useEffect(() => {
     getSocialConnections()
       .then((conns) => setLinkedinConnected(conns.some((c) => c.platform === "linkedin" && c.status === "connected")))
+      .catch(() => {});
+    getMetaPages()
+      .then((info) => setFacebookConnected(info.status === "connected"))
+      .catch(() => {});
+    getInstagramStatus()
+      .then((info) => setInstagramConnected(info.status === "connected"))
       .catch(() => {});
   }, []);
 
@@ -528,6 +626,8 @@ export default function History() {
                 key={item.action_id}
                 item={item}
                 linkedinConnected={linkedinConnected}
+                facebookConnected={facebookConnected}
+                instagramConnected={instagramConnected}
                 onPublishResult={handlePublishResult}
                 userId={user?.userId ?? user?.username ?? "unknown"}
                 businessId={businessId}
