@@ -116,8 +116,8 @@ export default function InviteAccept() {
                 cognitoUserId,
                 inv.businessId,
               );
-              await updateInvitation(token, { status: "Accepted" });
             }
+            await updateInvitation(token, { status: "Accepted" });
           } catch {
             // proceed to dashboard regardless
           }
@@ -182,6 +182,7 @@ export default function InviteAccept() {
         displayName: userName.trim(),
         phoneNumber: userPhone.trim() || undefined,
       });
+      await updateInvitation(token, { status: "Accepted" });
       setStatus("success");
     } catch {
       setErrorMsg("Failed to complete setup. Please try again.");
