@@ -99,7 +99,6 @@ export interface HistoryItem {
   platforms?: string[];
   hashtags?: string[];
   status?: string;
-  scheduleAt?: string;
 }
 
 export const getHistory = async (userId?: string): Promise<HistoryItem[]> => {
@@ -354,6 +353,23 @@ export interface CrawlWebsiteResponse {
   imageUrl?: string;
 }
 
+export const createSchedule = async (payload: {
+  user_id: string;
+  platform: string;
+  content_type: string;
+  schedule_expression: string;
+  topic: string;
+  timezone?: string;
+}): Promise<{ message: string; schedule_id: string; schedule_name: string; role: string }> => {
+  const res = await api.post(`/schedule`, {
+    action: "create_schedule",
+    body: payload,
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+  return data;
+};
+
 export const crawlWebsite = async (
   url: string,
   contentType: string,
@@ -367,15 +383,3 @@ export const crawlWebsite = async (
   return res.data;
 };
 
-export const schedulePost = async (payload: {
-  action_id: string;
-  userId: string;
-  createdAt: string;
-  caption: string;
-  imageUrl?: string;
-  platforms: string[];
-  scheduleAt: string;
-}): Promise<{ success: boolean; ruleName: string }> => {
-  const res = await api.post(`/schedule`, payload);
-  return res.data;
-};

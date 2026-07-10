@@ -23,8 +23,7 @@ import InstagramIcon from "@mui/icons-material/Instagram";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import ScheduleIcon from "@mui/icons-material/Schedule";
-import { getHistory, getSocialConnections, publishToLinkedIn, schedulePost, getMetaPages, publishToFacebook, getInstagramStatus, publishToInstagram } from "../services/api";
-import { getBusinessId } from "../services/auth";
+import { getHistory, getSocialConnections, publishToLinkedIn, getMetaPages, publishToFacebook, getInstagramStatus, publishToInstagram, createSchedule } from "../services/api";
 import type { HistoryItem } from "../services/api";
 import "../styles/history.css";
 
@@ -84,7 +83,6 @@ function HistoryRow({
   instagramConnected,
   onPublishResult,
   userId,
-  businessId,
 }: {
   item: HistoryItem;
   linkedinConnected: boolean;
@@ -92,7 +90,6 @@ function HistoryRow({
   instagramConnected: boolean;
   onPublishResult: (success: boolean, msg: string) => void;
   userId: string;
-  businessId: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -100,11 +97,10 @@ function HistoryRow({
   const [publishingInstagram, setPublishingInstagram] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleAt, setScheduleAt] = useState("");
-  const [schedulePlatforms, setSchedulePlatforms] = useState<string[]>(["linkedin"]);
+  const [schedulePlatform, setSchedulePlatform] = useState("linkedin");
   const [scheduling, setScheduling] = useState(false);
   const navigate = useNavigate();
   const [localStatus, setLocalStatus] = useState<string | undefined>(item.status);
-  const [localScheduleAt, setLocalScheduleAt] = useState<string | undefined>(item.scheduleAt);
 
   const handleLinkedInPublish = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -123,33 +119,26 @@ function HistoryRow({
   };
 
   const handleSchedule = async () => {
-    if (!scheduleAt || schedulePlatforms.length === 0) return;
+    if (!scheduleAt) return;
     setScheduling(true);
     try {
-      await schedulePost({
-        action_id: item.action_id,
-        userId,
-        createdAt: item.created_at,
-        caption: item.caption || "",
-        imageUrl: item.image_url || "",
-        platforms: schedulePlatforms,
-        scheduleAt: new Date(scheduleAt).toISOString(),
+      await createSchedule({
+        user_id: userId,
+        platform: schedulePlatform,
+        content_type: item.content_type || "social_caption",
+        schedule_expression: `at(${new Date(scheduleAt).toISOString().slice(0, 19)})`,
+        topic: item.caption || item.prompt || "marketing post",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
       setScheduleOpen(false);
       setLocalStatus("scheduled");
-      setLocalScheduleAt(new Date(scheduleAt).toISOString());
       onPublishResult(true, `Scheduled for ${new Date(scheduleAt).toLocaleString()}`);
-    } catch {
-      onPublishResult(false, "Failed to schedule post.");
+    } catch (err) {
+      onPublishResult(false, (err as Error).message || "Failed to schedule post.");
     } finally {
       setScheduling(false);
     }
   };
-
-  const toggleSchedulePlatform = (p: string) =>
-    setSchedulePlatforms((prev) =>
-      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
-    );
 
   const handleFacebookPublish = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -259,11 +248,6 @@ function HistoryRow({
               border: `1px solid ${statusConfig.border}`, fontSize: 12, fontWeight: 600, flexShrink: 0,
             }}
           />
-        )}
-        {localStatus === "scheduled" && localScheduleAt && (
-          <Typography sx={{ color: "#a78bfa", fontSize: 11, flexShrink: 0, display: { xs: "none", lg: "block" } }}>
-            {new Date(localScheduleAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-          </Typography>
         )}
         <IconButton
           size="small"
@@ -452,7 +436,6 @@ function HistoryRow({
       </Collapse>
     </Paper>
 
-    {/* Schedule Dialog */}
     <Dialog open={scheduleOpen} onClose={() => setScheduleOpen(false)} fullWidth maxWidth="xs"
       PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } }}>
       <Box sx={{ px: 3, pt: 3, pb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -464,7 +447,6 @@ function HistoryRow({
       </Box>
       <Divider sx={{ borderColor: "#2e2e42" }} />
       <DialogContent sx={{ px: 3, pt: "20px !important", pb: 2 }}>
-        {/* Date/time picker */}
         <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Schedule Date & Time</Typography>
         <TextField
           type="datetime-local"
@@ -483,28 +465,24 @@ function HistoryRow({
             "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
           }}
         />
-        {/* Platform selection */}
-        <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 1 }}>Publish To</Typography>
+        <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 1 }}>Platform</Typography>
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-          {Object.entries(PLATFORM_INFO).map(([key, info]) => {
-            const selected = schedulePlatforms.includes(key);
-            return (
-              <Button key={key} onClick={() => toggleSchedulePlatform(key)}
-                startIcon={info.icon}
-                variant={selected ? "contained" : "outlined"}
-                size="small"
-                sx={{
-                  textTransform: "none", fontSize: 12, borderRadius: "8px",
-                  borderColor: selected ? info.color : "rgba(255,255,255,0.12)",
-                  color: selected ? "#fff" : "#64748b",
-                  bgcolor: selected ? info.color : "transparent",
-                  "&:hover": { bgcolor: info.color, color: "#fff", borderColor: info.color },
-                }}
-              >
-                {info.label}
-              </Button>
-            );
-          })}
+          {Object.entries(PLATFORM_INFO).map(([key, info]) => (
+            <Button key={key} onClick={() => setSchedulePlatform(key)}
+              startIcon={info.icon}
+              variant={schedulePlatform === key ? "contained" : "outlined"}
+              size="small"
+              sx={{
+                textTransform: "none", fontSize: 12, borderRadius: "8px",
+                borderColor: schedulePlatform === key ? info.color : "rgba(255,255,255,0.12)",
+                color: schedulePlatform === key ? "#fff" : "#64748b",
+                bgcolor: schedulePlatform === key ? info.color : "transparent",
+                "&:hover": { bgcolor: info.color, color: "#fff", borderColor: info.color },
+              }}
+            >
+              {info.label}
+            </Button>
+          ))}
         </Box>
       </DialogContent>
       <Divider sx={{ borderColor: "#2e2e42" }} />
@@ -515,7 +493,7 @@ function HistoryRow({
           Cancel
         </Button>
         <Button onClick={handleSchedule}
-          disabled={scheduling || !scheduleAt || schedulePlatforms.length === 0}
+          disabled={scheduling || !scheduleAt}
           variant="contained"
           sx={{ bgcolor: "#7c3aed", textTransform: "none", fontWeight: 600, borderRadius: "10px", px: 3, flexGrow: 1,
             "&:hover": { bgcolor: "#6d28d9" }, "&.Mui-disabled": { bgcolor: "#3d2d60", color: "#7c5cbf" } }}>
@@ -536,7 +514,6 @@ export default function History() {
   const [linkedinConnected, setLinkedinConnected] = useState(false);
   const [facebookConnected, setFacebookConnected] = useState(false);
   const [instagramConnected, setInstagramConnected] = useState(false);
-  const [businessId, setBusinessId] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
 
   const handleSignOut = () => { signOut(); navigate("/login"); };
@@ -544,10 +521,6 @@ export default function History() {
   const handlePublishResult = (success: boolean, msg: string) => {
     setSnackbar({ open: true, message: msg, severity: success ? "success" : "error" });
   };
-
-  useEffect(() => {
-    getBusinessId().then(setBusinessId).catch(() => {});
-  }, []);
 
   useEffect(() => {
     const userId = user?.userId ?? user?.username ?? "unknown";
@@ -630,7 +603,6 @@ export default function History() {
                 instagramConnected={instagramConnected}
                 onPublishResult={handlePublishResult}
                 userId={user?.userId ?? user?.username ?? "unknown"}
-                businessId={businessId}
               />
             ))}
 
