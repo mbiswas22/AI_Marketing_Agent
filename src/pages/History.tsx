@@ -24,6 +24,7 @@ import YouTubeIcon from "@mui/icons-material/YouTube";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import { getHistory, getSocialConnections, publishToLinkedIn, schedulePost } from "../services/api";
+import { getBusinessId } from "../services/auth";
 import type { HistoryItem } from "../services/api";
 import "../styles/history.css";
 
@@ -81,11 +82,13 @@ function HistoryRow({
   linkedinConnected,
   onPublishResult,
   userId,
+  businessId,
 }: {
   item: HistoryItem;
   linkedinConnected: boolean;
   onPublishResult: (success: boolean, msg: string) => void;
   userId: string;
+  businessId: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -441,6 +444,7 @@ export default function History() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
 
   const handleSignOut = () => { signOut(); navigate("/login"); };
@@ -448,6 +452,10 @@ export default function History() {
   const handlePublishResult = (success: boolean, msg: string) => {
     setSnackbar({ open: true, message: msg, severity: success ? "success" : "error" });
   };
+
+  useEffect(() => {
+    getBusinessId().then(setBusinessId).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const userId = user?.userId ?? user?.username ?? "unknown";
@@ -522,6 +530,7 @@ export default function History() {
                 linkedinConnected={linkedinConnected}
                 onPublishResult={handlePublishResult}
                 userId={user?.userId ?? user?.username ?? "unknown"}
+                businessId={businessId}
               />
             ))}
 
