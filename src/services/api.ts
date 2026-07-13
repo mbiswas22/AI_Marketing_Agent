@@ -353,14 +353,70 @@ export interface CrawlWebsiteResponse {
   imageUrl?: string;
 }
 
+export const viewSchedule = async (schedule_id: string): Promise<Record<string, unknown>> => {
+  const res = await api.post(`/schedule`, {
+    action: "view_schedule",
+    body: { schedule_id },
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+  return data;
+};
+
+export const deleteSchedule = async (schedule_id: string): Promise<void> => {
+  const res = await api.post(`/schedule`, {
+    action: "delete_schedule",
+    body: { schedule_id },
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+};
+
+export const reactivateSchedule = async (schedule_id: string): Promise<void> => {
+  const res = await api.post(`/schedule`, {
+    action: "reactivate_schedule",
+    body: { schedule_id },
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+};
+
+export const inactiveSchedule = async (schedule_id: string): Promise<void> => {
+  const res = await api.post(`/schedule`, {
+    action: "inactive_schedule",
+    body: { schedule_id },
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+};
+
+export const updateSchedule = async (payload: {
+  schedule_id: string;
+  schedule_expression: string;
+  timezone?: string;
+}): Promise<{ message: string; schedule_id: string }> => {
+  const res = await api.post(`/schedule`, {
+    action: "update_schedule",
+    body: payload,
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+  return data;
+};
+
 export const createSchedule = async (payload: {
-  user_id: string;
+  businessId: string;
   platform: string;
   content_type: string;
   schedule_expression: string;
-  topic: string;
+  input_type: string;
+  input_value: string;
+  business?: string;
+  modelId?: string;
   timezone?: string;
-}): Promise<{ message: string; schedule_id: string; schedule_name: string; role: string }> => {
+  connectionId?: string;
+  createdByUserId?: string;
+}): Promise<{ message: string; schedule_id: string; schedule_name: string }> => {
   const res = await api.post(`/schedule`, {
     action: "create_schedule",
     body: payload,
@@ -368,6 +424,26 @@ export const createSchedule = async (payload: {
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   if (data.error) throw new Error(data.error);
   return data;
+};
+
+export const listSchedules = async (businessId: string): Promise<Record<string, unknown>[]> => {
+  const res = await api.post(`/schedule`, {
+    action: "list_schedules",
+    body: { businessId },
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+  return Array.isArray(data) ? data : [];
+};
+
+export const listScheduleLogs = async (businessId: string): Promise<Record<string, unknown>[]> => {
+  const res = await api.post(`/schedule`, {
+    action: "list_logs",
+    body: { businessId },
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+  return Array.isArray(data) ? data : [];
 };
 
 export const crawlWebsite = async (

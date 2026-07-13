@@ -23,7 +23,8 @@ import InstagramIcon from "@mui/icons-material/Instagram";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import ScheduleIcon from "@mui/icons-material/Schedule";
-import { getHistory, getSocialConnections, publishToLinkedIn, getMetaPages, publishToFacebook, getInstagramStatus, publishToInstagram, createSchedule } from "../services/api";
+import EditCalendarIcon from "@mui/icons-material/EditCalendar";
+import { getHistory, getSocialConnections, publishToLinkedIn, getMetaPages, publishToFacebook, getInstagramStatus, publishToInstagram, createSchedule, updateSchedule } from "../services/api";
 import type { HistoryItem } from "../services/api";
 import "../styles/history.css";
 
@@ -99,6 +100,11 @@ function HistoryRow({
   const [scheduleAt, setScheduleAt] = useState("");
   const [schedulePlatform, setSchedulePlatform] = useState("linkedin");
   const [scheduling, setScheduling] = useState(false);
+  const [scheduleId, setScheduleId] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editAt, setEditAt] = useState("");
+  const [editPlatform, setEditPlatform] = useState("linkedin");
+  const [editing, setEditing] = useState(false);
   const navigate = useNavigate();
   const [localStatus, setLocalStatus] = useState<string | undefined>(item.status);
 
@@ -122,14 +128,18 @@ function HistoryRow({
     if (!scheduleAt) return;
     setScheduling(true);
     try {
-      await createSchedule({
-        user_id: userId,
+      const result = await createSchedule({
+        businessId: item.business || "unknown",
         platform: schedulePlatform,
         content_type: item.content_type || "social_caption",
         schedule_expression: `at(${new Date(scheduleAt).toISOString().slice(0, 19)})`,
-        topic: item.caption || item.prompt || "marketing post",
+        input_type: item.input_value ? "text" : "text",
+        input_value: item.prompt || item.input_value || item.caption || "marketing post",
+        business: item.business || "My Business",
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        createdByUserId: userId,
       });
+      setScheduleId(result.schedule_id);
       setScheduleOpen(false);
       setLocalStatus("scheduled");
       onPublishResult(true, `Scheduled for ${new Date(scheduleAt).toLocaleString()}`);
@@ -137,6 +147,24 @@ function HistoryRow({
       onPublishResult(false, (err as Error).message || "Failed to schedule post.");
     } finally {
       setScheduling(false);
+    }
+  };
+
+  const handleEdit = async () => {
+    if (!editAt || !scheduleId) return;
+    setEditing(true);
+    try {
+      await updateSchedule({
+        schedule_id: scheduleId,
+        schedule_expression: `at(${new Date(editAt).toISOString().slice(0, 19)})`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
+      setEditOpen(false);
+      onPublishResult(true, `Schedule updated to ${new Date(editAt).toLocaleString()}`);
+    } catch (err) {
+      onPublishResult(false, (err as Error).message || "Failed to update schedule.");
+    } finally {
+      setEditing(false);
     }
   };
 
@@ -367,6 +395,17 @@ function HistoryRow({
                   <ScheduleIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
+              {localStatus === "scheduled" && scheduleId && (
+                <Tooltip title="Edit schedule" placement="top">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); setEditAt(""); setEditPlatform(schedulePlatform); setEditOpen(true); }}
+                    sx={{ color: "#34d399", p: "6px", "&:hover": { bgcolor: "rgba(52,211,153,0.1)" } }}
+                  >
+                    <EditCalendarIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
               <Tooltip
                 title={facebookConnected ? "Post to Facebook" : "Connect Facebook in Account Settings"}
                 placement="top"
@@ -501,6 +540,72 @@ function HistoryRow({
         </Button>
       </DialogActions>
     </Dialog>
+
+    <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs"
+      PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } }}>
+      <Box sx={{ px: 3, pt: 3, pb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
+        <EditCalendarIcon sx={{ color: "#34d399", fontSize: 22 }} />
+        <Box>
+          <Typography sx={{ color: "#e0dcf8", fontWeight: 700, fontSize: 16 }}>Edit Schedule</Typography>
+          <Typography sx={{ color: "#64748b", fontSize: 12, mt: 0.3 }}>Update the scheduled publish time</Typography>
+        </Box>
+      </Box>
+      <Divider sx={{ borderColor: "#2e2e42" }} />
+      <DialogContent sx={{ px: 3, pt: "20px !important", pb: 2 }}>
+        <Typography sx={{ color: "#34d399", fontSize: 13, fontWeight: 600, mb: 0.8 }}>New Date & Time</Typography>
+        <TextField
+          type="datetime-local"
+          fullWidth
+          value={editAt}
+          onChange={(e) => setEditAt(e.target.value)}
+          inputProps={{ min: new Date().toISOString().slice(0, 16) }}
+          sx={{
+            mb: 2.5,
+            "& .MuiOutlinedInput-root": {
+              color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
+              "& fieldset": { borderColor: "#383850" },
+              "&:hover fieldset": { borderColor: "#34d399" },
+              "&.Mui-focused fieldset": { borderColor: "#34d399" },
+            },
+            "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
+          }}
+        />
+        <Typography sx={{ color: "#34d399", fontSize: 13, fontWeight: 600, mb: 1 }}>Platform</Typography>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          {Object.entries(PLATFORM_INFO).map(([key, info]) => (
+            <Button key={key} onClick={() => setEditPlatform(key)}
+              startIcon={info.icon}
+              variant={editPlatform === key ? "contained" : "outlined"}
+              size="small"
+              sx={{
+                textTransform: "none", fontSize: 12, borderRadius: "8px",
+                borderColor: editPlatform === key ? info.color : "rgba(255,255,255,0.12)",
+                color: editPlatform === key ? "#fff" : "#64748b",
+                bgcolor: editPlatform === key ? info.color : "transparent",
+                "&:hover": { bgcolor: info.color, color: "#fff", borderColor: info.color },
+              }}
+            >
+              {info.label}
+            </Button>
+          ))}
+        </Box>
+      </DialogContent>
+      <Divider sx={{ borderColor: "#2e2e42" }} />
+      <DialogActions sx={{ px: 3, py: 2, gap: 1.5 }}>
+        <Button onClick={() => setEditOpen(false)}
+          sx={{ color: "#7070a0", textTransform: "none", border: "1px solid #44445a", borderRadius: "10px", px: 2.5,
+            "&:hover": { bgcolor: "rgba(255,255,255,0.06)" } }}>
+          Cancel
+        </Button>
+        <Button onClick={handleEdit}
+          disabled={editing || !editAt}
+          variant="contained"
+          sx={{ bgcolor: "#059669", textTransform: "none", fontWeight: 600, borderRadius: "10px", px: 3, flexGrow: 1,
+            "&:hover": { bgcolor: "#047857" }, "&.Mui-disabled": { bgcolor: "#1a3d2e", color: "#34d399" } }}>
+          {editing ? <CircularProgress size={16} sx={{ color: "#34d399" }} /> : "Update Schedule"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   </>
   );
 }
@@ -555,6 +660,10 @@ export default function History() {
           <Button onClick={() => navigate("/dashboard")} startIcon={<DashboardIcon />}
             sx={{ color: "#64748b", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}>
             Dashboard
+          </Button>
+          <Button onClick={() => navigate("/schedules")} startIcon={<ScheduleIcon />}
+            sx={{ color: "#64748b", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}>
+            Schedules
           </Button>
           <Typography sx={{ color: "#475569", fontSize: 13 }}>{user?.username}</Typography>
           <Button onClick={handleSignOut} startIcon={<LogoutIcon />} size="small" variant="outlined"
