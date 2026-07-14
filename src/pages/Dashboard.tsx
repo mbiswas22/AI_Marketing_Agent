@@ -67,6 +67,7 @@ export default function Dashboard() {
   const { user, signOut } = useAuthenticator();
   const navigate = useNavigate();
   const [role, setRole] = useState<string>("VIEWER");
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const location = useLocation();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -192,9 +193,10 @@ export default function Dashboard() {
         // GET /business currently returns every business in the system, not just
         // the caller's own — match by owner email instead of trusting businesses[0].
         const ownBusiness = businesses.find((b: Business) => b.ownerEmail === email);
-        const businessId = ownBusiness?.businessId ?? businesses[0]?.businessId;
-        if (!businessId) return;
-        const userData = await getUser(sub, businessId);
+        const resolvedBusinessId = ownBusiness?.businessId ?? businesses[0]?.businessId;
+        if (!resolvedBusinessId) return;
+        setBusinessId(resolvedBusinessId);
+        const userData = await getUser(sub, resolvedBusinessId);
         if (userData?.role) setRole(userData.role);
       } catch {
         // keep default VIEWER
@@ -204,7 +206,8 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    getSocialConnections()
+    if (!businessId) return;
+    getSocialConnections(businessId)
       .then((conns) =>
         setLinkedinConnected(
           conns.some(
@@ -213,13 +216,13 @@ export default function Dashboard() {
         ),
       )
       .catch(() => {});
-    getMetaPages()
+    getMetaPages(businessId)
       .then((info) => setFacebookConnected(info.status === "connected"))
       .catch(() => {});
-    getInstagramStatus()
+    getInstagramStatus(businessId)
       .then((info) => setInstagramConnected(info.status === "connected"))
       .catch(() => {});
-  }, []);
+  }, [businessId]);
 
   const handleSignOut = () => {
     signOut();
