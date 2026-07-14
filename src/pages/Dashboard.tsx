@@ -39,7 +39,7 @@ import {
   getUser,
   getBusinesses,
 } from "../services/api";
-import type { BedrockModel } from "../services/api";
+import type { BedrockModel, Business } from "../services/api";
 import { getUserAttributes } from "../services/auth";
 import {
   DEMO_BUSINESSES,
@@ -186,9 +186,13 @@ export default function Dashboard() {
       try {
         const attrs = await getUserAttributes();
         const sub = (attrs as any)?.sub;
+        const email = (attrs as { email?: string })?.email;
         if (!sub) return;
         const businesses = await getBusinesses();
-        const businessId = businesses[0]?.businessId;
+        // GET /business currently returns every business in the system, not just
+        // the caller's own — match by owner email instead of trusting businesses[0].
+        const ownBusiness = businesses.find((b: Business) => b.ownerEmail === email);
+        const businessId = ownBusiness?.businessId ?? businesses[0]?.businessId;
         if (!businessId) return;
         const userData = await getUser(sub, businessId);
         if (userData?.role) setRole(userData.role);

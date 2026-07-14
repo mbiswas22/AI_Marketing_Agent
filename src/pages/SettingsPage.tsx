@@ -34,6 +34,7 @@ import type {
   MetaPageInfo,
   InstagramInfo,
 } from "../services/api";
+import { getUserAttributes } from "../services/auth";
 import { UserManagementPanel } from "./UserManagement";
 import { BusinessManagementPanel } from "./BusinessManagement";
 
@@ -63,13 +64,25 @@ export default function SettingsPage() {
 
   useEffect(() => {
     checkUrlParams();
-    getBusinesses()
-      .then((list) => setBusiness(list[0] ?? null))
-      .catch(() => {});
+    (async () => {
+      try {
+        const [attrs, businesses] = await Promise.all([
+          getUserAttributes(),
+          getBusinesses(),
+        ]);
+        const email = (attrs as { email?: string })?.email;
+        // GET /business currently returns every business in the system, not just
+        // the caller's own — match by owner email instead of trusting businesses[0].
+        const ownBusiness = businesses.find((b: Business) => b.ownerEmail === email);
+        setBusiness(ownBusiness ?? businesses[0] ?? null);
+      } catch {
+        // keep business null
+      }
+    })();
   }, []);
   useEffect(() => {
-    if (activeTab === 2) fetchConnections();
-  }, [activeTab]);
+    if (activeTab === 2 && business?.businessId) fetchConnections();
+  }, [activeTab, business]);
 
   const checkUrlParams = () => {
     const params = new URLSearchParams(window.location.search);
@@ -116,13 +129,14 @@ export default function SettingsPage() {
   const closeSnackbar = () => setSnackbar((p) => ({ ...p, open: false }));
 
   const fetchConnections = async () => {
+    if (!business?.businessId) return;
     setConnectionsLoading(true);
     setConnectError(null);
     try {
       const [conns, fbInfo, igInfo] = await Promise.all([
-        getSocialConnections(),
-        getMetaPages(),
-        getInstagramStatus(),
+        getSocialConnections(business.businessId),
+        getMetaPages(business.businessId),
+        getInstagramStatus(business.businessId),
       ]);
       setConnections(conns);
       setFacebookPage(fbInfo);
@@ -135,9 +149,10 @@ export default function SettingsPage() {
   };
 
   const handleConnect = async () => {
+    if (!business?.businessId) return;
     setConnecting(true);
     try {
-      const authUrl = await getLinkedInAuthUrl();
+      const authUrl = await getLinkedInAuthUrl(business.businessId);
       window.location.href = authUrl;
     } catch {
       setSnackbar({
@@ -150,9 +165,10 @@ export default function SettingsPage() {
   };
 
   const handleDisconnect = async () => {
+    if (!business?.businessId) return;
     setDisconnecting(true);
     try {
-      await disconnectSocialPlatform("linkedin");
+      await disconnectSocialPlatform("linkedin", business.businessId);
       await fetchConnections();
       setSnackbar({
         open: true,
@@ -171,9 +187,10 @@ export default function SettingsPage() {
   };
 
   const handleFbConnect = async () => {
+    if (!business?.businessId) return;
     setFbConnecting(true);
     try {
-      const authUrl = await getMetaAuthUrl();
+      const authUrl = await getMetaAuthUrl(business.businessId);
       window.location.href = authUrl;
     } catch {
       setSnackbar({
@@ -186,9 +203,10 @@ export default function SettingsPage() {
   };
 
   const handleFbDisconnect = async () => {
+    if (!business?.businessId) return;
     setFbDisconnecting(true);
     try {
-      await disconnectSocialPlatform("facebook");
+      await disconnectSocialPlatform("facebook", business.businessId);
       await fetchConnections();
       setSnackbar({
         open: true,
@@ -426,7 +444,7 @@ export default function SettingsPage() {
                   ) : (
                     <Button
                       onClick={handleConnect}
-                      disabled={connecting}
+                      disabled={connecting || !business?.businessId}
                       variant="contained"
                       size="small"
                       sx={{
@@ -563,7 +581,7 @@ export default function SettingsPage() {
                   ) : (
                     <Button
                       onClick={handleFbConnect}
-                      disabled={fbConnecting}
+                      disabled={fbConnecting || !business?.businessId}
                       variant="contained"
                       size="small"
                       sx={{
