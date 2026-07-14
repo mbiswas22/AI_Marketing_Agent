@@ -405,6 +405,7 @@ export const updateSchedule = async (payload: {
 };
 
 export const createSchedule = async (payload: {
+  user_id: string;
   businessId: string;
   platform: string;
   content_type: string;

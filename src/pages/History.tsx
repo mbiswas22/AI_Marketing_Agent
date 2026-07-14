@@ -98,6 +98,7 @@ function HistoryRow({
   const [publishingInstagram, setPublishingInstagram] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleAt, setScheduleAt] = useState("");
+  const [scheduleBusinessId, setScheduleBusinessId] = useState("");
   const [schedulePlatform, setSchedulePlatform] = useState("linkedin");
   const [scheduling, setScheduling] = useState(false);
   const [scheduleId, setScheduleId] = useState<string | null>(null);
@@ -125,15 +126,16 @@ function HistoryRow({
   };
 
   const handleSchedule = async () => {
-    if (!scheduleAt) return;
+    if (!scheduleAt || !scheduleBusinessId.trim()) return;
     setScheduling(true);
     try {
       const result = await createSchedule({
-        businessId: item.business || "unknown",
+        user_id: userId,
+        businessId: scheduleBusinessId.trim(),
         platform: schedulePlatform,
         content_type: item.content_type || "social_caption",
         schedule_expression: `at(${new Date(scheduleAt).toISOString().slice(0, 19)})`,
-        input_type: item.input_value ? "text" : "text",
+        input_type: "text",
         input_value: item.prompt || item.input_value || item.caption || "marketing post",
         business: item.business || "My Business",
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -486,6 +488,23 @@ function HistoryRow({
       </Box>
       <Divider sx={{ borderColor: "#2e2e42" }} />
       <DialogContent sx={{ px: 3, pt: "20px !important", pb: 2 }}>
+        <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Business ID</Typography>
+        <TextField
+          fullWidth
+          placeholder="e.g. BIZ-ABC123"
+          value={scheduleBusinessId}
+          onChange={(e) => setScheduleBusinessId(e.target.value)}
+          sx={{
+            mb: 2.5,
+            "& .MuiOutlinedInput-root": {
+              color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
+              "& fieldset": { borderColor: "#383850" },
+              "&:hover fieldset": { borderColor: "#7c6df0" },
+              "&.Mui-focused fieldset": { borderColor: "#7c6df0" },
+            },
+            "& .MuiInputBase-input::placeholder": { color: "#555", opacity: 1 },
+          }}
+        />
         <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Schedule Date & Time</Typography>
         <TextField
           type="datetime-local"
@@ -532,7 +551,7 @@ function HistoryRow({
           Cancel
         </Button>
         <Button onClick={handleSchedule}
-          disabled={scheduling || !scheduleAt}
+          disabled={scheduling || !scheduleAt || !scheduleBusinessId.trim()}
           variant="contained"
           sx={{ bgcolor: "#7c3aed", textTransform: "none", fontWeight: 600, borderRadius: "10px", px: 3, flexGrow: 1,
             "&:hover": { bgcolor: "#6d28d9" }, "&.Mui-disabled": { bgcolor: "#3d2d60", color: "#7c5cbf" } }}>

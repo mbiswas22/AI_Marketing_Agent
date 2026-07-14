@@ -379,6 +379,8 @@ export default function Dashboard() {
         setCaption(result.marketing.caption ?? null);
         setHashtags(result.marketing.hashtags ?? []);
         if (result.imageUrl) setResultImageUrl(result.imageUrl);
+        if ((result as any).action_id) setResultActionId((result as any).action_id);
+        if ((result as any).created_at) setResultCreatedAt((result as any).created_at);
       } else if (contentType === "image") {
         const enrichedImagePrompt = `Professional marketing image for ${effectiveBusiness}. ${prompt}. High quality, photorealistic, commercial photography style, vibrant colors, no text, no words, no letters, no watermarks.`;
         const url = await generateImage(enrichedImagePrompt);
