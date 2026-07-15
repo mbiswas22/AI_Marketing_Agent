@@ -70,7 +70,7 @@ def create_invitation(event):
     except json.JSONDecodeError:
         return response(400, {"error": "Invalid JSON body"})
 
-    required_fields = ["userEmail", "role", "invitationLink", "userName", "userPhoneNumber", "invitationId"]
+    required_fields = ["userEmail", "role", "invitationLink", "userName", "invitationId"]
     missing = [f for f in required_fields if not body.get(f)]
     if missing:
         return response(400, {"error": f"Missing required fields: {', '.join(missing)}"})
