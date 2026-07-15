@@ -98,11 +98,16 @@ function HistoryRow({
   const [publishingFacebook, setPublishingFacebook] = useState(false);
   const [publishingInstagram, setPublishingInstagram] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [scheduleAt, setScheduleAt] = useState("");
   const [scheduleBusinessId, setScheduleBusinessId] = useState("");
   const [schedulePlatform, setSchedulePlatform] = useState("linkedin");
   const [scheduling, setScheduling] = useState(false);
   const [scheduleId, setScheduleId] = useState<string | null>(null);
+  // Campaign mode
+  const [campaignMode, setCampaignMode] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [campaignDates, setCampaignDates] = useState<string[]>([]);
+  const [campaignTime, setCampaignTime] = useState("09:00");
+  const [campaignDateInput, setCampaignDateInput] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [editAt, setEditAt] = useState("");
   const [editPlatform, setEditPlatform] = useState("linkedin");
@@ -127,31 +132,51 @@ function HistoryRow({
   };
 
   const handleSchedule = async () => {
-    if (!scheduleAt || !scheduleBusinessId.trim()) return;
+    const datesToSchedule = campaignMode ? campaignDates : (scheduleAt ? [scheduleAt] : []);
+    if (!datesToSchedule.length || !scheduleBusinessId.trim()) return;
     setScheduling(true);
     try {
-      const result = await createSchedule({
-        user_id: userId,
-        businessId: scheduleBusinessId.trim(),
-        platform: schedulePlatform,
-        content_type: item.content_type || "social_caption",
-        schedule_expression: `at(${new Date(scheduleAt).toISOString().slice(0, 19)})`,
-        input_type: "text",
-        input_value: item.prompt || item.input_value || item.caption || "marketing post",
-        business: item.business || "My Business",
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        createdByUserId: userId,
-      });
-      setScheduleId(result.schedule_id);
+      const results = await Promise.all(
+        datesToSchedule.map((dateStr) => {
+          const dt = campaignMode
+            ? new Date(`${dateStr}T${campaignTime}:00`)
+            : new Date(dateStr);
+          return createSchedule({
+            user_id: userId,
+            businessId: scheduleBusinessId.trim(),
+            platform: schedulePlatform,
+            content_type: item.content_type || "social_caption",
+            schedule_expression: `at(${dt.toISOString().slice(0, 19)})`,
+            input_type: "text",
+            input_value: item.prompt || item.input_value || item.caption || "marketing post",
+            business: item.business || "My Business",
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            createdByUserId: userId,
+          });
+        })
+      );
+      setScheduleId(results[0].schedule_id);
       setScheduleOpen(false);
       setLocalStatus("scheduled");
-      onPublishResult(true, `Scheduled for ${new Date(scheduleAt).toLocaleString()}`);
+      const msg = campaignMode
+        ? `Campaign scheduled for ${datesToSchedule.length} day(s)`
+        : `Scheduled for ${new Date(scheduleAt).toLocaleString()}`;
+      onPublishResult(true, msg);
     } catch (err) {
       onPublishResult(false, (err as Error).message || "Failed to schedule post.");
     } finally {
       setScheduling(false);
     }
   };
+
+  const addCampaignDate = () => {
+    if (!campaignDateInput || campaignDates.includes(campaignDateInput)) return;
+    setCampaignDates((prev) => [...prev, campaignDateInput].sort());
+    setCampaignDateInput("");
+  };
+
+  const removeCampaignDate = (d: string) =>
+    setCampaignDates((prev) => prev.filter((x) => x !== d));
 
   const handleEdit = async () => {
     if (!editAt || !scheduleId) return;
@@ -489,6 +514,27 @@ function HistoryRow({
       </Box>
       <Divider sx={{ borderColor: "#2e2e42" }} />
       <DialogContent sx={{ px: 3, pt: "20px !important", pb: 2 }}>
+
+        {/* Campaign toggle */}
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2.5 }}>
+          <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600 }}>Campaign Mode</Typography>
+          <Button
+            size="small"
+            onClick={() => { setCampaignMode((v) => !v); setCampaignDates([]); setScheduleAt(""); }}
+            variant={campaignMode ? "contained" : "outlined"}
+            sx={{
+              textTransform: "none", fontSize: 11, borderRadius: "8px", px: 1.5,
+              bgcolor: campaignMode ? "#7c3aed" : "transparent",
+              borderColor: campaignMode ? "#7c3aed" : "rgba(255,255,255,0.15)",
+              color: campaignMode ? "#fff" : "#64748b",
+              "&:hover": { bgcolor: "#7c3aed", color: "#fff", borderColor: "#7c3aed" },
+            }}
+          >
+            {campaignMode ? "On — Multiple Days" : "Off — Single Date"}
+          </Button>
+        </Box>
+
+        {/* Business ID */}
         <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Business ID</Typography>
         <TextField
           fullWidth
@@ -506,24 +552,99 @@ function HistoryRow({
             "& .MuiInputBase-input::placeholder": { color: "#555", opacity: 1 },
           }}
         />
-        <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Schedule Date & Time</Typography>
-        <TextField
-          type="datetime-local"
-          fullWidth
-          value={scheduleAt}
-          onChange={(e) => setScheduleAt(e.target.value)}
-          inputProps={{ min: new Date().toISOString().slice(0, 16) }}
-          sx={{
-            mb: 2.5,
-            "& .MuiOutlinedInput-root": {
-              color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
-              "& fieldset": { borderColor: "#383850" },
-              "&:hover fieldset": { borderColor: "#7c6df0" },
-              "&.Mui-focused fieldset": { borderColor: "#7c6df0" },
-            },
-            "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
-          }}
-        />
+
+        {/* Single date mode */}
+        {!campaignMode && (
+          <>
+            <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Schedule Date & Time</Typography>
+            <TextField
+              type="datetime-local"
+              fullWidth
+              value={scheduleAt}
+              onChange={(e) => setScheduleAt(e.target.value)}
+              inputProps={{ min: new Date().toISOString().slice(0, 16) }}
+              sx={{
+                mb: 2.5,
+                "& .MuiOutlinedInput-root": {
+                  color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
+                  "& fieldset": { borderColor: "#383850" },
+                  "&:hover fieldset": { borderColor: "#7c6df0" },
+                  "&.Mui-focused fieldset": { borderColor: "#7c6df0" },
+                },
+                "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
+              }}
+            />
+          </>
+        )}
+
+        {/* Campaign mode */}
+        {campaignMode && (
+          <>
+            <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Publish Time (same for all days)</Typography>
+            <TextField
+              type="time"
+              fullWidth
+              value={campaignTime}
+              onChange={(e) => setCampaignTime(e.target.value)}
+              sx={{
+                mb: 2.5,
+                "& .MuiOutlinedInput-root": {
+                  color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
+                  "& fieldset": { borderColor: "#383850" },
+                  "&:hover fieldset": { borderColor: "#7c6df0" },
+                  "&.Mui-focused fieldset": { borderColor: "#7c6df0" },
+                },
+                "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
+              }}
+            />
+            <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Add Dates</Typography>
+            <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
+              <TextField
+                type="date"
+                fullWidth
+                value={campaignDateInput}
+                onChange={(e) => setCampaignDateInput(e.target.value)}
+                inputProps={{ min: new Date().toISOString().slice(0, 10) }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
+                    "& fieldset": { borderColor: "#383850" },
+                    "&:hover fieldset": { borderColor: "#7c6df0" },
+                    "&.Mui-focused fieldset": { borderColor: "#7c6df0" },
+                  },
+                  "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
+                }}
+              />
+              <Button onClick={addCampaignDate} variant="contained"
+                sx={{ bgcolor: "#5a4fd0", textTransform: "none", borderRadius: "10px", px: 2, flexShrink: 0,
+                  "&:hover": { bgcolor: "#6b5fe0" } }}>
+                Add
+              </Button>
+            </Box>
+            {campaignDates.length > 0 && (
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 1 }}>
+                {campaignDates.map((d) => (
+                  <Chip
+                    key={d}
+                    label={new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    onDelete={() => removeCampaignDate(d)}
+                    size="small"
+                    sx={{
+                      bgcolor: "rgba(124,109,240,0.15)", color: "#a78bfa",
+                      border: "1px solid rgba(124,109,240,0.3)",
+                      "& .MuiChip-deleteIcon": { color: "#a78bfa" },
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
+            {campaignDates.length === 0 && (
+              <Typography sx={{ color: "#475569", fontSize: 12, mb: 1 }}>No dates added yet.</Typography>
+            )}
+          </>
+        )}
+
+        {/* Platform */}
         <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 1 }}>Platform</Typography>
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           {Object.entries(PLATFORM_INFO).map(([key, info]) => (
@@ -552,11 +673,15 @@ function HistoryRow({
           Cancel
         </Button>
         <Button onClick={handleSchedule}
-          disabled={scheduling || !scheduleAt || !scheduleBusinessId.trim()}
+          disabled={scheduling || !scheduleBusinessId.trim() || (campaignMode ? campaignDates.length === 0 : !scheduleAt)}
           variant="contained"
           sx={{ bgcolor: "#7c3aed", textTransform: "none", fontWeight: 600, borderRadius: "10px", px: 3, flexGrow: 1,
             "&:hover": { bgcolor: "#6d28d9" }, "&.Mui-disabled": { bgcolor: "#3d2d60", color: "#7c5cbf" } }}>
-          {scheduling ? <CircularProgress size={16} sx={{ color: "#a89cf0" }} /> : "Schedule"}
+          {scheduling
+            ? <CircularProgress size={16} sx={{ color: "#a89cf0" }} />
+            : campaignMode
+            ? `Schedule ${campaignDates.length} Post${campaignDates.length !== 1 ? "s" : ""}`
+            : "Schedule"}
         </Button>
       </DialogActions>
     </Dialog>
@@ -717,7 +842,31 @@ export default function History() {
       </nav>
 
       <div className="history-content">
-        <Typography variant="h4" sx={{ color: "#fff", fontWeight: 800, mb: 0.5 }}>History</Typography>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
+          <Typography variant="h4" sx={{ color: "#fff", fontWeight: 800 }}>History</Typography>
+          <Button
+            onClick={() => {
+              setLoading(true);
+              setError(null);
+              const userId = user?.userId ?? user?.username ?? "unknown";
+              getHistory(userId)
+                .then((items) =>
+                  setHistory([...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
+                )
+                .catch(() => setError("Failed to load history."))
+                .finally(() => setLoading(false));
+            }}
+            variant="outlined"
+            size="small"
+            sx={{
+              color: "#a78bfa", borderColor: "rgba(167,139,250,0.4)",
+              textTransform: "none", borderRadius: "8px", fontSize: 13,
+              "&:hover": { bgcolor: "rgba(167,139,250,0.08)", borderColor: "#a78bfa" },
+            }}
+          >
+            ↻ Refresh
+          </Button>
+        </Box>
         <Typography sx={{ color: "#475569", mb: 5, fontSize: 15 }}>
           Your past AI-generated marketing content. Click a row to see full details.
         </Typography>
