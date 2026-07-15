@@ -354,8 +354,9 @@ export interface CrawlWebsiteResponse {
     hours: string;
     contact: { phone: string; email: string; address: string };
   };
-  marketing: { caption?: string; hashtags?: string[]; image_prompt?: string };
+  marketing: { caption?: string; hashtags?: string[]; image_prompt?: string; headline?: string; subheadline?: string; call_to_action?: string };
   imageUrl?: string;
+  image_url?: string;
 }
 
 export const viewSchedule = async (schedule_id: string): Promise<Record<string, unknown>> => {

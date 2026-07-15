@@ -385,7 +385,9 @@ export default function Dashboard() {
         );
         setCaption(result.marketing.caption ?? null);
         setHashtags(result.marketing.hashtags ?? []);
-        if (result.imageUrl) setResultImageUrl(result.imageUrl);
+        // handle both imageUrl and image_url from crawler
+        const crawlerImage = result.imageUrl || (result as any).image_url || null;
+        if (crawlerImage) setResultImageUrl(crawlerImage);
         if ((result as any).action_id) setResultActionId((result as any).action_id);
         if ((result as any).created_at) setResultCreatedAt((result as any).created_at);
       } else if (contentType === "image") {
