@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { JSX } from "react";
 import { useAuthenticator } from "@aws-amplify/ui-react";
 import { useNavigate } from "react-router-dom";
 import {

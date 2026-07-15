@@ -229,6 +229,7 @@ export interface Business {
   createdAt: string;
   phone?: string;
   region?: string;
+  ownerEmail?: string;
 }
 
 export const getBusinesses = async (): Promise<Business[]> => {
@@ -269,23 +270,23 @@ export interface SocialConnection {
   connectedAt: string | null;
 }
 
-export const getSocialConnections = async (): Promise<SocialConnection[]> => {
-  const res = await api.get(`/social/connections`);
+export const getSocialConnections = async (businessId: string): Promise<SocialConnection[]> => {
+  const res = await api.get(`/social/connections`, { params: { businessId } });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return Array.isArray(data) ? data : [];
 };
 
-export const getLinkedInAuthUrl = async (): Promise<string> => {
-  const res = await api.get(`/social/linkedin/authorize`);
+export const getLinkedInAuthUrl = async (businessId: string): Promise<string> => {
+  const res = await api.get(`/social/linkedin/authorize`, { params: { businessId } });
   return res.data.authUrl;
 };
 
-export const disconnectSocialPlatform = async (platform: string): Promise<void> => {
-  await api.delete(`/social/connections/${platform}`);
+export const disconnectSocialPlatform = async (platform: string, businessId: string): Promise<void> => {
+  await api.delete(`/social/connections/${platform}`, { params: { businessId } });
 };
 
-export const getMetaAuthUrl = async (): Promise<string> => {
-  const res = await api.get(`/social/meta/authorize`);
+export const getMetaAuthUrl = async (businessId: string): Promise<string> => {
+  const res = await api.get(`/social/meta/authorize`, { params: { businessId } });
   return res.data.authUrl;
 };
 
@@ -297,8 +298,8 @@ export interface MetaPageInfo {
   connectedAt?: string;
 }
 
-export const getMetaPages = async (): Promise<MetaPageInfo> => {
-  const res = await api.get(`/social/meta/pages`);
+export const getMetaPages = async (businessId: string): Promise<MetaPageInfo> => {
+  const res = await api.get(`/social/meta/pages`, { params: { businessId } });
   return res.data;
 };
 
@@ -328,8 +329,8 @@ export interface InstagramInfo {
   connectedAt?: string;
 }
 
-export const getInstagramStatus = async (): Promise<InstagramInfo> => {
-  const res = await api.get(`/social/meta/instagram`);
+export const getInstagramStatus = async (businessId: string): Promise<InstagramInfo> => {
+  const res = await api.get(`/social/meta/instagram`, { params: { businessId } });
   return res.data;
 };
 

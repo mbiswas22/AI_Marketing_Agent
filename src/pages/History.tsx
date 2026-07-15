@@ -24,8 +24,9 @@ import YouTubeIcon from "@mui/icons-material/YouTube";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
-import { getHistory, getSocialConnections, publishToLinkedIn, getMetaPages, publishToFacebook, getInstagramStatus, publishToInstagram, createSchedule, updateSchedule } from "../services/api";
-import type { HistoryItem } from "../services/api";
+import { getHistory, getSocialConnections, publishToLinkedIn, getMetaPages, publishToFacebook, getInstagramStatus, publishToInstagram, createSchedule, updateSchedule, getBusinesses } from "../services/api";
+import type { HistoryItem, Business } from "../services/api";
+import { getUserAttributes } from "../services/auth";
 import "../styles/history.css";
 
 const CONTENT_TYPE_ICONS: Record<string, ReactElement> = {
@@ -763,6 +764,7 @@ export default function History() {
   const [linkedinConnected, setLinkedinConnected] = useState(false);
   const [facebookConnected, setFacebookConnected] = useState(false);
   const [instagramConnected, setInstagramConnected] = useState(false);
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
 
   const handleSignOut = () => { signOut(); navigate("/login"); };
@@ -782,16 +784,35 @@ export default function History() {
   }, [user]);
 
   useEffect(() => {
-    getSocialConnections()
+    (async () => {
+      try {
+        const [attrs, businesses] = await Promise.all([
+          getUserAttributes(),
+          getBusinesses(),
+        ]);
+        const email = (attrs as { email?: string })?.email;
+        // GET /business currently returns every business in the system, not just
+        // the caller's own — match by owner email instead of trusting businesses[0].
+        const ownBusiness = businesses.find((b: Business) => b.ownerEmail === email);
+        setBusinessId(ownBusiness?.businessId ?? businesses[0]?.businessId ?? null);
+      } catch {
+        // keep businessId null
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!businessId) return;
+    getSocialConnections(businessId)
       .then((conns) => setLinkedinConnected(conns.some((c) => c.platform === "linkedin" && c.status === "connected")))
       .catch(() => {});
-    getMetaPages()
+    getMetaPages(businessId)
       .then((info) => setFacebookConnected(info.status === "connected"))
       .catch(() => {});
-    getInstagramStatus()
+    getInstagramStatus(businessId)
       .then((info) => setInstagramConnected(info.status === "connected"))
       .catch(() => {});
-  }, []);
+  }, [businessId]);
 
   return (
     <div className="history-page">
