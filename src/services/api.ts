@@ -35,7 +35,8 @@ export const generateMarketAsset = async (
   contentType: string,
   outputFormat: string,
   platforms: string[],
-  modelId: string
+  modelId: string,
+  imageBase64?: string
 ) => {
   return api.post<GenerateAssetResponse>(`/generate`, {
     prompt,
@@ -44,6 +45,7 @@ export const generateMarketAsset = async (
     output_format: outputFormat,
     platforms,
     modelId,
+    ...(imageBase64 && { image_base64: imageBase64 }),
   });
 };
 

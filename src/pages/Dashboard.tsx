@@ -395,25 +395,27 @@ export default function Dashboard() {
         const url = await generateImage(enrichedImagePrompt);
         setResultImageUrl(url);
       } else if (inputTab === "image" && uploadedFile) {
-        // Convert uploaded image to base64 and send to AI
-        const base64 = await new Promise<string>((resolve, reject) => {
+        // Convert uploaded image to base64 and send to generate-marketing-asset Lambda
+        const base64Str = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve((reader.result as string).split(",")[1]);
           reader.onerror = reject;
           reader.readAsDataURL(uploadedFile);
         });
-        const enrichedPrompt = `You are an expert marketing copywriter. Analyze this image and create detailed, compelling ${contentType} marketing content for the business "${effectiveBusiness}". ${prompt}. Write at least 3-4 paragraphs with a strong headline, body copy, and a clear call to action. Be specific, persuasive and professional.`;
-        const response = await generateCaption(
-          enrichedPrompt,
+        const response = await generateMarketAsset(
+          prompt || `Create ${contentType} marketing content for ${effectiveBusiness} based on the uploaded image.`,
           effectiveBusiness,
           contentType,
+          selectedFormat,
           selectedPlatforms,
           selectedModel,
-          base64,
+          base64Str,
         );
         setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
-        if ((response.data as any).image_url) setResultImageUrl((response.data as any).image_url);
+        if (response.data.image_url) setResultImageUrl(response.data.image_url);
+        if ((response.data as any).action_id) setResultActionId((response.data as any).action_id);
+        if ((response.data as any).created_at) setResultCreatedAt((response.data as any).created_at);
       } else if (config.type === "caption") {
         const enrichedPrompt = `You are an expert marketing copywriter. Create detailed, compelling ${contentType} content for the business "${effectiveBusiness}". ${prompt}. Write at least 3-4 paragraphs with a strong headline, body copy, and a clear call to action. Be specific, persuasive and professional.`;
         const response = await generateCaption(
