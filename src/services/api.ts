@@ -52,7 +52,8 @@ export const generateCaption = async (
   business: string,
   contentType: string,
   platforms: string[],
-  modelId: string
+  modelId: string,
+  imageBase64?: string
 ) => {
   return api.post<GenerateCaptionResponse>(`/generate`, {
     prompt,
@@ -60,6 +61,7 @@ export const generateCaption = async (
     contentType,
     platforms,
     modelId: 'us.' + modelId,
+    ...(imageBase64 && { image_base64: imageBase64 }),
   });
 };
 

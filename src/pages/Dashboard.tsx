@@ -72,7 +72,7 @@ export default function Dashboard() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [fileName, setFileName] = useState<string | null>(null);
-  // const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [url] = useState("");
   const [business, setBusiness] = useState(DEMO_BUSINESSES[0]);
   const [customBusiness, setCustomBusiness] = useState("");
@@ -394,6 +394,26 @@ export default function Dashboard() {
         const enrichedImagePrompt = `Professional marketing image for ${effectiveBusiness}. ${prompt}. High quality, photorealistic, commercial photography style, vibrant colors, no text, no words, no letters, no watermarks.`;
         const url = await generateImage(enrichedImagePrompt);
         setResultImageUrl(url);
+      } else if (inputTab === "image" && uploadedFile) {
+        // Convert uploaded image to base64 and send to AI
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(uploadedFile);
+        });
+        const enrichedPrompt = `You are an expert marketing copywriter. Analyze this image and create detailed, compelling ${contentType} marketing content for the business "${effectiveBusiness}". ${prompt}. Write at least 3-4 paragraphs with a strong headline, body copy, and a clear call to action. Be specific, persuasive and professional.`;
+        const response = await generateCaption(
+          enrichedPrompt,
+          effectiveBusiness,
+          contentType,
+          selectedPlatforms,
+          selectedModel,
+          base64,
+        );
+        setCaption(response.data.caption ?? null);
+        setHashtags(response.data.hashtags ?? []);
+        if ((response.data as any).image_url) setResultImageUrl((response.data as any).image_url);
       } else if (config.type === "caption") {
         const enrichedPrompt = `You are an expert marketing copywriter. Create detailed, compelling ${contentType} content for the business "${effectiveBusiness}". ${prompt}. Write at least 3-4 paragraphs with a strong headline, body copy, and a clear call to action. Be specific, persuasive and professional.`;
         const response = await generateCaption(
@@ -1140,7 +1160,11 @@ export default function Dashboard() {
               type="file"
               accept="image/*"
               hidden
-              onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                setFileName(file?.name ?? null);
+                setUploadedFile(file);
+              }}
             />
 
             {/* Divider */}
