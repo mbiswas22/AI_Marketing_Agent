@@ -842,7 +842,31 @@ export default function History() {
       </nav>
 
       <div className="history-content">
-        <Typography variant="h4" sx={{ color: "#fff", fontWeight: 800, mb: 0.5 }}>History</Typography>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
+          <Typography variant="h4" sx={{ color: "#fff", fontWeight: 800 }}>History</Typography>
+          <Button
+            onClick={() => {
+              setLoading(true);
+              setError(null);
+              const userId = user?.userId ?? user?.username ?? "unknown";
+              getHistory(userId)
+                .then((items) =>
+                  setHistory([...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
+                )
+                .catch(() => setError("Failed to load history."))
+                .finally(() => setLoading(false));
+            }}
+            variant="outlined"
+            size="small"
+            sx={{
+              color: "#a78bfa", borderColor: "rgba(167,139,250,0.4)",
+              textTransform: "none", borderRadius: "8px", fontSize: 13,
+              "&:hover": { bgcolor: "rgba(167,139,250,0.08)", borderColor: "#a78bfa" },
+            }}
+          >
+            ↻ Refresh
+          </Button>
+        </Box>
         <Typography sx={{ color: "#475569", mb: 5, fontSize: 15 }}>
           Your past AI-generated marketing content. Click a row to see full details.
         </Typography>
