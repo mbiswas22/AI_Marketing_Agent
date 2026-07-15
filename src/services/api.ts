@@ -103,8 +103,11 @@ export interface HistoryItem {
 
 export const getHistory = async (userId?: string): Promise<HistoryItem[]> => {
   const res = await api.get(`/history`, { params: userId ? { userId } : {} });
-  let data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
-  if (typeof data === "string") data = JSON.parse(data);
+  let data = res.data;
+  // Unwrap any level of stringification
+  while (typeof data === "string") {
+    try { data = JSON.parse(data); } catch { break; }
+  }
   return Array.isArray(data) ? data : [];
 };
 
