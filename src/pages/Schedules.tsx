@@ -97,14 +97,33 @@ export default function Schedules() {
   const [deleting, setDeleting] = useState(false);
 
   const userId = user?.userId ?? user?.username ?? "unknown";
+  const [businessId, setBusinessId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchBusinessId = async () => {
+      try {
+        const { getUserAttributes } = await import("../services/auth");
+        const { getBusinesses } = await import("../services/api");
+        const attrs = await getUserAttributes();
+        const email = (attrs as { email?: string })?.email;
+        const businesses = await getBusinesses();
+        const own = businesses.find((b: any) => b.ownerEmail === email);
+        setBusinessId(own?.businessId ?? businesses[0]?.businessId ?? null);
+      } catch {
+        // keep null
+      }
+    };
+    fetchBusinessId();
+  }, []);
 
   const notify = (success: boolean, msg: string) =>
     setSnackbar({ open: true, message: msg, severity: success ? "success" : "error" });
 
   const loadSchedules = async () => {
+    if (!businessId) return;
     setLoadingSchedules(true);
     try {
-      const res = await api.post("/schedule", { action: "list_schedules", body: { user_id: userId } });
+      const res = await api.post("/schedule", { action: "list_schedules", body: { businessId } });
       const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
       const body = typeof data.body === "string" ? JSON.parse(data.body) : data.body ?? data;
       setSchedules(Array.isArray(body) ? body : body.schedules ?? []);
@@ -116,9 +135,10 @@ export default function Schedules() {
   };
 
   const loadLogs = async () => {
+    if (!businessId) return;
     setLoadingLogs(true);
     try {
-      const res = await api.post("/schedule", { action: "list_logs", body: { user_id: userId } });
+      const res = await api.post("/schedule", { action: "list_logs", body: { businessId } });
       const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
       const body = typeof data.body === "string" ? JSON.parse(data.body) : data.body ?? data;
       setLogs(Array.isArray(body) ? body : []);
@@ -130,9 +150,11 @@ export default function Schedules() {
   };
 
   useEffect(() => {
-    loadSchedules();
-    loadLogs();
-  }, []);
+    if (businessId) {
+      loadSchedules();
+      loadLogs();
+    }
+  }, [businessId]);
 
   const handleEdit = async () => {
     if (!editAt || !editTarget) return;
