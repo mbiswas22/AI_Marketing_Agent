@@ -35,15 +35,20 @@ export const generateMarketAsset = async (
   contentType: string,
   outputFormat: string,
   platforms: string[],
-  modelId: string
+  modelId: string,
+  imageBase64?: string,
+  inputType?: string
 ) => {
-  return api.post<GenerateAssetResponse>(`/generate`, {
+  const endpoint = imageBase64 ? `/image` : `/generate`;
+  return api.post<GenerateAssetResponse>(endpoint, {
     prompt,
     business,
     content_type: contentType,
     output_format: outputFormat,
     platforms,
     modelId,
+    input_type: inputType || "text",
+    ...(imageBase64 && { image_base64: imageBase64 }),
   });
 };
 
@@ -52,7 +57,8 @@ export const generateCaption = async (
   business: string,
   contentType: string,
   platforms: string[],
-  modelId: string
+  modelId: string,
+  imageBase64?: string
 ) => {
   return api.post<GenerateCaptionResponse>(`/generate`, {
     prompt,
@@ -60,6 +66,7 @@ export const generateCaption = async (
     contentType,
     platforms,
     modelId: 'us.' + modelId,
+    ...(imageBase64 && { image_base64: imageBase64 }),
   });
 };
 
