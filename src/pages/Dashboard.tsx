@@ -410,6 +410,7 @@ export default function Dashboard() {
           selectedPlatforms,
           selectedModel,
           base64Str,
+          "image",
         );
         setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
