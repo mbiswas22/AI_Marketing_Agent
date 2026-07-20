@@ -1,0 +1,25 @@
+{
+  "TableName": "Artifact",
+  "KeySchema": [
+    {
+      "AttributeName": "jobId",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "artifactId",
+      "KeyType": "RANGE"
+    }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "artifactId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "jobId",
+      "AttributeType": "S"
+    }
+  ],
+  "BillingMode": "PAY_PER_REQUEST",
+  "GlobalSecondaryIndexes": []
+}

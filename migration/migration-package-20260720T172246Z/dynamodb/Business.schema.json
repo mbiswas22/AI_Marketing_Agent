@@ -1,0 +1,17 @@
+{
+  "TableName": "Business",
+  "KeySchema": [
+    {
+      "AttributeName": "businessId",
+      "KeyType": "HASH"
+    }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "businessId",
+      "AttributeType": "S"
+    }
+  ],
+  "BillingMode": "PAY_PER_REQUEST",
+  "GlobalSecondaryIndexes": []
+}

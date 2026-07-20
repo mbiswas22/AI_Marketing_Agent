@@ -1,0 +1,29 @@
+{
+    "Groups": [
+        {
+            "GroupName": "ADMIN",
+            "UserPoolId": "us-east-2_lhZuTGjJM",
+            "LastModifiedDate": "2026-06-23T21:19:14.888000-05:00",
+            "CreationDate": "2026-06-23T21:19:14.888000-05:00"
+        },
+        {
+            "GroupName": "EDITOR",
+            "UserPoolId": "us-east-2_lhZuTGjJM",
+            "LastModifiedDate": "2026-06-23T21:19:29.917000-05:00",
+            "CreationDate": "2026-06-23T21:19:29.917000-05:00"
+        },
+        {
+            "GroupName": "VIEWER",
+            "UserPoolId": "us-east-2_lhZuTGjJM",
+            "LastModifiedDate": "2026-06-23T21:19:45.018000-05:00",
+            "CreationDate": "2026-06-23T21:19:45.018000-05:00"
+        },
+        {
+            "GroupName": "SUPER_USER",
+            "UserPoolId": "us-east-2_lhZuTGjJM",
+            "Description": "Super user can add ADMIN and Business",
+            "LastModifiedDate": "2026-07-07T14:57:21.850000-05:00",
+            "CreationDate": "2026-07-07T14:57:21.850000-05:00"
+        }
+    ]
+}

@@ -1,0 +1,46 @@
+{
+  "exported_at_utc": "20260720T172246Z",
+  "source_account": "849279003046",
+  "source_region": "us-east-2",
+  "amplify_region": "us-east-1",
+  "note": "Read-only export. No data (DynamoDB items, S3 objects, Cognito users) is included. Secret env var values are redacted to __REDACTED__ inside each lambdas/<name>/config.json.",
+  "lambdas_included": [
+    "social-auth-handler",
+    "social-publish-handler-new",
+    "marketing-scheduler",
+    "user-handler",
+    "business-management",
+    "invitation-handler",
+    "generate-marketing-asset",
+    "generate-caption",
+    "generate-flyer",
+    "get-history",
+    "get_models",
+    "WebsiteCrawler",
+    "send-email"
+  ],
+  "lambdas_excluded_confirmed_out_of_scope": [
+    "social-publish-handler (legacy, superseded, only triggered by out-of-scope EventBridge rules)",
+    "MarketingContentWorker (broken - references a DynamoDB table that no longer exists)"
+  ],
+  "secrets_to_fill_manually": {
+    "social-auth-handler": [
+      "LINKEDIN_CLIENT_SECRET",
+      "META_APP_SECRET"
+    ],
+    "send-email": [
+      "SENDGRID_API_KEY"
+    ]
+  },
+  "known_loose_ends": [
+    "Schedules.tsx timezone bug: .toISOString() (UTC) mislabeled as local time",
+    "Schedules.tsx topic/input_value column mismatch",
+    "14 legacy classic EventBridge Rules targeting social-publish-handler - source account only, not migrated",
+    "Meta OAuth Lambda logic scoped but not fully built",
+    "LinkedIn OAuth token refresh not implemented (~60 day expiry)",
+    "FRONTEND_URL on social-auth-handler needs updating to the new Amplify domain",
+    "LINKEDIN_VERSION is a hardcoded constant in social-publish-handler-new source, not an env var",
+    "3-way Bedrock region split: get_models catalog query in us-east-2, text invoke in us-east-1, image invoke in us-west-2",
+    "Amplify has no branch env vars - API URL is hardcoded in src/services/api.ts"
+  ]
+}

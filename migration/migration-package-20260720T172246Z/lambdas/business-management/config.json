@@ -1,0 +1,17 @@
+{
+  "FunctionName": "business-management",
+  "Runtime": "python3.12",
+  "Handler": "lambda_function.lambda_handler",
+  "MemorySize": 128,
+  "Timeout": 3,
+  "Layers": [],
+  "EnvironmentVariables": {
+    "CHANNEL_TABLE": "Channel",
+    "USER_TABLE": "user",
+    "BUSINESS_TABLE": "Business",
+    "MODEL_TABLE": "Model",
+    "CONTENT_TYPE_TABLE": "ContentType"
+  },
+  "SecretEnvVarNames": [],
+  "SourceRoleArn_ForReferenceOnly": "arn:aws:iam::849279003046:role/service-role/business-management-role-ihpheay9"
+}
