@@ -66,6 +66,15 @@ def resolve_business_id(event, body=None):
         or (body or {}).get("businessId")
     )
 
+def get_sub_from_claims(event):
+    return (
+        event.get("requestContext", {})
+             .get("authorizer", {})
+             .get("jwt", {})
+             .get("claims", {})
+             .get("sub")
+    )
+
 # ───────────────────────────────────────────────────────────────
 # Router
 # ───────────────────────────────────────────────────────────────
@@ -208,8 +217,30 @@ def get_business(event):
                 return response(404, {"error": "Business not found"})
             return response(200, {"business": result["Item"]})
         else:
-            result = business_table.scan()
-            return response(200, result.get("Items", []))
+            # Only return businesses the caller actually belongs to, via the
+            # user table's userId-index GSI (real Cognito sub -> membership
+            # rows) — previously this scanned and returned every business in
+            # the system unfiltered, which breaks for any business with more
+            # than one real admin (whoever's ownerEmail matched "won").
+            sub = get_sub_from_claims(event)
+            if not sub:
+                return response(200, [])
+
+            memberships = user_table.query(
+                IndexName="userId-index",
+                KeyConditionExpression=Key("userId").eq(sub),
+            ).get("Items", [])
+
+            businesses = []
+            for m in memberships:
+                biz_id = m.get("businessId")
+                if not biz_id:
+                    continue
+                biz = business_table.get_item(Key={"businessId": biz_id}).get("Item")
+                if biz:
+                    businesses.append(biz)
+
+            return response(200, businesses)
 
     except Exception as e:
         print("[get_business] Error:", e)

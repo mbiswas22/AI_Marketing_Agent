@@ -1,0 +1,39 @@
+{
+    "app": {
+        "appId": "d22giby4sl2grj",
+        "appArn": "arn:aws:amplify:us-east-1:849279003046:apps/d22giby4sl2grj",
+        "name": "AI_Marketing_Agent",
+        "tags": {},
+        "repository": "https://github.com/mbiswas22/AI_Marketing_Agent",
+        "platform": "WEB",
+        "createTime": "2026-06-11T11:36:01.134000-05:00",
+        "updateTime": "2026-06-11T21:33:58.315000-05:00",
+        "defaultDomain": "d22giby4sl2grj.amplifyapp.com",
+        "enableBranchAutoBuild": false,
+        "enableBranchAutoDeletion": false,
+        "enableBasicAuth": false,
+        "customRules": [
+            {
+                "source": "/<*>",
+                "target": "/index.html",
+                "status": "404-200"
+            }
+        ],
+        "productionBranch": {
+            "lastDeployTime": "2026-07-17T13:56:54.884000-05:00",
+            "status": "FAILED",
+            "branchName": "master"
+        },
+        "buildSpec": "version: 1\nfrontend:\n  phases:\n    preBuild:\n      commands:\n        - npm ci --cache .npm --prefer-offline\n    build:\n      commands:\n        - npm run build\n  artifacts:\n    baseDirectory: dist\n    files:\n      - '**/*'\n  cache:\n    paths:\n      - .npm/**/*\n",
+        "customHeaders": "",
+        "enableAutoBranchCreation": false,
+        "repositoryCloneMethod": "TOKEN",
+        "cacheConfig": {
+            "type": "AMPLIFY_MANAGED_NO_COOKIES"
+        },
+        "webhookCreateTime": "2026-06-11T21:33:58.291000-05:00",
+        "jobConfig": {
+            "buildComputeType": "STANDARD_8GB"
+        }
+    }
+}

@@ -1,0 +1,51 @@
+[
+{
+    "UserPoolId": "us-east-2_lhZuTGjJM",
+    "ClientName": "AIMarketingAgent",
+    "ClientId": "3untuo8qkqrnapqvb9kml02mg1",
+    "LastModifiedDate": "2026-06-23T23:14:46.837000-05:00",
+    "CreationDate": "2026-06-11T12:15:14.331000-05:00",
+    "RefreshTokenValidity": 5,
+    "AccessTokenValidity": 60,
+    "IdTokenValidity": 60,
+    "TokenValidityUnits": {
+        "AccessToken": "minutes",
+        "IdToken": "minutes",
+        "RefreshToken": "days"
+    },
+    "ExplicitAuthFlows": [
+        "ALLOW_REFRESH_TOKEN_AUTH",
+        "ALLOW_USER_AUTH",
+        "ALLOW_USER_PASSWORD_AUTH",
+        "ALLOW_USER_SRP_AUTH"
+    ],
+    "SupportedIdentityProviders": [
+        "COGNITO"
+    ],
+    "CallbackURLs": [
+        "http://localhost:5173",
+        "https://d84l1y8p4kdic.cloudfront.net",
+        "https://localhost:5173",
+        "https://main.d7373n44j39n0.amplifyapp.com/"
+    ],
+    "LogoutURLs": [
+        "http://localhost:5173",
+        "https://localhost:5173",
+        "https://main.d7373n44j39n0.amplifyapp.com/"
+    ],
+    "AllowedOAuthFlows": [
+        "code"
+    ],
+    "AllowedOAuthScopes": [
+        "email",
+        "openid",
+        "phone",
+        "profile"
+    ],
+    "AllowedOAuthFlowsUserPoolClient": true,
+    "PreventUserExistenceErrors": "ENABLED",
+    "EnableTokenRevocation": true,
+    "EnablePropagateAdditionalUserContextData": false,
+    "AuthSessionValidity": 3
+}
+]

@@ -1,0 +1,32 @@
+{
+    "ApiEndpoint": "https://l9k0b4he7h.execute-api.us-east-2.amazonaws.com",
+    "ApiId": "l9k0b4he7h",
+    "ApiKeySelectionExpression": "$request.header.x-api-key",
+    "CorsConfiguration": {
+        "AllowCredentials": false,
+        "AllowHeaders": [
+            "*",
+            "content-type",
+            "authorization"
+        ],
+        "AllowMethods": [
+            "GET",
+            "POST",
+            "OPTIONS",
+            "PUT",
+            "DELETE",
+            "PATCH"
+        ],
+        "AllowOrigins": [
+            "*"
+        ],
+        "MaxAge": 0
+    },
+    "CreatedDate": "2026-06-15T16:57:29+00:00",
+    "DisableExecuteApiEndpoint": false,
+    "IpAddressType": "ipv4",
+    "Name": "marketing-ai-api",
+    "ProtocolType": "HTTP",
+    "RouteSelectionExpression": "$request.method $request.path",
+    "Tags": {}
+}

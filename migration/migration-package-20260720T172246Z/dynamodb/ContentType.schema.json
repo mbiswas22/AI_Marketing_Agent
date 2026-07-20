@@ -1,0 +1,25 @@
+{
+  "TableName": "ContentType",
+  "KeySchema": [
+    {
+      "AttributeName": "businessId",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "contentTypeName",
+      "KeyType": "RANGE"
+    }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "businessId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "contentTypeName",
+      "AttributeType": "S"
+    }
+  ],
+  "BillingMode": "PAY_PER_REQUEST",
+  "GlobalSecondaryIndexes": []
+}

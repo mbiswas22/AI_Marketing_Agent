@@ -1,0 +1,18 @@
+{
+    "Items": [
+        {
+            "AuthorizerId": "cy5rh7",
+            "AuthorizerType": "JWT",
+            "IdentitySource": [
+                "$request.header.Authorization"
+            ],
+            "JwtConfiguration": {
+                "Audience": [
+                    "3untuo8qkqrnapqvb9kml02mg1"
+                ],
+                "Issuer": "https://cognito-idp.us-east-2.amazonaws.com/us-east-2_lhZuTGjJM"
+            },
+            "Name": "cognito-jwt"
+        }
+    ]
+}

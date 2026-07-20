@@ -1,0 +1,32 @@
+{
+  "SourceBucketName": "kushtest-marketing-ai-assets",
+  "Location": {
+    "LocationConstraint": "us-east-2"
+  },
+  "CORS": {
+    "CORSRules": [
+      {
+        "AllowedHeaders": [
+          "*"
+        ],
+        "AllowedMethods": [
+          "GET",
+          "PUT",
+          "POST"
+        ],
+        "AllowedOrigins": [
+          "http://localhost:5173",
+          "https://*.amplifyapp.com"
+        ]
+      }
+    ]
+  },
+  "PublicAccessBlock": {
+    "PublicAccessBlockConfiguration": {
+      "BlockPublicAcls": true,
+      "IgnorePublicAcls": true,
+      "BlockPublicPolicy": true,
+      "RestrictPublicBuckets": true
+    }
+  }
+}
