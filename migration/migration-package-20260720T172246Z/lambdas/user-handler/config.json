@@ -1,0 +1,15 @@
+{
+  "FunctionName": "user-handler",
+  "Runtime": "python3.12",
+  "Handler": "lambda_function.lambda_handler",
+  "MemorySize": 128,
+  "Timeout": 3,
+  "Layers": [
+    "arn:aws:lambda:us-east-2:849279003046:layer:marketing-common-layer:3"
+  ],
+  "EnvironmentVariables": {
+    "USER_TABLE": "user"
+  },
+  "SecretEnvVarNames": [],
+  "SourceRoleArn_ForReferenceOnly": "arn:aws:iam::849279003046:role/service-role/user-handler-role-3cwcac07"
+}

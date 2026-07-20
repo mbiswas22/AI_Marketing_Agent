@@ -1,0 +1,25 @@
+{
+  "TableName": "Job",
+  "KeySchema": [
+    {
+      "AttributeName": "businessId",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "jobId",
+      "KeyType": "RANGE"
+    }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "businessId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "jobId",
+      "AttributeType": "S"
+    }
+  ],
+  "BillingMode": "PAY_PER_REQUEST",
+  "GlobalSecondaryIndexes": []
+}

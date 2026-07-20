@@ -1,0 +1,13 @@
+{
+  "FunctionName": "WebsiteCrawler",
+  "Runtime": "python3.14",
+  "Handler": "lambda_function.lambda_handler",
+  "MemorySize": 256,
+  "Timeout": 60,
+  "Layers": [
+    "arn:aws:lambda:us-east-2:849279003046:layer:requests-bs4-pillow:1"
+  ],
+  "EnvironmentVariables": {},
+  "SecretEnvVarNames": [],
+  "SourceRoleArn_ForReferenceOnly": "arn:aws:iam::849279003046:role/service-role/WebsiteCrawler-role-w58bq69t"
+}

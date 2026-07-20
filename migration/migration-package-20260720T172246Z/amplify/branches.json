@@ -1,0 +1,24 @@
+{
+    "branches": [
+        {
+            "branchArn": "arn:aws:amplify:us-east-1:849279003046:apps/d22giby4sl2grj/branches/master",
+            "branchName": "master",
+            "tags": {},
+            "stage": "PRODUCTION",
+            "displayName": "master",
+            "enableNotification": false,
+            "createTime": "2026-06-11T11:36:01.338000-05:00",
+            "updateTime": "2026-07-17T13:56:54.990000-05:00",
+            "environmentVariables": {},
+            "enableAutoBuild": true,
+            "framework": "Web",
+            "activeJobId": "0000000055",
+            "totalNumberOfJobs": "0",
+            "enableBasicAuth": false,
+            "enablePerformanceMode": false,
+            "ttl": "5",
+            "enablePullRequestPreview": false,
+            "backend": {}
+        }
+    ]
+}

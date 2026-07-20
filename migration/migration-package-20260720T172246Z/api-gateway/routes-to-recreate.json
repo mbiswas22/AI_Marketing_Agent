@@ -1,0 +1,240 @@
+[
+  {
+    "routeKey": "DELETE /business/{businessId}",
+    "authorizationType": "JWT",
+    "targetFunctionName": "business-management",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "DELETE /social/connections/facebook",
+    "authorizationType": "JWT",
+    "targetFunctionName": "social-auth-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "DELETE /social/connections/instagram",
+    "authorizationType": "JWT",
+    "targetFunctionName": "social-auth-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "DELETE /social/connections/{platform}",
+    "authorizationType": "JWT",
+    "targetFunctionName": "social-auth-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "DELETE /users/{userId}",
+    "authorizationType": "JWT",
+    "targetFunctionName": "user-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /business",
+    "authorizationType": "JWT",
+    "targetFunctionName": "business-management",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /history",
+    "authorizationType": "JWT",
+    "targetFunctionName": "get-history",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /invitations",
+    "authorizationType": "JWT",
+    "targetFunctionName": "invitation-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /invitations/{invitationId}",
+    "authorizationType": "JWT",
+    "targetFunctionName": "invitation-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /models",
+    "authorizationType": "NONE",
+    "targetFunctionName": "get_models",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /social/connections",
+    "authorizationType": "JWT",
+    "targetFunctionName": "social-auth-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /social/linkedin/authorize",
+    "authorizationType": "JWT",
+    "targetFunctionName": "social-auth-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /social/linkedin/callback",
+    "authorizationType": "NONE",
+    "targetFunctionName": "social-auth-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /social/meta/authorize",
+    "authorizationType": "JWT",
+    "targetFunctionName": "social-auth-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /social/meta/callback",
+    "authorizationType": "NONE",
+    "targetFunctionName": "social-auth-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /social/meta/instagram",
+    "authorizationType": "JWT",
+    "targetFunctionName": "social-auth-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /social/meta/pages",
+    "authorizationType": "JWT",
+    "targetFunctionName": "social-auth-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /users",
+    "authorizationType": "JWT",
+    "targetFunctionName": "user-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "GET /users/{userId}",
+    "authorizationType": "JWT",
+    "targetFunctionName": "user-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "POST /business",
+    "authorizationType": "JWT",
+    "targetFunctionName": "business-management",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "POST /crawl",
+    "authorizationType": "NONE",
+    "targetFunctionName": "WebsiteCrawler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "POST /flyer",
+    "authorizationType": "NONE",
+    "targetFunctionName": "generate-flyer",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "POST /generate",
+    "authorizationType": "JWT",
+    "targetFunctionName": "generate-caption",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "POST /image",
+    "authorizationType": "JWT",
+    "targetFunctionName": "generate-marketing-asset",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "POST /invitations",
+    "authorizationType": "JWT",
+    "targetFunctionName": "invitation-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "POST /schedule",
+    "authorizationType": "JWT",
+    "targetFunctionName": "marketing-scheduler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "POST /send-email",
+    "authorizationType": "JWT",
+    "targetFunctionName": "send-email",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "POST /social/linkedin/publish",
+    "authorizationType": "JWT",
+    "targetFunctionName": "social-publish-handler-new",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "POST /social/meta/instagram/publish",
+    "authorizationType": "JWT",
+    "targetFunctionName": "social-publish-handler-new",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "POST /social/meta/publish",
+    "authorizationType": "JWT",
+    "targetFunctionName": "social-publish-handler-new",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "POST /users",
+    "authorizationType": "JWT",
+    "targetFunctionName": "user-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "PUT /business/{businessId}",
+    "authorizationType": "JWT",
+    "targetFunctionName": "business-management",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "PUT /invitations/{invitationId}",
+    "authorizationType": "JWT",
+    "targetFunctionName": "invitation-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  },
+  {
+    "routeKey": "PUT /users/{userId}",
+    "authorizationType": "JWT",
+    "targetFunctionName": "user-handler",
+    "payloadFormatVersion": "2.0",
+    "timeoutInMillis": 30000
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "TableName": "social-connections",
+  "KeySchema": [
+    {
+      "AttributeName": "businessId",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "platform",
+      "KeyType": "RANGE"
+    }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "businessId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "platform",
+      "AttributeType": "S"
+    }
+  ],
+  "BillingMode": "PAY_PER_REQUEST",
+  "GlobalSecondaryIndexes": []
+}

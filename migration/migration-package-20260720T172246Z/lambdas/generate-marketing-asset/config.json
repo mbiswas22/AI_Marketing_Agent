@@ -1,0 +1,16 @@
+{
+  "FunctionName": "generate-marketing-asset",
+  "Runtime": "python3.12",
+  "Handler": "lambda_function.lambda_handler",
+  "MemorySize": 512,
+  "Timeout": 60,
+  "Layers": [
+    "arn:aws:lambda:us-east-2:849279003046:layer:marketing-common-layer:3"
+  ],
+  "EnvironmentVariables": {
+    "S3_BUCKET": "kushtest-marketing-ai-assets",
+    "DYNAMO_TABLE": "kushtest-MarketingActions"
+  },
+  "SecretEnvVarNames": [],
+  "SourceRoleArn_ForReferenceOnly": "arn:aws:iam::849279003046:role/generate-caption-role-2wrw3m09"
+}

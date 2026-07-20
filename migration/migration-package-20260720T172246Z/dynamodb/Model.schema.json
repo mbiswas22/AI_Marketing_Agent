@@ -1,0 +1,25 @@
+{
+  "TableName": "Model",
+  "KeySchema": [
+    {
+      "AttributeName": "businessId",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "modelName",
+      "KeyType": "RANGE"
+    }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "businessId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "modelName",
+      "AttributeType": "S"
+    }
+  ],
+  "BillingMode": "PAY_PER_REQUEST",
+  "GlobalSecondaryIndexes": []
+}

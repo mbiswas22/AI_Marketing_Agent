@@ -1,0 +1,11 @@
+{
+  "FunctionName": "get_models",
+  "Runtime": "python3.12",
+  "Handler": "lambda_function.lambda_handler",
+  "MemorySize": 128,
+  "Timeout": 3,
+  "Layers": [],
+  "EnvironmentVariables": {},
+  "SecretEnvVarNames": [],
+  "SourceRoleArn_ForReferenceOnly": "arn:aws:iam::849279003046:role/service-role/get_models-role-i2dle4bk"
+}

@@ -1,0 +1,17 @@
+{
+  "TableName": "kushtest-MarketingActions",
+  "KeySchema": [
+    {
+      "AttributeName": "action_id",
+      "KeyType": "HASH"
+    }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "action_id",
+      "AttributeType": "S"
+    }
+  ],
+  "BillingMode": "PAY_PER_REQUEST",
+  "GlobalSecondaryIndexes": []
+}
