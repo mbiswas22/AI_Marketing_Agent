@@ -186,14 +186,19 @@ export default function Dashboard() {
     const fetchRole = async () => {
       try {
         const attrs = await getUserAttributes();
+        const cognitoRole = (attrs as any)?.["custom:role"];
+        if (cognitoRole) setRole(cognitoRole);
         const sub = (attrs as any)?.sub;
         const email = (attrs as { email?: string })?.email;
         if (!sub) return;
         const businesses = await getBusinesses();
         // GET /business currently returns every business in the system, not just
         // the caller's own — match by owner email instead of trusting businesses[0].
-        const ownBusiness = businesses.find((b: Business) => b.ownerEmail === email);
-        const resolvedBusinessId = ownBusiness?.businessId ?? businesses[0]?.businessId;
+        const ownBusiness = businesses.find(
+          (b: Business) => b.ownerEmail === email,
+        );
+        const resolvedBusinessId =
+          ownBusiness?.businessId ?? businesses[0]?.businessId;
         if (!resolvedBusinessId) return;
         setBusinessId(resolvedBusinessId);
         const userData = await getUser(sub, resolvedBusinessId);
@@ -335,7 +340,8 @@ export default function Dashboard() {
       if (result.processing) {
         setPublishSnackbar({
           open: true,
-          message: result.error || "Instagram is still processing — try again shortly",
+          message:
+            result.error || "Instagram is still processing — try again shortly",
           severity: "error",
         });
       } else {
@@ -386,10 +392,13 @@ export default function Dashboard() {
         setCaption(result.marketing.caption ?? null);
         setHashtags(result.marketing.hashtags ?? []);
         // handle both imageUrl and image_url from crawler
-        const crawlerImage = result.imageUrl || (result as any).image_url || null;
+        const crawlerImage =
+          result.imageUrl || (result as any).image_url || null;
         if (crawlerImage) setResultImageUrl(crawlerImage);
-        if ((result as any).action_id) setResultActionId((result as any).action_id);
-        if ((result as any).created_at) setResultCreatedAt((result as any).created_at);
+        if ((result as any).action_id)
+          setResultActionId((result as any).action_id);
+        if ((result as any).created_at)
+          setResultCreatedAt((result as any).created_at);
       } else if (contentType === "image") {
         const enrichedImagePrompt = `Professional marketing image for ${effectiveBusiness}. ${prompt}. High quality, photorealistic, commercial photography style, vibrant colors, no text, no words, no letters, no watermarks.`;
         const url = await generateImage(enrichedImagePrompt);
@@ -398,12 +407,14 @@ export default function Dashboard() {
         // Convert uploaded image to base64 and send to generate-marketing-asset Lambda
         const base64Str = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
-          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onload = () =>
+            resolve((reader.result as string).split(",")[1]);
           reader.onerror = reject;
           reader.readAsDataURL(uploadedFile);
         });
         const response = await generateMarketAsset(
-          prompt || `Create ${contentType} marketing content for ${effectiveBusiness} based on the uploaded image.`,
+          prompt ||
+            `Create ${contentType} marketing content for ${effectiveBusiness} based on the uploaded image.`,
           effectiveBusiness,
           contentType,
           selectedFormat,
@@ -415,8 +426,10 @@ export default function Dashboard() {
         setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
         if (response.data.image_url) setResultImageUrl(response.data.image_url);
-        if ((response.data as any).action_id) setResultActionId((response.data as any).action_id);
-        if ((response.data as any).created_at) setResultCreatedAt((response.data as any).created_at);
+        if ((response.data as any).action_id)
+          setResultActionId((response.data as any).action_id);
+        if ((response.data as any).created_at)
+          setResultCreatedAt((response.data as any).created_at);
       } else if (config.type === "caption") {
         const enrichedPrompt = `You are an expert marketing copywriter. Create detailed, compelling ${contentType} content for the business "${effectiveBusiness}". ${prompt}. Write at least 3-4 paragraphs with a strong headline, body copy, and a clear call to action. Be specific, persuasive and professional.`;
         const response = await generateCaption(
@@ -428,8 +441,10 @@ export default function Dashboard() {
         );
         setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
-        if ((response.data as any).action_id) setResultActionId((response.data as any).action_id);
-        if ((response.data as any).created_at) setResultCreatedAt((response.data as any).created_at);
+        if ((response.data as any).action_id)
+          setResultActionId((response.data as any).action_id);
+        if ((response.data as any).created_at)
+          setResultCreatedAt((response.data as any).created_at);
       } else {
         const enrichedPrompt = `You are an expert marketing copywriter. Create detailed, compelling ${contentType} content for the business "${effectiveBusiness}". ${prompt}. Write at least 3-4 paragraphs with a strong headline, body copy, and a clear call to action. Be specific, persuasive and professional.`;
         const response = await generateMarketAsset(
@@ -443,8 +458,10 @@ export default function Dashboard() {
         setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
         if (response.data.image_url) setResultImageUrl(response.data.image_url);
-        if ((response.data as any).action_id) setResultActionId((response.data as any).action_id);
-        if ((response.data as any).created_at) setResultCreatedAt((response.data as any).created_at);
+        if ((response.data as any).action_id)
+          setResultActionId((response.data as any).action_id);
+        if ((response.data as any).created_at)
+          setResultCreatedAt((response.data as any).created_at);
       }
     } catch {
       setError("Failed to generate content. Please try again.");
@@ -539,7 +556,7 @@ export default function Dashboard() {
           >
             History
           </Button>
-          {role === "ADMIN" && (
+          {(role === "ADMIN" || role === "SUPER_ADMIN") && (
             <Button
               onClick={() => navigate("/settings")}
               startIcon={<SettingsIcon />}
