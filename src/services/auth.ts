@@ -16,12 +16,18 @@ export async function getLoggedInUser() {
 export async function getUserAttributes() {
   try {
     const attributes = await fetchUserAttributes();
-
-    console.log(attributes);
-
     return attributes;
   } catch (err) {
     console.error(err);
+    return null;
+  }
+}
+
+export async function getBusinessId(): Promise<string | null> {
+  try {
+    const attributes = await fetchUserAttributes();
+    return (attributes as Record<string, string>)["custom:businessId"] ?? null;
+  } catch {
     return null;
   }
 }

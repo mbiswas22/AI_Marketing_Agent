@@ -1,0 +1,13 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["dynamodb:GetItem", "dynamodb:Query"],
+      "Resource": [
+        "arn:aws:dynamodb:us-east-2:849279003046:table/user",
+        "arn:aws:dynamodb:us-east-2:849279003046:table/user/index/userId-index"
+      ]
+    }
+  ]
+}

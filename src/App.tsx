@@ -10,6 +10,7 @@ import History from "./pages/History";
 import SettingsPage from "./pages/SettingsPage";
 import Onboard from "./pages/Onboard";
 import InviteAccept from "./pages/InviteAccept";
+import Schedules from "./pages/Schedules";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { authStatus } = useAuthenticator((context) => [context.authStatus]);
@@ -67,6 +68,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/schedules"
+          element={
+            <ProtectedRoute>
+              <Schedules />
             </ProtectedRoute>
           }
         />

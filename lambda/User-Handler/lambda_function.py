@@ -63,7 +63,7 @@ def create_user(event):
             "businessId": body["businessId"],   # PK
             "userId":     body.get("userId") or user_id,   # SK
             "email":      body["email"],
-            "phoneNumber": body["phoneNumber"],
+            "phoneNumber": body.get("phoneNumber", ""),
             "role":       body["role"],
             "displayName": body["displayName"],
             "status":     "ACTIVE",

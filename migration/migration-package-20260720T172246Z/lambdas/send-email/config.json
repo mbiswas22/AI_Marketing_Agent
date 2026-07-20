@@ -1,0 +1,17 @@
+{
+  "FunctionName": "send-email",
+  "Runtime": "python3.12",
+  "Handler": "lambda_function.lambda_handler",
+  "MemorySize": 128,
+  "Timeout": 3,
+  "Layers": [],
+  "EnvironmentVariables": {
+    "SENDGRID_API_KEY": "__REDACTED__",
+    "DYNAMO_TABLE": "kushtest-MarketingActions",
+    "FROM_EMAIL": "mbiswaa6207@gmail.com"
+  },
+  "SecretEnvVarNames": [
+    "SENDGRID_API_KEY"
+  ],
+  "SourceRoleArn_ForReferenceOnly": "arn:aws:iam::849279003046:role/service-role/send-email-role-fkjjv5ur"
+}

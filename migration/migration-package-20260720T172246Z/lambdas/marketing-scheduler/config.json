@@ -1,0 +1,11 @@
+{
+  "FunctionName": "marketing-scheduler",
+  "Runtime": "python3.12",
+  "Handler": "lambda_function.lambda_handler",
+  "MemorySize": 256,
+  "Timeout": 60,
+  "Layers": [],
+  "EnvironmentVariables": {},
+  "SecretEnvVarNames": [],
+  "SourceRoleArn_ForReferenceOnly": "arn:aws:iam::849279003046:role/marketing-scheduler-role"
+}

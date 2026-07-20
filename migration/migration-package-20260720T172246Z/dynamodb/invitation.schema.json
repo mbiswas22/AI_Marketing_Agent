@@ -1,0 +1,17 @@
+{
+  "TableName": "invitation",
+  "KeySchema": [
+    {
+      "AttributeName": "invitationId",
+      "KeyType": "HASH"
+    }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "invitationId",
+      "AttributeType": "S"
+    }
+  ],
+  "BillingMode": "PAY_PER_REQUEST",
+  "GlobalSecondaryIndexes": []
+}

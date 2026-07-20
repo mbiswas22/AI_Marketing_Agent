@@ -5,7 +5,8 @@ import { useNavigate } from "react-router-dom";
 import {
   Box, Typography, Button, Paper,
   CircularProgress, Chip, Collapse, IconButton,
-  Tooltip, Snackbar, Alert,
+  Tooltip, Snackbar, Alert, Dialog, DialogContent,
+  DialogActions, TextField, Divider,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -21,8 +22,11 @@ import FacebookIcon from "@mui/icons-material/Facebook";
 import InstagramIcon from "@mui/icons-material/Instagram";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
-import { getHistory, getSocialConnections, publishToLinkedIn, getMetaPages, publishToFacebook, getInstagramStatus, publishToInstagram } from "../services/api";
-import type { HistoryItem } from "../services/api";
+import ScheduleIcon from "@mui/icons-material/Schedule";
+import EditCalendarIcon from "@mui/icons-material/EditCalendar";
+import { getHistory, getSocialConnections, publishToLinkedIn, getMetaPages, publishToFacebook, getInstagramStatus, publishToInstagram, createSchedule, updateSchedule, getBusinesses } from "../services/api";
+import type { HistoryItem, Business } from "../services/api";
+import { getUserAttributes } from "../services/auth";
 import "../styles/history.css";
 
 const CONTENT_TYPE_ICONS: Record<string, ReactElement> = {
@@ -80,18 +84,36 @@ function HistoryRow({
   facebookConnected,
   instagramConnected,
   onPublishResult,
+  userId,
 }: {
   item: HistoryItem;
   linkedinConnected: boolean;
   facebookConnected: boolean;
   instagramConnected: boolean;
   onPublishResult: (success: boolean, msg: string) => void;
+  userId: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishingFacebook, setPublishingFacebook] = useState(false);
   const [publishingInstagram, setPublishingInstagram] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleBusinessId, setScheduleBusinessId] = useState("");
+  const [schedulePlatform, setSchedulePlatform] = useState("linkedin");
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduleId, setScheduleId] = useState<string | null>(null);
+  // Campaign mode
+  const [campaignMode, setCampaignMode] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [campaignDates, setCampaignDates] = useState<string[]>([]);
+  const [campaignTime, setCampaignTime] = useState("09:00");
+  const [campaignDateInput, setCampaignDateInput] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editAt, setEditAt] = useState("");
+  const [editPlatform, setEditPlatform] = useState("linkedin");
+  const [editing, setEditing] = useState(false);
   const navigate = useNavigate();
+  const [localStatus, setLocalStatus] = useState<string | undefined>(item.status);
 
   const handleLinkedInPublish = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -106,6 +128,71 @@ function HistoryRow({
       onPublishResult(false, msg);
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const handleSchedule = async () => {
+    const datesToSchedule = campaignMode ? campaignDates : (scheduleAt ? [scheduleAt] : []);
+    if (!datesToSchedule.length || !scheduleBusinessId.trim()) return;
+    setScheduling(true);
+    try {
+      const results = await Promise.all(
+        datesToSchedule.map((dateStr) => {
+          const dt = campaignMode
+            ? new Date(`${dateStr}T${campaignTime}:00`)
+            : new Date(dateStr);
+          return createSchedule({
+            user_id: userId,
+            businessId: scheduleBusinessId.trim(),
+            platform: schedulePlatform,
+            content_type: item.content_type || "social_caption",
+            schedule_expression: `at(${dt.toISOString().slice(0, 19)})`,
+            input_type: "text",
+            input_value: item.prompt || item.input_value || item.caption || "marketing post",
+            business: item.business || "My Business",
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            createdByUserId: userId,
+          });
+        })
+      );
+      setScheduleId(results[0].schedule_id);
+      setScheduleOpen(false);
+      setLocalStatus("scheduled");
+      const msg = campaignMode
+        ? `Campaign scheduled for ${datesToSchedule.length} day(s)`
+        : `Scheduled for ${new Date(scheduleAt).toLocaleString()}`;
+      onPublishResult(true, msg);
+    } catch (err) {
+      onPublishResult(false, (err as Error).message || "Failed to schedule post.");
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const addCampaignDate = () => {
+    if (!campaignDateInput || campaignDates.includes(campaignDateInput)) return;
+    setCampaignDates((prev) => [...prev, campaignDateInput].sort());
+    setCampaignDateInput("");
+  };
+
+  const removeCampaignDate = (d: string) =>
+    setCampaignDates((prev) => prev.filter((x) => x !== d));
+
+  const handleEdit = async () => {
+    if (!editAt || !scheduleId) return;
+    setEditing(true);
+    try {
+      await updateSchedule({
+        schedule_id: scheduleId,
+        schedule_expression: `at(${new Date(editAt).toISOString().slice(0, 19)})`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
+      setEditOpen(false);
+      onPublishResult(true, `Schedule updated to ${new Date(editAt).toLocaleString()}`);
+    } catch (err) {
+      onPublishResult(false, (err as Error).message || "Failed to update schedule.");
+    } finally {
+      setEditing(false);
     }
   };
 
@@ -150,9 +237,13 @@ function HistoryRow({
   };
 
   const statusConfig =
-    item.status === "generated" || item.status === "published"
-      ? { label: item.status === "generated" ? "Generated" : "Published", bgcolor: "#0f3d2a", color: "#4caf7d", border: "#1a5c3a" }
-      : item.status === "draft"
+    localStatus === "generated" || localStatus === "published"
+      ? { label: localStatus === "generated" ? "Generated" : "Published", bgcolor: "#0f3d2a", color: "#4caf7d", border: "#1a5c3a" }
+      : localStatus === "scheduled"
+      ? { label: "Scheduled", bgcolor: "#1a1530", color: "#a78bfa", border: "#4c3a8a" }
+      : localStatus === "publish_failed"
+      ? { label: "Failed", bgcolor: "#1a0808", color: "#ef4444", border: "#5c1a1a" }
+      : localStatus === "draft"
       ? { label: "Draft", bgcolor: "#1a1a1a", color: "#888", border: "#333" }
       : null;
 
@@ -160,15 +251,16 @@ function HistoryRow({
     CONTENT_TYPE_ICONS[(item.content_type ?? "").toLowerCase()] ?? <TextSnippetIcon sx={{ fontSize: 14 }} />;
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        bgcolor: "#161616", border: "1px solid rgba(255,255,255,0.07)",
-        borderRadius: 2.5, mb: 1.25, overflow: "hidden",
-        transition: "border-color 0.2s, box-shadow 0.2s",
-        "&:hover": { borderColor: "rgba(139,92,246,0.35)", boxShadow: "0 0 0 1px rgba(139,92,246,0.12)" },
-      }}
-    >
+    <>
+      <Paper
+        elevation={0}
+        sx={{
+          bgcolor: "#161616", border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: 2.5, mb: 1.25, overflow: "hidden",
+          transition: "border-color 0.2s, box-shadow 0.2s",
+          "&:hover": { borderColor: "rgba(139,92,246,0.35)", boxShadow: "0 0 0 1px rgba(139,92,246,0.12)" },
+        }}
+      >
       <Box
         onClick={() => setExpanded((v) => !v)}
         sx={{ display: "flex", alignItems: "center", gap: 2, px: 2.5, py: 1.5, cursor: "pointer" }}
@@ -299,72 +391,94 @@ function HistoryRow({
           </Box>
 
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Tooltip
-              title={linkedinConnected ? "Post to LinkedIn" : "Connect LinkedIn in Account Settings"}
-              placement="top"
-            >
-              <span>
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+              <Tooltip
+                title={linkedinConnected ? "Post to LinkedIn" : "Connect LinkedIn in Account Settings"}
+                placement="top"
+              >
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleLinkedInPublish}
+                    disabled={!linkedinConnected || publishing}
+                    sx={{
+                      color: linkedinConnected ? "#0077b5" : "#334455",
+                      p: "6px",
+                      "&:hover": { bgcolor: "rgba(0,119,181,0.12)" },
+                      "&.Mui-disabled": { color: "#2a3a4a" },
+                    }}
+                  >
+                    {publishing
+                      ? <CircularProgress size={16} sx={{ color: "#0077b5" }} />
+                      : <LinkedInIcon sx={{ fontSize: 18 }} />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="Schedule post" placement="top">
                 <IconButton
                   size="small"
-                  onClick={handleLinkedInPublish}
-                  disabled={!linkedinConnected || publishing}
-                  sx={{
-                    color: linkedinConnected ? "#0077b5" : "#334455",
-                    p: "6px",
-                    "&:hover": { bgcolor: "rgba(0,119,181,0.12)" },
-                    "&.Mui-disabled": { color: "#2a3a4a" },
-                  }}
+                  onClick={(e) => { e.stopPropagation(); setScheduleOpen(true); }}
+                  sx={{ color: "#a78bfa", p: "6px", "&:hover": { bgcolor: "rgba(139,92,246,0.1)" } }}
                 >
-                  {publishing
-                    ? <CircularProgress size={16} sx={{ color: "#0077b5" }} />
-                    : <LinkedInIcon sx={{ fontSize: 18 }} />}
+                  <ScheduleIcon sx={{ fontSize: 18 }} />
                 </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip
-              title={facebookConnected ? "Post to Facebook" : "Connect Facebook in Account Settings"}
-              placement="top"
-            >
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={handleFacebookPublish}
-                  disabled={!facebookConnected || publishingFacebook}
-                  sx={{
-                    color: facebookConnected ? "#1877f2" : "#334455",
-                    p: "6px",
-                    "&:hover": { bgcolor: "rgba(24,119,242,0.12)" },
-                    "&.Mui-disabled": { color: "#2a3a4a" },
-                  }}
-                >
-                  {publishingFacebook
-                    ? <CircularProgress size={16} sx={{ color: "#1877f2" }} />
-                    : <FacebookIcon sx={{ fontSize: 18 }} />}
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip
-              title={instagramConnected ? "Post to Instagram" : "Connect Facebook (with linked Instagram) in Account Settings"}
-              placement="top"
-            >
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={handleInstagramPublish}
-                  disabled={!instagramConnected || publishingInstagram}
-                  sx={{
-                    color: instagramConnected ? "#e1306c" : "#334455",
-                    p: "6px",
-                    "&:hover": { bgcolor: "rgba(225,48,108,0.12)" },
-                    "&.Mui-disabled": { color: "#2a3a4a" },
-                  }}
-                >
-                  {publishingInstagram
-                    ? <CircularProgress size={16} sx={{ color: "#e1306c" }} />
-                    : <InstagramIcon sx={{ fontSize: 18 }} />}
-                </IconButton>
-              </span>
-            </Tooltip>
+              </Tooltip>
+              {localStatus === "scheduled" && scheduleId && (
+                <Tooltip title="Edit schedule" placement="top">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); setEditAt(""); setEditPlatform(schedulePlatform); setEditOpen(true); }}
+                    sx={{ color: "#34d399", p: "6px", "&:hover": { bgcolor: "rgba(52,211,153,0.1)" } }}
+                  >
+                    <EditCalendarIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+              <Tooltip
+                title={facebookConnected ? "Post to Facebook" : "Connect Facebook in Account Settings"}
+                placement="top"
+              >
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleFacebookPublish}
+                    disabled={!facebookConnected || publishingFacebook}
+                    sx={{
+                      color: facebookConnected ? "#1877f2" : "#334455",
+                      p: "6px",
+                      "&:hover": { bgcolor: "rgba(24,119,242,0.12)" },
+                      "&.Mui-disabled": { color: "#2a3a4a" },
+                    }}
+                  >
+                    {publishingFacebook
+                      ? <CircularProgress size={16} sx={{ color: "#1877f2" }} />
+                      : <FacebookIcon sx={{ fontSize: 18 }} />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip
+                title={instagramConnected ? "Post to Instagram" : "Connect Facebook (with linked Instagram) in Account Settings"}
+                placement="top"
+              >
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleInstagramPublish}
+                    disabled={!instagramConnected || publishingInstagram}
+                    sx={{
+                      color: instagramConnected ? "#e1306c" : "#334455",
+                      p: "6px",
+                      "&:hover": { bgcolor: "rgba(225,48,108,0.12)" },
+                      "&.Mui-disabled": { color: "#2a3a4a" },
+                    }}
+                  >
+                    {publishingInstagram
+                      ? <CircularProgress size={16} sx={{ color: "#e1306c" }} />
+                      : <InstagramIcon sx={{ fontSize: 18 }} />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
             <button
               className="use-again-btn"
               onClick={() => navigate("/dashboard", {
@@ -388,6 +502,256 @@ function HistoryRow({
         </Box>
       </Collapse>
     </Paper>
+
+    <Dialog open={scheduleOpen} onClose={() => setScheduleOpen(false)} fullWidth maxWidth="xs"
+      PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } }}>
+      <Box sx={{ px: 3, pt: 3, pb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
+        <ScheduleIcon sx={{ color: "#a78bfa", fontSize: 22 }} />
+        <Box>
+          <Typography sx={{ color: "#e0dcf8", fontWeight: 700, fontSize: 16 }}>Schedule Post</Typography>
+          <Typography sx={{ color: "#64748b", fontSize: 12, mt: 0.3 }}>Choose when to publish this content</Typography>
+        </Box>
+      </Box>
+      <Divider sx={{ borderColor: "#2e2e42" }} />
+      <DialogContent sx={{ px: 3, pt: "20px !important", pb: 2 }}>
+
+        {/* Campaign toggle */}
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2.5 }}>
+          <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600 }}>Campaign Mode</Typography>
+          <Button
+            size="small"
+            onClick={() => { setCampaignMode((v) => !v); setCampaignDates([]); setScheduleAt(""); }}
+            variant={campaignMode ? "contained" : "outlined"}
+            sx={{
+              textTransform: "none", fontSize: 11, borderRadius: "8px", px: 1.5,
+              bgcolor: campaignMode ? "#7c3aed" : "transparent",
+              borderColor: campaignMode ? "#7c3aed" : "rgba(255,255,255,0.15)",
+              color: campaignMode ? "#fff" : "#64748b",
+              "&:hover": { bgcolor: "#7c3aed", color: "#fff", borderColor: "#7c3aed" },
+            }}
+          >
+            {campaignMode ? "On — Multiple Days" : "Off — Single Date"}
+          </Button>
+        </Box>
+
+        {/* Business ID */}
+        <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Business ID</Typography>
+        <TextField
+          fullWidth
+          placeholder="e.g. BIZ-ABC123"
+          value={scheduleBusinessId}
+          onChange={(e) => setScheduleBusinessId(e.target.value)}
+          sx={{
+            mb: 2.5,
+            "& .MuiOutlinedInput-root": {
+              color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
+              "& fieldset": { borderColor: "#383850" },
+              "&:hover fieldset": { borderColor: "#7c6df0" },
+              "&.Mui-focused fieldset": { borderColor: "#7c6df0" },
+            },
+            "& .MuiInputBase-input::placeholder": { color: "#555", opacity: 1 },
+          }}
+        />
+
+        {/* Single date mode */}
+        {!campaignMode && (
+          <>
+            <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Schedule Date & Time</Typography>
+            <TextField
+              type="datetime-local"
+              fullWidth
+              value={scheduleAt}
+              onChange={(e) => setScheduleAt(e.target.value)}
+              inputProps={{ min: new Date().toISOString().slice(0, 16) }}
+              sx={{
+                mb: 2.5,
+                "& .MuiOutlinedInput-root": {
+                  color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
+                  "& fieldset": { borderColor: "#383850" },
+                  "&:hover fieldset": { borderColor: "#7c6df0" },
+                  "&.Mui-focused fieldset": { borderColor: "#7c6df0" },
+                },
+                "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
+              }}
+            />
+          </>
+        )}
+
+        {/* Campaign mode */}
+        {campaignMode && (
+          <>
+            <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Publish Time (same for all days)</Typography>
+            <TextField
+              type="time"
+              fullWidth
+              value={campaignTime}
+              onChange={(e) => setCampaignTime(e.target.value)}
+              sx={{
+                mb: 2.5,
+                "& .MuiOutlinedInput-root": {
+                  color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
+                  "& fieldset": { borderColor: "#383850" },
+                  "&:hover fieldset": { borderColor: "#7c6df0" },
+                  "&.Mui-focused fieldset": { borderColor: "#7c6df0" },
+                },
+                "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
+              }}
+            />
+            <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Add Dates</Typography>
+            <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
+              <TextField
+                type="date"
+                fullWidth
+                value={campaignDateInput}
+                onChange={(e) => setCampaignDateInput(e.target.value)}
+                inputProps={{ min: new Date().toISOString().slice(0, 10) }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
+                    "& fieldset": { borderColor: "#383850" },
+                    "&:hover fieldset": { borderColor: "#7c6df0" },
+                    "&.Mui-focused fieldset": { borderColor: "#7c6df0" },
+                  },
+                  "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
+                }}
+              />
+              <Button onClick={addCampaignDate} variant="contained"
+                sx={{ bgcolor: "#5a4fd0", textTransform: "none", borderRadius: "10px", px: 2, flexShrink: 0,
+                  "&:hover": { bgcolor: "#6b5fe0" } }}>
+                Add
+              </Button>
+            </Box>
+            {campaignDates.length > 0 && (
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mb: 1 }}>
+                {campaignDates.map((d) => (
+                  <Chip
+                    key={d}
+                    label={new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    onDelete={() => removeCampaignDate(d)}
+                    size="small"
+                    sx={{
+                      bgcolor: "rgba(124,109,240,0.15)", color: "#a78bfa",
+                      border: "1px solid rgba(124,109,240,0.3)",
+                      "& .MuiChip-deleteIcon": { color: "#a78bfa" },
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
+            {campaignDates.length === 0 && (
+              <Typography sx={{ color: "#475569", fontSize: 12, mb: 1 }}>No dates added yet.</Typography>
+            )}
+          </>
+        )}
+
+        {/* Platform */}
+        <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 1 }}>Platform</Typography>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          {Object.entries(PLATFORM_INFO).map(([key, info]) => (
+            <Button key={key} onClick={() => setSchedulePlatform(key)}
+              startIcon={info.icon}
+              variant={schedulePlatform === key ? "contained" : "outlined"}
+              size="small"
+              sx={{
+                textTransform: "none", fontSize: 12, borderRadius: "8px",
+                borderColor: schedulePlatform === key ? info.color : "rgba(255,255,255,0.12)",
+                color: schedulePlatform === key ? "#fff" : "#64748b",
+                bgcolor: schedulePlatform === key ? info.color : "transparent",
+                "&:hover": { bgcolor: info.color, color: "#fff", borderColor: info.color },
+              }}
+            >
+              {info.label}
+            </Button>
+          ))}
+        </Box>
+      </DialogContent>
+      <Divider sx={{ borderColor: "#2e2e42" }} />
+      <DialogActions sx={{ px: 3, py: 2, gap: 1.5 }}>
+        <Button onClick={() => setScheduleOpen(false)}
+          sx={{ color: "#7070a0", textTransform: "none", border: "1px solid #44445a", borderRadius: "10px", px: 2.5,
+            "&:hover": { bgcolor: "rgba(255,255,255,0.06)" } }}>
+          Cancel
+        </Button>
+        <Button onClick={handleSchedule}
+          disabled={scheduling || !scheduleBusinessId.trim() || (campaignMode ? campaignDates.length === 0 : !scheduleAt)}
+          variant="contained"
+          sx={{ bgcolor: "#7c3aed", textTransform: "none", fontWeight: 600, borderRadius: "10px", px: 3, flexGrow: 1,
+            "&:hover": { bgcolor: "#6d28d9" }, "&.Mui-disabled": { bgcolor: "#3d2d60", color: "#7c5cbf" } }}>
+          {scheduling
+            ? <CircularProgress size={16} sx={{ color: "#a89cf0" }} />
+            : campaignMode
+            ? `Schedule ${campaignDates.length} Post${campaignDates.length !== 1 ? "s" : ""}`
+            : "Schedule"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+
+    <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs"
+      PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } }}>
+      <Box sx={{ px: 3, pt: 3, pb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
+        <EditCalendarIcon sx={{ color: "#34d399", fontSize: 22 }} />
+        <Box>
+          <Typography sx={{ color: "#e0dcf8", fontWeight: 700, fontSize: 16 }}>Edit Schedule</Typography>
+          <Typography sx={{ color: "#64748b", fontSize: 12, mt: 0.3 }}>Update the scheduled publish time</Typography>
+        </Box>
+      </Box>
+      <Divider sx={{ borderColor: "#2e2e42" }} />
+      <DialogContent sx={{ px: 3, pt: "20px !important", pb: 2 }}>
+        <Typography sx={{ color: "#34d399", fontSize: 13, fontWeight: 600, mb: 0.8 }}>New Date & Time</Typography>
+        <TextField
+          type="datetime-local"
+          fullWidth
+          value={editAt}
+          onChange={(e) => setEditAt(e.target.value)}
+          inputProps={{ min: new Date().toISOString().slice(0, 16) }}
+          sx={{
+            mb: 2.5,
+            "& .MuiOutlinedInput-root": {
+              color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
+              "& fieldset": { borderColor: "#383850" },
+              "&:hover fieldset": { borderColor: "#34d399" },
+              "&.Mui-focused fieldset": { borderColor: "#34d399" },
+            },
+            "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
+          }}
+        />
+        <Typography sx={{ color: "#34d399", fontSize: 13, fontWeight: 600, mb: 1 }}>Platform</Typography>
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          {Object.entries(PLATFORM_INFO).map(([key, info]) => (
+            <Button key={key} onClick={() => setEditPlatform(key)}
+              startIcon={info.icon}
+              variant={editPlatform === key ? "contained" : "outlined"}
+              size="small"
+              sx={{
+                textTransform: "none", fontSize: 12, borderRadius: "8px",
+                borderColor: editPlatform === key ? info.color : "rgba(255,255,255,0.12)",
+                color: editPlatform === key ? "#fff" : "#64748b",
+                bgcolor: editPlatform === key ? info.color : "transparent",
+                "&:hover": { bgcolor: info.color, color: "#fff", borderColor: info.color },
+              }}
+            >
+              {info.label}
+            </Button>
+          ))}
+        </Box>
+      </DialogContent>
+      <Divider sx={{ borderColor: "#2e2e42" }} />
+      <DialogActions sx={{ px: 3, py: 2, gap: 1.5 }}>
+        <Button onClick={() => setEditOpen(false)}
+          sx={{ color: "#7070a0", textTransform: "none", border: "1px solid #44445a", borderRadius: "10px", px: 2.5,
+            "&:hover": { bgcolor: "rgba(255,255,255,0.06)" } }}>
+          Cancel
+        </Button>
+        <Button onClick={handleEdit}
+          disabled={editing || !editAt}
+          variant="contained"
+          sx={{ bgcolor: "#059669", textTransform: "none", fontWeight: 600, borderRadius: "10px", px: 3, flexGrow: 1,
+            "&:hover": { bgcolor: "#047857" }, "&.Mui-disabled": { bgcolor: "#1a3d2e", color: "#34d399" } }}>
+          {editing ? <CircularProgress size={16} sx={{ color: "#34d399" }} /> : "Update Schedule"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  </>
   );
 }
 
@@ -400,6 +764,7 @@ export default function History() {
   const [linkedinConnected, setLinkedinConnected] = useState(false);
   const [facebookConnected, setFacebookConnected] = useState(false);
   const [instagramConnected, setInstagramConnected] = useState(false);
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
 
   const handleSignOut = () => { signOut(); navigate("/login"); };
@@ -419,16 +784,35 @@ export default function History() {
   }, [user]);
 
   useEffect(() => {
-    getSocialConnections()
+    (async () => {
+      try {
+        const [attrs, businesses] = await Promise.all([
+          getUserAttributes(),
+          getBusinesses(),
+        ]);
+        const email = (attrs as { email?: string })?.email;
+        // GET /business currently returns every business in the system, not just
+        // the caller's own — match by owner email instead of trusting businesses[0].
+        const ownBusiness = businesses.find((b: Business) => b.ownerEmail === email);
+        setBusinessId(ownBusiness?.businessId ?? businesses[0]?.businessId ?? null);
+      } catch {
+        // keep businessId null
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!businessId) return;
+    getSocialConnections(businessId)
       .then((conns) => setLinkedinConnected(conns.some((c) => c.platform === "linkedin" && c.status === "connected")))
       .catch(() => {});
-    getMetaPages()
+    getMetaPages(businessId)
       .then((info) => setFacebookConnected(info.status === "connected"))
       .catch(() => {});
-    getInstagramStatus()
+    getInstagramStatus(businessId)
       .then((info) => setInstagramConnected(info.status === "connected"))
       .catch(() => {});
-  }, []);
+  }, [businessId]);
 
   return (
     <div className="history-page">
@@ -442,6 +826,10 @@ export default function History() {
             sx={{ color: "#64748b", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}>
             Dashboard
           </Button>
+          <Button onClick={() => navigate("/schedules")} startIcon={<ScheduleIcon />}
+            sx={{ color: "#64748b", textTransform: "none", fontSize: 14, "&:hover": { color: "#fff" } }}>
+            Schedules
+          </Button>
           <Typography sx={{ color: "#475569", fontSize: 13 }}>{user?.username}</Typography>
           <Button onClick={handleSignOut} startIcon={<LogoutIcon />} size="small" variant="outlined"
             sx={{
@@ -454,7 +842,31 @@ export default function History() {
       </nav>
 
       <div className="history-content">
-        <Typography variant="h4" sx={{ color: "#fff", fontWeight: 800, mb: 0.5 }}>History</Typography>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
+          <Typography variant="h4" sx={{ color: "#fff", fontWeight: 800 }}>History</Typography>
+          <Button
+            onClick={() => {
+              setLoading(true);
+              setError(null);
+              const userId = user?.userId ?? user?.username ?? "unknown";
+              getHistory(userId)
+                .then((items) =>
+                  setHistory([...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
+                )
+                .catch(() => setError("Failed to load history."))
+                .finally(() => setLoading(false));
+            }}
+            variant="outlined"
+            size="small"
+            sx={{
+              color: "#a78bfa", borderColor: "rgba(167,139,250,0.4)",
+              textTransform: "none", borderRadius: "8px", fontSize: 13,
+              "&:hover": { bgcolor: "rgba(167,139,250,0.08)", borderColor: "#a78bfa" },
+            }}
+          >
+            ↻ Refresh
+          </Button>
+        </Box>
         <Typography sx={{ color: "#475569", mb: 5, fontSize: 15 }}>
           Your past AI-generated marketing content. Click a row to see full details.
         </Typography>
@@ -488,6 +900,7 @@ export default function History() {
                 facebookConnected={facebookConnected}
                 instagramConnected={instagramConnected}
                 onPublishResult={handlePublishResult}
+                userId={user?.userId ?? user?.username ?? "unknown"}
               />
             ))}
 

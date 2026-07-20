@@ -1,0 +1,114 @@
+Here's exactly where each value goes, by line in SETUP_GUIDE.md:
+
+AWS access key + secret (for me to run commands as him)
+Not literally typed into the .md file anywhere — these go into an AWS CLI profile (a local credentials file), then referenced by name via --profile. That's Step 1, line 19:
+
+"AWS CLI installed and configured with a profile that has admin (or near-admin) access to your team's AWS account."
+
+And used later as the --profile <your-aws-cli-profile> flag on line 130, in the actual command.
+
+Execution role ARN
+Explained in Step 2, line 47: "Give the resulting role ARN to whoever runs create-destination.sh — it's a required parameter (--execution-role-arn)."
+Used in the command on line 125: --execution-role-arn arn:aws:iam::<YOUR_ACCOUNT_ID>:role/<the role from Step 2>
+The 6 OAuth/SendGrid secrets
+Lines 53-61: the secrets.env file format is spelled out directly:
+
+LINKEDIN_CLIENT_ID=...
+LINKEDIN_CLIENT_SECRET=...
+META_APP_ID=...
+META_APP_SECRET=...
+META_CONFIG_ID=...
+SENDGRID_API_KEY=...
+Where each one comes from is walked through right after: LinkedIn values at lines 66-67, Meta values at lines 75-76, SendGrid at line 83.
+Referenced again in the command via --secrets-file ./secrets.env on line 127.
+GitHub PAT + repo
+Line 128: --github-token <your GitHub PAT>
+Line 129: --github-repo https://github.com/<your-org>/<your-fork>
+Bucket name
+Line 126: --bucket-name <pick-a-globally-unique-name> — this one you just make up, not something you "get" from anywhere.
+So concretely: you'd give me the AWS access key/secret to set up the profile, the execution role ARN (once his admin makes it), and the 6 secrets — and I'd assemble secrets.env and the full command from those, matching exactly what's at lines 122-136.
+
+tell me where to put these in the file you want me to put them in
+There isn't one single file — it splits three ways. Here's exactly where each thing goes:
+
+1. secrets.env — the 6 OAuth/SendGrid values
+Create a new file at migration/secrets.env (same folder as the scripts) with this content, replacing the ... with the real values once you have them:
+
+
+LINKEDIN_CLIENT_ID=...
+LINKEDIN_CLIENT_SECRET=...
+META_APP_ID=...
+META_APP_SECRET=...
+META_CONFIG_ID=...
+SENDGRID_API_KEY=...
+This is the only one that's a literal file with values pasted in.
+
+2. AWS access key + secret — NOT a file in this project at all
+These go into the AWS CLI's own credentials file, which lives outside this repo entirely (~/.aws/credentials on Mac/Linux, C:\Users\<you>\.aws\credentials on Windows). You don't hand-edit that yourself — just give me the access key ID and secret access key directly in chat, and I'll run aws configure --profile boss (or write the credentials file directly) to set up a new profile from them. Nothing about this touches any .md or script file.
+
+3. Execution role ARN, GitHub PAT, GitHub repo URL, bucket name — not stored anywhere, just typed into the command
+These four don't go in a file either — they're command-line flags I'll type directly when running create-destination.sh, e.g.:
+
+
+--execution-role-arn arn:aws:iam::<his-account-id>:role/<role-name>
+--github-token <his-PAT>
+--github-repo https://github.com/<his-org>/<his-fork>
+--bucket-name <whatever-unique-name>
+Just give me these four values directly in chat when you have them, same as the AWS keys.
+
+Simplest path for you: don't worry about creating any files by hand — just paste me all 10 values (AWS access key + secret, execution role ARN, the 6 secrets.env values, GitHub PAT, GitHub repo URL, bucket name) whenever you have them, and I'll create secrets.env and assemble the full command myself.
+
+can we keep sendgrid as placeholder for now?
+Yes, that's fine — it's a reasonable thing to defer since send-email is a fully isolated Lambda (only wired to POST /send-email), nothing else in the app depends on it working.
+
+Practically: the script's pre-flight check just verifies the value is non-empty in secrets.env, not that it's a real, working key — so put any placeholder string in for SENDGRID_API_KEY, e.g.:
+
+
+SENDGRID_API_KEY=PLACEHOLDER_NOT_SET_YET
+What happens as a result: everything else deploys and works normally. send-email will get created with that fake value, and any real attempt to send an email through it will fail (SendGrid will reject the bogus key) — but that's isolated to email-sending specifically, nothing else in the app is affected.
+
+To fix later, once he registers a real SendGrid account: either re-run create-destination.sh with the real key filled in (it updates existing Lambdas in place rather than erroring on "already exists"), or just run a one-off aws lambda update-function-configuration on send-email directly, same pattern as the fixes we did in the source account this session.
+
+So: still need real values for LINKEDIN_CLIENT_ID/SECRET, META_APP_ID/SECRET/CONFIG_ID — those aren't safe to placeholder since social connect/publish is the core feature. SENDGRID_API_KEY can be a placeholder for now.
+
+also facebook and linkedin as placeholder for ow
+That's fine too — same mechanism, just means all 6 values in secrets.env become placeholders for this first run:
+
+
+LINKEDIN_CLIENT_ID=PLACEHOLDER_NOT_SET_YET
+LINKEDIN_CLIENT_SECRET=PLACEHOLDER_NOT_SET_YET
+META_APP_ID=PLACEHOLDER_NOT_SET_YET
+META_APP_SECRET=PLACEHOLDER_NOT_SET_YET
+META_CONFIG_ID=PLACEHOLDER_NOT_SET_YET
+SENDGRID_API_KEY=PLACEHOLDER_NOT_SET_YET
+Being fully clear on what this actually means functionally, since it's a bigger deal than SendGrid alone:
+
+What still works fine: everything not tied to those 3 things — Dashboard content generation (Bedrock), user/business management, team invitations, the Schedules infrastructure itself, WebsiteCrawler, get_models. The whole app stands up and is usable for content generation immediately.
+
+What won't work until real values are in: connecting Facebook, Instagram, or LinkedIn at all. social-auth-handler's "authorize" step builds a redirect URL using META_APP_ID/LINKEDIN_CLIENT_ID — with placeholders, that URL points at a Meta/LinkedIn app that doesn't exist, so the redirect will fail or error out on their side. Since nobody can complete a connection, there's nothing for social-publish-handler-new to publish to either — not because publishing itself is broken, but because there will never be a valid stored connection to publish through.
+
+This is a completely reasonable way to sequence it — stand up the skeleton and confirm the AWS side works, register the real OAuth apps after. Just means social connect/publish is the one area that stays non-functional until he circles back with real Meta/LinkedIn app credentials.
+
+Whenever you're ready to actually run this, send me the AWS access key + secret, the execution role ARN, GitHub PAT + repo URL, and your chosen bucket name, and I'll put it together.
+
+where do i find execution role arn
+You don't find it — it doesn't exist yet. Someone with IAM permissions in the boss's account needs to create it first, then the ARN appears once it exists. This was a deliberate design choice from your original brief ("IAM roles and policies are out of scope for automation... don't write code that creates roles") — so this is the one piece that has to be a manual, human step, not something I do for you even with credentials.
+
+How to create it (AWS Console, ~5 minutes)
+Log into the boss's AWS account, go to IAM → Roles → Create role
+Trusted entity type: AWS service → Lambda
+Permissions: skip attaching managed policies for now (easier to add an inline policy after), but do attach AWSLambdaBasicExecutionRole (search for it in the list) — that's the CloudWatch Logs permission every Lambda needs
+Name it something like ai-marketing-hub-lambda-execution-role, create it
+Open the new role, go to Add permissions → Create inline policy, and add the rest of what's listed in SETUP_GUIDE.md Step 2:
+DynamoDB actions (GetItem, PutItem, UpdateItem, DeleteItem, Query, Scan) on the 14 tables (and their indexes)
+s3:GetObject, s3:PutObject on the new bucket
+bedrock:InvokeModel, bedrock:Converse (scoped to the model ARNs in us-east-1 and us-west-2)
+bedrock:ListFoundationModels (us-east-2)
+scheduler:CreateSchedule/UpdateSchedule/DeleteSchedule/GetSchedule
+iam:PassRole on the second small EventBridge-invoke role (also needs manual creation — same guide section)
+lambda:InvokeFunction on generate-marketing-asset and social-publish-handler-new's ARNs
+Once saved, click into the role — the ARN is right at the top of the role's summary page, format:
+
+arn:aws:iam::<his-account-id>:role/ai-marketing-hub-lambda-execution-role
+That's the value for --execution-role-arn.
+If whoever's doing this isn't comfortable hand-writing the IAM policy JSON, I can write the exact policy document for them to paste into that inline-policy step — I just won't run iam:CreateRole myself, even with credentials, since that's the boundary you set up front. Want me to draft that policy JSON now so it's ready to hand to whoever has IAM access on his side

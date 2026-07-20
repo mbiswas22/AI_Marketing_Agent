@@ -39,7 +39,7 @@ import {
   getUser,
   getBusinesses,
 } from "../services/api";
-import type { BedrockModel } from "../services/api";
+import type { BedrockModel, Business } from "../services/api";
 import { getUserAttributes } from "../services/auth";
 import {
   DEMO_BUSINESSES,
@@ -67,11 +67,12 @@ export default function Dashboard() {
   const { user, signOut } = useAuthenticator();
   const navigate = useNavigate();
   const [role, setRole] = useState<string>("VIEWER");
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const location = useLocation();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [fileName, setFileName] = useState<string | null>(null);
-  // const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [url] = useState("");
   const [business, setBusiness] = useState(DEMO_BUSINESSES[0]);
   const [customBusiness, setCustomBusiness] = useState("");
@@ -107,6 +108,8 @@ export default function Dashboard() {
     severity: "success" | "error";
   }>({ open: false, message: "", severity: "success" });
   const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
+  const [resultActionId, setResultActionId] = useState<string | null>(null);
+  const [resultCreatedAt, setResultCreatedAt] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [inputTab, setInputTab] =
     useState<(typeof INPUT_TABS)[number]["value"]>("text");
@@ -183,12 +186,22 @@ export default function Dashboard() {
     const fetchRole = async () => {
       try {
         const attrs = await getUserAttributes();
+        const cognitoRole = (attrs as any)?.["custom:role"];
+        if (cognitoRole) setRole(cognitoRole);
         const sub = (attrs as any)?.sub;
+        const email = (attrs as { email?: string })?.email;
         if (!sub) return;
         const businesses = await getBusinesses();
-        const businessId = businesses[0]?.businessId;
-        if (!businessId) return;
-        const userData = await getUser(sub, businessId);
+        // GET /business currently returns every business in the system, not just
+        // the caller's own — match by owner email instead of trusting businesses[0].
+        const ownBusiness = businesses.find(
+          (b: Business) => b.ownerEmail === email,
+        );
+        const resolvedBusinessId =
+          ownBusiness?.businessId ?? businesses[0]?.businessId;
+        if (!resolvedBusinessId) return;
+        setBusinessId(resolvedBusinessId);
+        const userData = await getUser(sub, resolvedBusinessId);
         if (userData?.role) setRole(userData.role);
       } catch {
         // keep default VIEWER
@@ -198,7 +211,8 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    getSocialConnections()
+    if (!businessId) return;
+    getSocialConnections(businessId)
       .then((conns) =>
         setLinkedinConnected(
           conns.some(
@@ -207,13 +221,13 @@ export default function Dashboard() {
         ),
       )
       .catch(() => {});
-    getMetaPages()
+    getMetaPages(businessId)
       .then((info) => setFacebookConnected(info.status === "connected"))
       .catch(() => {});
-    getInstagramStatus()
+    getInstagramStatus(businessId)
       .then((info) => setInstagramConnected(info.status === "connected"))
       .catch(() => {});
-  }, []);
+  }, [businessId]);
 
   const handleSignOut = () => {
     signOut();
@@ -240,6 +254,8 @@ export default function Dashboard() {
       await publishToLinkedIn({
         text: caption || undefined,
         ...(imageKey && { image_key: imageKey }),
+        ...(resultActionId && { action_id: resultActionId }),
+        ...(resultCreatedAt && { createdAt: resultCreatedAt }),
       });
       setPublishSnackbar({
         open: true,
@@ -324,7 +340,8 @@ export default function Dashboard() {
       if (result.processing) {
         setPublishSnackbar({
           open: true,
-          message: result.error || "Instagram is still processing — try again shortly",
+          message:
+            result.error || "Instagram is still processing — try again shortly",
           severity: "error",
         });
       } else {
@@ -374,13 +391,49 @@ export default function Dashboard() {
         );
         setCaption(result.marketing.caption ?? null);
         setHashtags(result.marketing.hashtags ?? []);
-        if (result.imageUrl) setResultImageUrl(result.imageUrl);
+        // handle both imageUrl and image_url from crawler
+        const crawlerImage =
+          result.imageUrl || (result as any).image_url || null;
+        if (crawlerImage) setResultImageUrl(crawlerImage);
+        if ((result as any).action_id)
+          setResultActionId((result as any).action_id);
+        if ((result as any).created_at)
+          setResultCreatedAt((result as any).created_at);
       } else if (contentType === "image") {
-        const url = await generateImage(prompt);
+        const enrichedImagePrompt = `Professional marketing image for ${effectiveBusiness}. ${prompt}. High quality, photorealistic, commercial photography style, vibrant colors, no text, no words, no letters, no watermarks.`;
+        const url = await generateImage(enrichedImagePrompt);
         setResultImageUrl(url);
+      } else if (inputTab === "image" && uploadedFile) {
+        // Convert uploaded image to base64 and send to generate-marketing-asset Lambda
+        const base64Str = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () =>
+            resolve((reader.result as string).split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(uploadedFile);
+        });
+        const response = await generateMarketAsset(
+          prompt ||
+            `Create ${contentType} marketing content for ${effectiveBusiness} based on the uploaded image.`,
+          effectiveBusiness,
+          contentType,
+          selectedFormat,
+          selectedPlatforms,
+          selectedModel,
+          base64Str,
+          "image",
+        );
+        setCaption(response.data.caption ?? null);
+        setHashtags(response.data.hashtags ?? []);
+        if (response.data.image_url) setResultImageUrl(response.data.image_url);
+        if ((response.data as any).action_id)
+          setResultActionId((response.data as any).action_id);
+        if ((response.data as any).created_at)
+          setResultCreatedAt((response.data as any).created_at);
       } else if (config.type === "caption") {
+        const enrichedPrompt = `You are an expert marketing copywriter. Create detailed, compelling ${contentType} content for the business "${effectiveBusiness}". ${prompt}. Write at least 3-4 paragraphs with a strong headline, body copy, and a clear call to action. Be specific, persuasive and professional.`;
         const response = await generateCaption(
-          effectiveInput,
+          enrichedPrompt,
           effectiveBusiness,
           contentType,
           selectedPlatforms,
@@ -388,9 +441,14 @@ export default function Dashboard() {
         );
         setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
+        if ((response.data as any).action_id)
+          setResultActionId((response.data as any).action_id);
+        if ((response.data as any).created_at)
+          setResultCreatedAt((response.data as any).created_at);
       } else {
+        const enrichedPrompt = `You are an expert marketing copywriter. Create detailed, compelling ${contentType} content for the business "${effectiveBusiness}". ${prompt}. Write at least 3-4 paragraphs with a strong headline, body copy, and a clear call to action. Be specific, persuasive and professional.`;
         const response = await generateMarketAsset(
-          effectiveInput,
+          enrichedPrompt,
           effectiveBusiness,
           contentType,
           selectedFormat,
@@ -400,6 +458,10 @@ export default function Dashboard() {
         setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
         if (response.data.image_url) setResultImageUrl(response.data.image_url);
+        if ((response.data as any).action_id)
+          setResultActionId((response.data as any).action_id);
+        if ((response.data as any).created_at)
+          setResultCreatedAt((response.data as any).created_at);
       }
     } catch {
       setError("Failed to generate content. Please try again.");
@@ -444,6 +506,8 @@ export default function Dashboard() {
     setOffer(null);
     setCallToAction(null);
     setResultImageUrl(null);
+    setResultActionId(null);
+    setResultCreatedAt(null);
     setInputTab("text");
   };
 
@@ -492,7 +556,7 @@ export default function Dashboard() {
           >
             History
           </Button>
-          {role === "ADMIN" && (
+          {(role === "ADMIN" || role === "SUPER_ADMIN") && (
             <Button
               onClick={() => navigate("/settings")}
               startIcon={<SettingsIcon />}
@@ -1116,7 +1180,11 @@ export default function Dashboard() {
               type="file"
               accept="image/*"
               hidden
-              onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                setFileName(file?.name ?? null);
+                setUploadedFile(file);
+              }}
             />
 
             {/* Divider */}

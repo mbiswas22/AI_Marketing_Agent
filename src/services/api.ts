@@ -35,15 +35,20 @@ export const generateMarketAsset = async (
   contentType: string,
   outputFormat: string,
   platforms: string[],
-  modelId: string
+  modelId: string,
+  imageBase64?: string,
+  inputType?: string
 ) => {
-  return api.post<GenerateAssetResponse>(`/generate`, {
+  const endpoint = imageBase64 ? `/image` : `/generate`;
+  return api.post<GenerateAssetResponse>(endpoint, {
     prompt,
     business,
     content_type: contentType,
     output_format: outputFormat,
     platforms,
     modelId,
+    input_type: inputType || "text",
+    ...(imageBase64 && { image_base64: imageBase64 }),
   });
 };
 
@@ -52,7 +57,8 @@ export const generateCaption = async (
   business: string,
   contentType: string,
   platforms: string[],
-  modelId: string
+  modelId: string,
+  imageBase64?: string
 ) => {
   return api.post<GenerateCaptionResponse>(`/generate`, {
     prompt,
@@ -60,6 +66,7 @@ export const generateCaption = async (
     contentType,
     platforms,
     modelId: 'us.' + modelId,
+    ...(imageBase64 && { image_base64: imageBase64 }),
   });
 };
 
@@ -103,7 +110,11 @@ export interface HistoryItem {
 
 export const getHistory = async (userId?: string): Promise<HistoryItem[]> => {
   const res = await api.get(`/history`, { params: userId ? { userId } : {} });
-  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  let data = res.data;
+  // Unwrap any level of stringification
+  while (typeof data === "string") {
+    try { data = JSON.parse(data); } catch { break; }
+  }
   return Array.isArray(data) ? data : [];
 };
 
@@ -228,6 +239,7 @@ export interface Business {
   createdAt: string;
   phone?: string;
   region?: string;
+  ownerEmail?: string;
 }
 
 export const getBusinesses = async (): Promise<Business[]> => {
@@ -268,23 +280,23 @@ export interface SocialConnection {
   connectedAt: string | null;
 }
 
-export const getSocialConnections = async (): Promise<SocialConnection[]> => {
-  const res = await api.get(`/social/connections`);
+export const getSocialConnections = async (businessId: string): Promise<SocialConnection[]> => {
+  const res = await api.get(`/social/connections`, { params: { businessId } });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return Array.isArray(data) ? data : [];
 };
 
-export const getLinkedInAuthUrl = async (): Promise<string> => {
-  const res = await api.get(`/social/linkedin/authorize`);
+export const getLinkedInAuthUrl = async (businessId: string): Promise<string> => {
+  const res = await api.get(`/social/linkedin/authorize`, { params: { businessId } });
   return res.data.authUrl;
 };
 
-export const disconnectSocialPlatform = async (platform: string): Promise<void> => {
-  await api.delete(`/social/connections/${platform}`);
+export const disconnectSocialPlatform = async (platform: string, businessId: string): Promise<void> => {
+  await api.delete(`/social/connections/${platform}`, { params: { businessId } });
 };
 
-export const getMetaAuthUrl = async (): Promise<string> => {
-  const res = await api.get(`/social/meta/authorize`);
+export const getMetaAuthUrl = async (businessId: string): Promise<string> => {
+  const res = await api.get(`/social/meta/authorize`, { params: { businessId } });
   return res.data.authUrl;
 };
 
@@ -296,14 +308,16 @@ export interface MetaPageInfo {
   connectedAt?: string;
 }
 
-export const getMetaPages = async (): Promise<MetaPageInfo> => {
-  const res = await api.get(`/social/meta/pages`);
+export const getMetaPages = async (businessId: string): Promise<MetaPageInfo> => {
+  const res = await api.get(`/social/meta/pages`, { params: { businessId } });
   return res.data;
 };
 
 export const publishToLinkedIn = async (payload: {
   text?: string;
   image_key?: string;
+  action_id?: string;
+  createdAt?: string;
 }): Promise<{ success: boolean; postId: string }> => {
   const res = await api.post(`/social/linkedin/publish`, payload);
   return res.data;
@@ -325,8 +339,8 @@ export interface InstagramInfo {
   connectedAt?: string;
 }
 
-export const getInstagramStatus = async (): Promise<InstagramInfo> => {
-  const res = await api.get(`/social/meta/instagram`);
+export const getInstagramStatus = async (businessId: string): Promise<InstagramInfo> => {
+  const res = await api.get(`/social/meta/instagram`, { params: { businessId } });
   return res.data;
 };
 
@@ -347,9 +361,104 @@ export interface CrawlWebsiteResponse {
     hours: string;
     contact: { phone: string; email: string; address: string };
   };
-  marketing: { caption?: string; hashtags?: string[]; image_prompt?: string };
+  marketing: { caption?: string; hashtags?: string[]; image_prompt?: string; headline?: string; subheadline?: string; call_to_action?: string };
   imageUrl?: string;
+  image_url?: string;
 }
+
+export const viewSchedule = async (schedule_id: string): Promise<Record<string, unknown>> => {
+  const res = await api.post(`/schedule`, {
+    action: "view_schedule",
+    body: { schedule_id },
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+  return data;
+};
+
+export const deleteSchedule = async (schedule_id: string): Promise<void> => {
+  const res = await api.post(`/schedule`, {
+    action: "delete_schedule",
+    body: { schedule_id },
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+};
+
+export const reactivateSchedule = async (schedule_id: string): Promise<void> => {
+  const res = await api.post(`/schedule`, {
+    action: "reactivate_schedule",
+    body: { schedule_id },
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+};
+
+export const inactiveSchedule = async (schedule_id: string): Promise<void> => {
+  const res = await api.post(`/schedule`, {
+    action: "inactive_schedule",
+    body: { schedule_id },
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+};
+
+export const updateSchedule = async (payload: {
+  schedule_id: string;
+  schedule_expression: string;
+  timezone?: string;
+}): Promise<{ message: string; schedule_id: string }> => {
+  const res = await api.post(`/schedule`, {
+    action: "update_schedule",
+    body: payload,
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+  return data;
+};
+
+export const createSchedule = async (payload: {
+  user_id: string;
+  businessId: string;
+  platform: string;
+  content_type: string;
+  schedule_expression: string;
+  input_type: string;
+  input_value: string;
+  business?: string;
+  modelId?: string;
+  timezone?: string;
+  connectionId?: string;
+  createdByUserId?: string;
+}): Promise<{ message: string; schedule_id: string; schedule_name: string }> => {
+  const res = await api.post(`/schedule`, {
+    action: "create_schedule",
+    body: payload,
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+  return data;
+};
+
+export const listSchedules = async (businessId: string): Promise<Record<string, unknown>[]> => {
+  const res = await api.post(`/schedule`, {
+    action: "list_schedules",
+    body: { businessId },
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+  return Array.isArray(data) ? data : [];
+};
+
+export const listScheduleLogs = async (businessId: string): Promise<Record<string, unknown>[]> => {
+  const res = await api.post(`/schedule`, {
+    action: "list_logs",
+    body: { businessId },
+  });
+  const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  if (data.error) throw new Error(data.error);
+  return Array.isArray(data) ? data : [];
+};
 
 export const crawlWebsite = async (
   url: string,
@@ -363,5 +472,4 @@ export const crawlWebsite = async (
   });
   return res.data;
 };
-
 
