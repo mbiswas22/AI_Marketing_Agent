@@ -461,6 +461,16 @@ export default function Dashboard() {
   };
 
   const handleDownload = () => {
+    // Handle image download
+    if (resultImageUrl && (selectedFormat === "jpeg" || selectedFormat === "png" || contentType === "image")) {
+      const a = document.createElement("a");
+      a.href = resultImageUrl;
+      a.download = `generated-image.${selectedFormat === "jpeg" ? "jpg" : "png"}`;
+      a.target = "_blank";
+      a.click();
+      return;
+    }
+
     if (!caption) return;
     const fullContent = [
       title ? `# ${title}\n\n` : "",
