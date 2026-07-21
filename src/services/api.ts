@@ -76,7 +76,7 @@ export interface GenerateImageResponse {
 }
 
 export const generateImage = async (prompt: string): Promise<string> => {
-  const res = await api.post(`/generate-image`, { prompt });
+  const res = await api.post(`/image`, { prompt });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return data.imageUrl;
 };
