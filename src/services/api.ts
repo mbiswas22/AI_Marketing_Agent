@@ -83,10 +83,17 @@ export interface GenerateImageResponse {
   action_id: string;
 }
 
-export const generateImage = async (prompt: string): Promise<string> => {
-  const res = await api.post(`/image`, { prompt });
+export const generateImage = async (prompt: string, business?: string, businessId?: string): Promise<string> => {
+  const res = await api.post(`/image`, {
+    prompt,
+    business: business || "My Business",
+    content_type: "image",
+    input_type: "text",
+    input_value: prompt,
+    ...(businessId && { businessId }),
+  });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
-  return data.imageUrl;
+  return data.imageUrl || data.image_url;
 };
 // =========== Model
 export interface BedrockModel {

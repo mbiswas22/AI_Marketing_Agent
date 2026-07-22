@@ -401,8 +401,12 @@ export default function Dashboard() {
         if ((result as any).created_at)
           setResultCreatedAt((result as any).created_at);
       } else if (contentType === "image") {
+        if (!prompt.trim()) {
+          setError("Please enter a prompt describing the image you want to generate.");
+          return;
+        }
         const enrichedImagePrompt = `Professional marketing image for ${effectiveBusiness}. ${prompt}. High quality, photorealistic, commercial photography style, vibrant colors, no text, no words, no letters, no watermarks.`;
-        const url = await generateImage(enrichedImagePrompt);
+        const url = await generateImage(enrichedImagePrompt, effectiveBusiness, businessId ?? undefined);
         setResultImageUrl(url);
       } else if (inputTab === "image" && uploadedFile) {
         // Convert uploaded image to base64 and send to generate-marketing-asset Lambda
