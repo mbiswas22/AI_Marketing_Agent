@@ -78,7 +78,7 @@ export interface GenerateImageResponse {
 export const generateImage = async (prompt: string): Promise<string> => {
   const res = await api.post(`/image`, { prompt });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
-  return data.imageUrl;
+  return data.image_url;
 };
 // =========== Model
 export interface BedrockModel {
