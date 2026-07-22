@@ -85,6 +85,7 @@ function HistoryRow({
   instagramConnected,
   onPublishResult,
   userId,
+  businessId,
 }: {
   item: HistoryItem;
   linkedinConnected: boolean;
@@ -92,6 +93,7 @@ function HistoryRow({
   instagramConnected: boolean;
   onPublishResult: (success: boolean, msg: string) => void;
   userId: string;
+  businessId: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -121,7 +123,7 @@ function HistoryRow({
     const image_key = item.image_key || item.s3_key;
     setPublishing(true);
     try {
-      await publishToLinkedIn({ text: text || undefined, image_key: image_key || undefined });
+      await publishToLinkedIn({ text: text || undefined, image_key: image_key || undefined, businessId: businessId || undefined });
       onPublishResult(true, "Posted to LinkedIn successfully");
     } catch (err) {
       const msg = (err as any)?.response?.data?.error || "Failed to post to LinkedIn";
@@ -202,7 +204,7 @@ function HistoryRow({
     const image_key = item.image_key || item.s3_key;
     setPublishingFacebook(true);
     try {
-      await publishToFacebook({ text: text || undefined, image_key: image_key || undefined });
+      await publishToFacebook({ text: text || undefined, image_key: image_key || undefined, businessId: businessId || undefined });
       onPublishResult(true, "Posted to Facebook successfully");
     } catch (err) {
       const msg = (err as any)?.response?.data?.error || "Failed to post to Facebook";
@@ -222,7 +224,7 @@ function HistoryRow({
     }
     setPublishingInstagram(true);
     try {
-      const result = await publishToInstagram({ text: text || undefined, image_key });
+      const result = await publishToInstagram({ text: text || undefined, image_key, businessId: businessId || undefined });
       if (result.processing) {
         onPublishResult(false, result.error || "Instagram is still processing — try again shortly");
       } else {
@@ -901,6 +903,7 @@ export default function History() {
                 instagramConnected={instagramConnected}
                 onPublishResult={handlePublishResult}
                 userId={user?.userId ?? user?.username ?? "unknown"}
+                businessId={businessId}
               />
             ))}
 

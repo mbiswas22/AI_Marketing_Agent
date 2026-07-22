@@ -333,6 +333,7 @@ export const publishToLinkedIn = async (payload: {
   image_key?: string;
   action_id?: string;
   createdAt?: string;
+  businessId?: string;
 }): Promise<{ success: boolean; postId: string }> => {
   const res = await api.post(`/social/linkedin/publish`, payload);
   return res.data;
@@ -341,6 +342,7 @@ export const publishToLinkedIn = async (payload: {
 export const publishToFacebook = async (payload: {
   text?: string;
   image_key?: string;
+  businessId?: string;
 }): Promise<{ success: boolean; postId: string }> => {
   const res = await api.post(`/social/meta/publish`, payload);
   return res.data;
@@ -363,6 +365,7 @@ export const publishToInstagram = async (payload: {
   text?: string;
   image_key?: string;
   video_key?: string;
+  businessId?: string;
 }): Promise<{ success: boolean; postId?: string; processing?: boolean; error?: string }> => {
   const res = await api.post(`/social/meta/instagram/publish`, payload);
   return res.data;
