@@ -1,6 +1,10 @@
 import axios from "axios";
 import { fetchAuthSession } from "aws-amplify/auth";
 
+//PROD
+// const API_URL = "https://pm5vf9za4a.execute-api.us-east-2.amazonaws.com/dev";
+
+//DEV
 const API_URL = "https://l9k0b4he7h.execute-api.us-east-2.amazonaws.com/dev";
 
 export const api = axios.create({ baseURL: API_URL });
@@ -80,7 +84,7 @@ export interface GenerateImageResponse {
 }
 
 export const generateImage = async (prompt: string): Promise<string> => {
-  const res = await api.post(`/generate-image`, { prompt });
+  const res = await api.post(`/image`, { prompt });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return data.imageUrl;
 };

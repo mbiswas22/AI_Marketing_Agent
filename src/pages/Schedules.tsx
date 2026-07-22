@@ -96,7 +96,6 @@ export default function Schedules() {
   const [deleteTarget, setDeleteTarget] = useState<Schedule | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const userId = user?.userId ?? user?.username ?? "unknown";
   const [businessId, setBusinessId] = useState<string | null>(null);
 
   useEffect(() => {
