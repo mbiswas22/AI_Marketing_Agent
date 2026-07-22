@@ -479,7 +479,12 @@ export default function Dashboard() {
 
   const handleDownload = () => {
     // Handle image download
-    if (resultImageUrl && (selectedFormat === "jpeg" || selectedFormat === "png" || contentType === "image")) {
+    if (
+      resultImageUrl &&
+      (selectedFormat === "jpeg" ||
+        selectedFormat === "png" ||
+        contentType === "image")
+    ) {
       const a = document.createElement("a");
       a.href = resultImageUrl;
       a.download = `generated-image.${selectedFormat === "jpeg" ? "jpg" : "png"}`;
@@ -518,7 +523,6 @@ ${hashtags.length > 0 ? `<p class="hashtags">${hashtags.join(" ")}</p>` : ""}
       a.download = "generated-content.html";
       a.click();
       URL.revokeObjectURL(objectUrl);
-
     } else if (selectedFormat === "pdf") {
       const printWindow = window.open("", "_blank");
       if (printWindow) {
@@ -534,9 +538,11 @@ ${hashtags.length > 0 ? `<p class="hashtags">${hashtags.join(" ")}</p>` : ""}
 </body></html>`);
         printWindow.document.close();
         printWindow.focus();
-        setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 500);
       }
-
     } else if (selectedFormat === "docx" || selectedFormat === "word") {
       // Generate RTF which Word can open
       const rtf = `{\\rtf1\\ansi\\deff0
@@ -556,7 +562,6 @@ ${hashtags.length > 0 ? `\\par\\par {\\cf1 ${hashtags.join(" ")}}` : ""}
       a.download = "generated-content.rtf";
       a.click();
       URL.revokeObjectURL(objectUrl);
-
     } else {
       // Plain text default
       const blob = new Blob([fullContent], { type: "text/plain" });
