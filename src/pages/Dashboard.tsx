@@ -422,6 +422,7 @@ export default function Dashboard() {
           selectedModel,
           base64Str,
           "image",
+          businessId ?? undefined,
         );
         setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
@@ -438,6 +439,8 @@ export default function Dashboard() {
           contentType,
           selectedPlatforms,
           selectedModel,
+          undefined,
+          businessId ?? undefined,
         );
         setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
@@ -454,6 +457,9 @@ export default function Dashboard() {
           selectedFormat,
           selectedPlatforms,
           selectedModel,
+          undefined,
+          undefined,
+          businessId ?? undefined,
         );
         setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
