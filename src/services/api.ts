@@ -467,12 +467,14 @@ export const listScheduleLogs = async (businessId: string): Promise<Record<strin
 export const crawlWebsite = async (
   url: string,
   contentType: string,
-  platforms: string[]
+  platforms: string[],
+  businessId?: string
 ): Promise<CrawlWebsiteResponse> => {
   const res = await api.post<CrawlWebsiteResponse>(`/crawl`, {
     url,
     contentType,
     platforms,
+    ...(businessId && { businessId }),
   });
   return res.data;
 };

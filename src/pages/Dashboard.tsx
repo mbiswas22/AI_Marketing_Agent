@@ -388,6 +388,7 @@ export default function Dashboard() {
           websiteUrl,
           contentType,
           selectedPlatforms,
+          businessId ?? undefined,
         );
         setCaption(result.marketing.caption ?? null);
         setHashtags(result.marketing.hashtags ?? []);
