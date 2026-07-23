@@ -20,6 +20,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       "redirectAfterLogin",
       window.location.pathname + window.location.search,
     );
+    const token = new URLSearchParams(window.location.search).get("token");
+    if (token) sessionStorage.setItem("inviteToken", token);
     return <Navigate to="/login" replace />;
   }
   return <>{children}</>;

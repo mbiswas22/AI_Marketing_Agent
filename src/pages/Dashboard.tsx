@@ -5,7 +5,6 @@ import {
   Box,
   Typography,
   Button,
-  TextField,
   CircularProgress,
   MenuItem,
   Select,
@@ -42,7 +41,6 @@ import {
 import type { BedrockModel, Business } from "../services/api";
 import { getUserAttributes } from "../services/auth";
 import {
-  DEMO_BUSINESSES,
   FALLBACK_MODELS,
   CONTENT_TYPE_CATEGORY,
   CONTENT_TILES,
@@ -54,7 +52,6 @@ import {
   labelSx,
   subLabelSx,
   darkSelectSx,
-  darkInputSx,
 } from "../constants/dashboardConstants";
 
 const getApiConfig = (ct: string) => {
@@ -68,14 +65,13 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [role, setRole] = useState<string>("VIEWER");
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [businesses, setBusinesses] = useState<Business[]>([]);
   const location = useLocation();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [fileName, setFileName] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [url] = useState("");
-  const [business, setBusiness] = useState(DEMO_BUSINESSES[0]);
-  const [customBusiness, setCustomBusiness] = useState("");
   const [contentType, setContentType] = useState("flyer");
   const [selectedFormat, setSelectedFormat] = useState("pdf");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
@@ -114,8 +110,7 @@ export default function Dashboard() {
   const [inputTab, setInputTab] =
     useState<(typeof INPUT_TABS)[number]["value"]>("text");
 
-  const isCustom = business === "__custom__";
-  const effectiveBusiness = isCustom ? customBusiness : business;
+  const effectiveBusiness = businesses.find((b) => b.businessId === businessId)?.businessName ?? "";
   const currentModels =
     modelsCache[CONTENT_TYPE_CATEGORY[contentType] ?? "text"] ?? [];
   const currentFormats = OUTPUT_FORMATS_BY_TYPE[contentType] ?? [];
@@ -163,12 +158,6 @@ export default function Dashboard() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hi = (location.state as any)?.fromHistory;
     if (!hi) return;
-    if (DEMO_BUSINESSES.includes(hi.business ?? "")) {
-      setBusiness(hi.business);
-    } else if (hi.business) {
-      setBusiness("__custom__");
-      setCustomBusiness(hi.business);
-    }
     setPrompt(hi.prompt || hi.input_value || "");
     setContentType(hi.content_type || "flyer");
     setSelectedPlatforms(hi.platforms ?? []);
@@ -200,9 +189,11 @@ export default function Dashboard() {
         const resolvedBusinessId =
           ownBusiness?.businessId ?? businesses[0]?.businessId;
         if (!resolvedBusinessId) return;
+        setBusinesses(businesses);
         setBusinessId(resolvedBusinessId);
         const userData = await getUser(sub, resolvedBusinessId);
         if (userData?.role) setRole(userData.role);
+        if (userData?.displayName) setDisplayName(userData.displayName);
       } catch {
         // keep default VIEWER
       }
@@ -253,6 +244,7 @@ export default function Dashboard() {
 
       await publishToLinkedIn({
         text: caption || undefined,
+        businessId: businessId ?? "",
         ...(imageKey && { image_key: imageKey }),
         ...(resultActionId && { action_id: resultActionId }),
         ...(resultCreatedAt && { createdAt: resultCreatedAt }),
@@ -291,6 +283,7 @@ export default function Dashboard() {
 
       await publishToFacebook({
         text: caption || undefined,
+        businessId: businessId ?? "",
         ...(imageKey && { image_key: imageKey }),
       });
       setPublishSnackbar({
@@ -490,7 +483,12 @@ export default function Dashboard() {
 
   const handleDownload = () => {
     // Handle image download
-    if (resultImageUrl && (selectedFormat === "jpeg" || selectedFormat === "png" || contentType === "image")) {
+    if (
+      resultImageUrl &&
+      (selectedFormat === "jpeg" ||
+        selectedFormat === "png" ||
+        contentType === "image")
+    ) {
       const a = document.createElement("a");
       a.href = resultImageUrl;
       a.download = `generated-image.${selectedFormat === "jpeg" ? "jpg" : "png"}`;
@@ -529,7 +527,6 @@ ${hashtags.length > 0 ? `<p class="hashtags">${hashtags.join(" ")}</p>` : ""}
       a.download = "generated-content.html";
       a.click();
       URL.revokeObjectURL(objectUrl);
-
     } else if (selectedFormat === "pdf") {
       const printWindow = window.open("", "_blank");
       if (printWindow) {
@@ -545,9 +542,11 @@ ${hashtags.length > 0 ? `<p class="hashtags">${hashtags.join(" ")}</p>` : ""}
 </body></html>`);
         printWindow.document.close();
         printWindow.focus();
-        setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 500);
       }
-
     } else if (selectedFormat === "docx" || selectedFormat === "word") {
       // Generate RTF which Word can open
       const rtf = `{\\rtf1\\ansi\\deff0
@@ -567,7 +566,6 @@ ${hashtags.length > 0 ? `\\par\\par {\\cf1 ${hashtags.join(" ")}}` : ""}
       a.download = "generated-content.rtf";
       a.click();
       URL.revokeObjectURL(objectUrl);
-
     } else {
       // Plain text default
       const blob = new Blob([fullContent], { type: "text/plain" });
@@ -587,8 +585,6 @@ ${hashtags.length > 0 ? `\\par\\par {\\cf1 ${hashtags.join(" ")}}` : ""}
 
   const clearHistory = () => {
     setFromHistoryBanner(false);
-    setBusiness(DEMO_BUSINESSES[0]);
-    setCustomBusiness("");
     setPrompt("");
     setWebsiteUrl("");
     setContentType("flyer");
@@ -670,7 +666,7 @@ ${hashtags.length > 0 ? `\\par\\par {\\cf1 ${hashtags.join(" ")}}` : ""}
               display: { xs: "none", md: "block" },
             }}
           >
-            {user?.username}
+            {displayName ?? user?.username}
           </Typography>
           <Button
             onClick={handleSignOut}
@@ -768,8 +764,8 @@ ${hashtags.length > 0 ? `\\par\\par {\\cf1 ${hashtags.join(" ")}}` : ""}
           <Box sx={cardSx}>
             <Typography sx={labelSx}>Business</Typography>
             <Select
-              value={business}
-              onChange={(e) => setBusiness(e.target.value)}
+              value={businessId ?? ""}
+              onChange={(e) => setBusinessId(e.target.value)}
               fullWidth
               size="small"
               sx={darkSelectSx}
@@ -785,39 +781,19 @@ ${hashtags.length > 0 ? `\\par\\par {\\cf1 ${hashtags.join(" ")}}` : ""}
                 } as any
               }
             >
-              {DEMO_BUSINESSES.map((b) => (
+              {businesses.map((b) => (
                 <MenuItem
-                  key={b}
-                  value={b}
+                  key={b.businessId}
+                  value={b.businessId}
                   sx={{
                     fontSize: 12,
                     "&:hover": { bgcolor: "rgba(124,109,240,0.1)" },
                   }}
                 >
-                  {b}
+                  {b.businessName}
                 </MenuItem>
               ))}
-              <MenuItem
-                value="__custom__"
-                sx={{
-                  fontSize: 12,
-                  color: "#7c6df0",
-                  "&:hover": { bgcolor: "rgba(124,109,240,0.1)" },
-                }}
-              >
-                + Type a different business
-              </MenuItem>
             </Select>
-            {isCustom && (
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Enter your business name"
-                value={customBusiness}
-                onChange={(e) => setCustomBusiness(e.target.value)}
-                sx={{ mt: "8px", ...darkInputSx }}
-              />
-            )}
           </Box>
 
           {/* Content type card */}

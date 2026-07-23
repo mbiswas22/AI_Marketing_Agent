@@ -5,9 +5,10 @@ import { fetchAuthSession } from "aws-amplify/auth";
 // const API_URL = "https://pm5vf9za4a.execute-api.us-east-2.amazonaws.com/dev";
 
 //DEV
-const API_URL = "https://l9k0b4he7h.execute-api.us-east-2.amazonaws.com/dev";
+ const API_URL = "https://l9k0b4he7h.execute-api.us-east-2.amazonaws.com/dev";
 
 export const api = axios.create({ baseURL: API_URL });
+export const publicApi = axios.create({ baseURL: API_URL });
 
 api.interceptors.request.use(async (config) => {
   const session = await fetchAuthSession();
@@ -233,7 +234,7 @@ export interface InvitationResponse {
 }
 
 export const getInvitation = async (invitationId: string): Promise<InvitationResponse> => {
-  const res = await api.get(`/invitations/${invitationId}`);
+  const res = await publicApi.get(`/invitations/${invitationId}`);
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return data?.invitation ?? data;
 };
@@ -333,15 +334,6 @@ export const publishToLinkedIn = async (payload: {
   image_key?: string;
   action_id?: string;
   createdAt?: string;
-  businessId?: string;
-}): Promise<{ success: boolean; postId: string }> => {
-  const res = await api.post(`/social/linkedin/publish`, payload);
-  return res.data;
-};
-
-export const publishToFacebook = async (payload: {
-  text?: string;
-  image_key?: string;
   businessId?: string;
 }): Promise<{ success: boolean; postId: string }> => {
   const res = await api.post(`/social/meta/publish`, payload);
