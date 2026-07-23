@@ -506,7 +506,7 @@ function HistoryRow({
     </Paper>
 
     <Dialog open={scheduleOpen} onClose={() => setScheduleOpen(false)} fullWidth maxWidth="xs"
-      PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } }}>
+      slotProps={{ paper: { sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } } }}>
       <Box sx={{ px: 3, pt: 3, pb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
         <ScheduleIcon sx={{ color: "#a78bfa", fontSize: 22 }} />
         <Box>
@@ -564,7 +564,7 @@ function HistoryRow({
               fullWidth
               value={scheduleAt}
               onChange={(e) => setScheduleAt(e.target.value)}
-              inputProps={{ min: new Date().toISOString().slice(0, 16) }}
+              slotProps={{ htmlInput: { min: new Date().toISOString().slice(0, 16) } }}
               sx={{
                 mb: 2.5,
                 "& .MuiOutlinedInput-root": {
@@ -606,7 +606,7 @@ function HistoryRow({
                 fullWidth
                 value={campaignDateInput}
                 onChange={(e) => setCampaignDateInput(e.target.value)}
-                inputProps={{ min: new Date().toISOString().slice(0, 10) }}
+                slotProps={{ htmlInput: { min: new Date().toISOString().slice(0, 10) } }}
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
@@ -689,7 +689,7 @@ function HistoryRow({
     </Dialog>
 
     <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs"
-      PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } }}>
+      slotProps={{ paper: { sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } } }}>
       <Box sx={{ px: 3, pt: 3, pb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
         <EditCalendarIcon sx={{ color: "#34d399", fontSize: 22 }} />
         <Box>
@@ -705,7 +705,7 @@ function HistoryRow({
           fullWidth
           value={editAt}
           onChange={(e) => setEditAt(e.target.value)}
-          inputProps={{ min: new Date().toISOString().slice(0, 16) }}
+          slotProps={{ htmlInput: { min: new Date().toISOString().slice(0, 16) } }}
           sx={{
             mb: 2.5,
             "& .MuiOutlinedInput-root": {

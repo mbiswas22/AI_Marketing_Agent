@@ -302,7 +302,7 @@ export function BusinessManagementPanel() {
 
       {/* Success Dialog */}
       <Dialog open={!!createdBusinessId} onClose={() => setCreatedBusinessId(null)} fullWidth maxWidth="xs"
-        PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)", mx: { xs: 2, sm: 3 } } }}>
+        slotProps={{ paper: { sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)", mx: { xs: 2, sm: 3 } } } }}>
         <Box sx={{ p: { xs: 3, sm: 4 }, textAlign: "center" }}>
           <CheckCircleOutlineIcon sx={{ color: "#22c55e", fontSize: 48, mb: 1.5 }} />
           <Typography sx={{ color: "#f0eeff", fontSize: 17, fontWeight: 700, mb: 0.5 }}>Business Created!</Typography>
@@ -327,7 +327,7 @@ export function BusinessManagementPanel() {
 
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm"
-        PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)", mx: { xs: 2, sm: 3 }, width: { xs: "calc(100% - 32px)", sm: "100%" } } }}>
+        slotProps={{ paper: { sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)", mx: { xs: 2, sm: 3 }, width: { xs: "calc(100% - 32px)", sm: "100%" } } } }}>
         <Box sx={{ px: { xs: 3, sm: 4 }, pt: 3.5, pb: 2, display: "flex", alignItems: "center", gap: 2 }}>
           <Box sx={{ bgcolor: "rgba(124,109,240,0.18)", borderRadius: "12px", p: "10px", display: "flex", border: "1px solid rgba(124,109,240,0.25)" }}>
             {editingBusiness ? <EditOutlinedIcon sx={{ color: "#5140d0", fontSize: 22 }} /> : <AddBusinessIcon sx={{ color: "#5140d0", fontSize: 22 }} />}
@@ -351,8 +351,7 @@ export function BusinessManagementPanel() {
               value={form.businessName}
               onChange={(e) => handleFieldChange("businessName", e.target.value)}
               error={!!fieldErrors.businessName}
-              InputProps={{ sx: fieldInputSx(!!fieldErrors.businessName) }}
-              InputLabelProps={{ shrink: false }}
+              slotProps={{ input: { sx: fieldInputSx(!!fieldErrors.businessName) } }}
               sx={{ "& .MuiInputLabel-root": { display: "none" }, "& .MuiFormHelperText-root": { color: "#ef4444", fontSize: 12, mx: 0, mt: 0.6 } }}
               helperText={fieldErrors.businessName} />
           </Box>
@@ -367,8 +366,7 @@ export function BusinessManagementPanel() {
               <TextField fullWidth placeholder="e.g. Logistics, Agriculture..."
                 value={form.customType}
                 onChange={(e) => handleFieldChange("customType", e.target.value)}
-                InputProps={{ sx: fieldInputSx(false) }}
-                InputLabelProps={{ shrink: false }}
+                slotProps={{ input: { sx: fieldInputSx(false) } }}
                 sx={{ mt: 1.5, "& .MuiInputLabel-root": { display: "none" } }} />
             )}
           </Box>
@@ -380,8 +378,7 @@ export function BusinessManagementPanel() {
                   value={form.ownerName}
                   onChange={(e) => handleFieldChange("ownerName", e.target.value)}
                   error={!!fieldErrors.ownerName}
-                  InputProps={{ sx: fieldInputSx(!!fieldErrors.ownerName) }}
-                  InputLabelProps={{ shrink: false }}
+                slotProps={{ input: { sx: fieldInputSx(!!fieldErrors.ownerName) } }}
                   sx={{ "& .MuiInputLabel-root": { display: "none" }, "& .MuiFormHelperText-root": { color: "#ef4444", fontSize: 12, mx: 0, mt: 0.6 } }}
                   helperText={fieldErrors.ownerName} />
               </Box>
@@ -391,8 +388,7 @@ export function BusinessManagementPanel() {
                   value={form.ownerEmail}
                   onChange={(e) => handleFieldChange("ownerEmail", e.target.value)}
                   error={!!fieldErrors.ownerEmail}
-                  InputProps={{ sx: fieldInputSx(!!fieldErrors.ownerEmail) }}
-                  InputLabelProps={{ shrink: false }}
+                slotProps={{ input: { sx: fieldInputSx(!!fieldErrors.ownerEmail) } }}
                   sx={{ "& .MuiInputLabel-root": { display: "none" }, "& .MuiFormHelperText-root": { color: "#ef4444", fontSize: 12, mx: 0, mt: 0.6 } }}
                   helperText={fieldErrors.ownerEmail} />
               </Box>

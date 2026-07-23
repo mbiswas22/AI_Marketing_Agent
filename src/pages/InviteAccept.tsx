@@ -381,7 +381,7 @@ export default function InviteAccept() {
                       onChange={(e) => setBusinessType(e.target.value)}
                       sx={inputSx(false)}
                       MenuProps={{
-                        PaperProps: {
+                        slotProps: { paper: {
                           sx: {
                             bgcolor: "#13131e",
                             border: "1px solid #383850",
@@ -397,7 +397,7 @@ export default function InviteAccept() {
                               bgcolor: "rgba(124,109,240,0.18) !important",
                             },
                           },
-                        },
+                        }},
                       }}
                     >
                       {INDUSTRIES.map((ind) => (

@@ -465,7 +465,7 @@ export default function Schedules() {
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs"
-        PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } }}>
+        slotProps={{ paper: { sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } } }}>
         <Box sx={{ px: 3, pt: 3, pb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
           <EditCalendarIcon sx={{ color: "#a78bfa", fontSize: 22 }} />
           <Box>
@@ -481,7 +481,7 @@ export default function Schedules() {
             fullWidth
             value={editAt}
             onChange={(e) => setEditAt(e.target.value)}
-            inputProps={{ min: new Date().toISOString().slice(0, 16) }}
+            slotProps={{ htmlInput: { min: new Date().toISOString().slice(0, 16) } }}
             sx={{
               "& .MuiOutlinedInput-root": {
                 color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
@@ -510,7 +510,7 @@ export default function Schedules() {
 
       {/* Delete Confirm Dialog */}
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} fullWidth maxWidth="xs"
-        PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } }}>
+        slotProps={{ paper: { sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } } }}>
         <Box sx={{ px: 3, pt: 3, pb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
           <DeleteIcon sx={{ color: "#ef4444", fontSize: 22 }} />
           <Box>
