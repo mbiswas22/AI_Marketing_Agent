@@ -253,6 +253,7 @@ export default function Dashboard() {
 
       await publishToLinkedIn({
         text: caption || undefined,
+        businessId: businessId ?? "",
         ...(imageKey && { image_key: imageKey }),
         ...(resultActionId && { action_id: resultActionId }),
         ...(resultCreatedAt && { createdAt: resultCreatedAt }),
