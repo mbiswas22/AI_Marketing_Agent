@@ -13,9 +13,10 @@ from adapters.linkedin import LinkedInAdapter
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-dynamodb = boto3.resource("dynamodb", region_name="us-east-2")
+dynamodb         = boto3.resource("dynamodb", region_name="us-east-2")
 connections_table = dynamodb.Table("social-connections")
-user_table = dynamodb.Table("user")
+user_table        = dynamodb.Table("user")
+audit_table       = dynamodb.Table("AuditEvent")
 
 FRONTEND_URL = os.environ["FRONTEND_URL"]
 META_REDIRECT_URI = os.environ["META_REDIRECT_URI"]
@@ -38,6 +39,25 @@ REDIRECT_URIS = {
     "meta": META_REDIRECT_URI,
     "linkedin": LINKEDIN_REDIRECT_URI,
 }
+
+
+def write_audit_event(action, user_id, entity_id, result="SUCCESS", metadata=None):
+    try:
+        event_id = "EVT-" + str(uuid.uuid4())[:8].upper()
+        item = {
+            "eventId":   event_id,
+            "action":    action,
+            "userId":    user_id or "unknown",
+            "entityId":  entity_id,
+            "result":    result,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if metadata:
+            item["metadata"] = metadata
+        audit_table.put_item(Item=item)
+        logger.info("Wrote audit event: %s action=%s entity=%s", event_id, action, entity_id)
+    except Exception as e:
+        logger.error("Failed to write audit event: %s", str(e))
 
 
 def json_response(status_code, body):
@@ -198,6 +218,13 @@ def handle_callback(event, adapter_key):
             }
             connections_table.put_item(Item=item)
             logger.info("callback: saved %s connection for businessId=%s", platform, business_id)
+            write_audit_event(
+                action="ENABLE_CHANNEL",
+                user_id=state_payload.get("connectedByUserId", business_id),
+                entity_id=business_id,
+                result="SUCCESS",
+                metadata={"platform": platform, "adapter": adapter_key}
+            )
 
         return redirect_response(f"{FRONTEND_URL}/settings?{adapter_key}=success")
 
@@ -297,6 +324,13 @@ def handle_delete_connection(event, platform):
         sk = f"{platform}#{connection_id}"
         connections_table.delete_item(Key={"businessId": business_id, "platform": sk})
         logger.info("delete_connection: deleted platform=%s connectionId=%s for businessId=%s", platform, connection_id, business_id)
+        write_audit_event(
+            action="DISABLE_CHANNEL",
+            user_id=get_sub_from_claims(event),
+            entity_id=business_id,
+            result="SUCCESS",
+            metadata={"platform": platform, "connectionId": connection_id}
+        )
         return json_response(200, {"deleted": True})
 
     except Exception as e:
