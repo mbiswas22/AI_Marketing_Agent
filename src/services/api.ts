@@ -8,6 +8,7 @@ import { fetchAuthSession } from "aws-amplify/auth";
  const API_URL = "https://l9k0b4he7h.execute-api.us-east-2.amazonaws.com/dev";
 
 export const api = axios.create({ baseURL: API_URL });
+export const publicApi = axios.create({ baseURL: API_URL });
 
 api.interceptors.request.use(async (config) => {
   const session = await fetchAuthSession();
@@ -222,7 +223,7 @@ export interface InvitationResponse {
 }
 
 export const getInvitation = async (invitationId: string): Promise<InvitationResponse> => {
-  const res = await api.get(`/invitations/${invitationId}`);
+  const res = await publicApi.get(`/invitations/${invitationId}`);
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return data?.invitation ?? data;
 };
