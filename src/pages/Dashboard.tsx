@@ -73,7 +73,6 @@ export default function Dashboard() {
 
   const [fileName, setFileName] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [url] = useState("");
   const [business, setBusiness] = useState(DEMO_BUSINESSES[0]);
   const [customBusiness, setCustomBusiness] = useState("");
   const [contentType, setContentType] = useState("flyer");
@@ -253,6 +252,7 @@ export default function Dashboard() {
 
       await publishToLinkedIn({
         text: caption || undefined,
+        businessId: businessId ?? "",
         ...(imageKey && { image_key: imageKey }),
         ...(resultActionId && { action_id: resultActionId }),
         ...(resultCreatedAt && { createdAt: resultCreatedAt }),
@@ -478,13 +478,100 @@ export default function Dashboard() {
   };
 
   const handleDownload = () => {
-    const blob = new Blob([caption ?? ""], { type: "text/plain" });
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `generated-content.${selectedFormat || "txt"}`;
-    a.click();
-    URL.revokeObjectURL(objectUrl);
+    // Handle image download
+    if (
+      resultImageUrl &&
+      (selectedFormat === "jpeg" ||
+        selectedFormat === "png" ||
+        contentType === "image")
+    ) {
+      const a = document.createElement("a");
+      a.href = resultImageUrl;
+      a.download = `generated-image.${selectedFormat === "jpeg" ? "jpg" : "png"}`;
+      a.target = "_blank";
+      a.click();
+      return;
+    }
+
+    if (!caption) return;
+    const fullContent = [
+      title ? `# ${title}\n\n` : "",
+      caption,
+      offer ? `\n\nOffer: ${offer}` : "",
+      callToAction ? `\n\nCall to Action: ${callToAction}` : "",
+      hashtags.length > 0 ? `\n\n${hashtags.join(" ")}` : "",
+    ].join("");
+
+    if (selectedFormat === "html") {
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>${title || "Marketing Content"}</title>
+<style>body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6;}
+h1{color:#333;}p{color:#555;}.hashtags{color:#7c6df0;margin-top:20px;}.cta{background:#7c3aed;color:#fff;padding:10px 20px;border-radius:6px;display:inline-block;margin-top:16px;text-decoration:none;}</style>
+</head>
+<body>
+${title ? `<h1>${title}</h1>` : ""}
+<p>${caption.replace(/\n/g, "</p><p>")}</p>
+${offer ? `<p><strong>Offer:</strong> ${offer}</p>` : ""}
+${callToAction ? `<a class="cta">${callToAction}</a>` : ""}
+${hashtags.length > 0 ? `<p class="hashtags">${hashtags.join(" ")}</p>` : ""}
+</body></html>`;
+      const blob = new Blob([html], { type: "text/html" });
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = "generated-content.html";
+      a.click();
+      URL.revokeObjectURL(objectUrl);
+    } else if (selectedFormat === "pdf") {
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        printWindow.document.write(`<!DOCTYPE html>
+<html><head><title>${title || "Marketing Content"}</title>
+<style>body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6;}h1{color:#333;}p{color:#555;}.hashtags{color:#6d28d9;}.cta{font-weight:bold;color:#7c3aed;}</style>
+</head><body>
+${title ? `<h1>${title}</h1>` : ""}
+<p>${caption.replace(/\n/g, "</p><p>")}</p>
+${offer ? `<p><strong>Offer:</strong> ${offer}</p>` : ""}
+${callToAction ? `<p class="cta">👉 ${callToAction}</p>` : ""}
+${hashtags.length > 0 ? `<p class="hashtags">${hashtags.join(" ")}</p>` : ""}
+</body></html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 500);
+      }
+    } else if (selectedFormat === "docx" || selectedFormat === "word") {
+      // Generate RTF which Word can open
+      const rtf = `{\\rtf1\\ansi\\deff0
+{\\fonttbl{\\f0 Arial;}}
+{\\colortbl;\\red124\\green109\\blue240;}
+\\f0\\fs24
+${title ? `{\\b\\fs32 ${title}}\\par\\par` : ""}
+${caption.replace(/\n/g, "\\par ")}
+${offer ? `\\par\\par {\\b Offer:} ${offer}` : ""}
+${callToAction ? `\\par\\par {\\b Call to Action:} ${callToAction}` : ""}
+${hashtags.length > 0 ? `\\par\\par {\\cf1 ${hashtags.join(" ")}}` : ""}
+}`;
+      const blob = new Blob([rtf], { type: "application/rtf" });
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = "generated-content.rtf";
+      a.click();
+      URL.revokeObjectURL(objectUrl);
+    } else {
+      // Plain text default
+      const blob = new Blob([fullContent], { type: "text/plain" });
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = "generated-content.txt";
+      a.click();
+      URL.revokeObjectURL(objectUrl);
+    }
   };
 
   const togglePlatform = (val: string) =>

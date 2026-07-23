@@ -38,7 +38,7 @@ def lambda_handler(event, context):
         user_id = user['user_id']
 
         action_id = str(uuid.uuid4())
-        business = body.get("business", "My Business")
+        business = body.get("business", "My Business") # TODO: need to get bussiness id from UI
         prompt = body.get("prompt", "")
         platforms = body.get("platforms", [])
 
@@ -173,20 +173,3 @@ def generate_flyer_image(image_prompt):
 
     result = json.loads(response["body"].read())
     return base64.b64decode(result["images"][0])
-
-
-# ============================================================
-# API Response
-# ============================================================
-
-def api_response(status_code, body):
-    return {
-        "statusCode": status_code,
-        "headers": {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type,Authorization",
-            "Access-Control-Allow-Methods": "POST,OPTIONS",
-            "Content-Type": "application/json"
-        },
-        "body": json.dumps(body, default=str)
-    }
