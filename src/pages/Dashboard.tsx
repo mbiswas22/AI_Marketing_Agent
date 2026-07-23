@@ -291,6 +291,7 @@ export default function Dashboard() {
 
       await publishToFacebook({
         text: caption || undefined,
+        businessId: businessId ?? "",
         ...(imageKey && { image_key: imageKey }),
       });
       setPublishSnackbar({

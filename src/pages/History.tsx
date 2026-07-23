@@ -204,7 +204,7 @@ function HistoryRow({
     const image_key = item.image_key || item.s3_key;
     setPublishingFacebook(true);
     try {
-      await publishToFacebook({ text: text || undefined, image_key: image_key || undefined });
+      await publishToFacebook({ text: text || undefined, image_key: image_key || undefined, businessId: businessId ?? "" });
       onPublishResult(true, "Posted to Facebook successfully");
     } catch (err) {
       const msg = (err as any)?.response?.data?.error || "Failed to post to Facebook";
