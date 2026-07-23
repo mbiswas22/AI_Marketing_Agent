@@ -331,6 +331,7 @@ export const publishToLinkedIn = async (payload: {
 export const publishToFacebook = async (payload: {
   text?: string;
   image_key?: string;
+  businessId: string;
 }): Promise<{ success: boolean; postId: string }> => {
   const res = await api.post(`/social/meta/publish`, payload);
   return res.data;
