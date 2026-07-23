@@ -777,13 +777,13 @@ export default function History() {
 
   useEffect(() => {
     const userId = user?.userId ?? user?.username ?? "unknown";
-    getHistory(userId)
+    getHistory(userId, businessId ?? undefined)
       .then((items) =>
         setHistory([...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
       )
       .catch(() => setError("Failed to load history."))
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, businessId]);
 
   useEffect(() => {
     (async () => {
@@ -851,7 +851,7 @@ export default function History() {
               setLoading(true);
               setError(null);
               const userId = user?.userId ?? user?.username ?? "unknown";
-              getHistory(userId)
+              getHistory(userId, businessId ?? undefined)
                 .then((items) =>
                   setHistory([...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
                 )

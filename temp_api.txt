@@ -5,7 +5,7 @@ import { fetchAuthSession } from "aws-amplify/auth";
 // const API_URL = "https://pm5vf9za4a.execute-api.us-east-2.amazonaws.com/dev";
 
 //DEV
-const API_URL = "https://l9k0b4he7h.execute-api.us-east-2.amazonaws.com/dev";
+ const API_URL = "https://l9k0b4he7h.execute-api.us-east-2.amazonaws.com/dev";
 
 export const api = axios.create({ baseURL: API_URL });
 export const publicApi = axios.create({ baseURL: API_URL });
@@ -73,7 +73,7 @@ export const generateCaption = async (
     business,
     contentType,
     platforms,
-    modelId: "us." + modelId,
+    modelId: 'us.' + modelId,
     ...(imageBase64 && { image_base64: imageBase64 }),
     ...(businessId && { businessId }),
   });
@@ -96,7 +96,6 @@ export const generateImage = async (prompt: string, business?: string, businessI
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   return data.imageUrl || data.image_url;
 };
-
 // =========== Model
 export interface BedrockModel {
   modelId: string;
@@ -125,9 +124,10 @@ export interface HistoryItem {
   status?: string;
 }
 
-export const getHistory = async (userId?: string, businessId?: string): Promise<HistoryItem[]> => {
-  const res = await api.get(`/history`, { params: { ...(businessId ? { businessId } : { userId }) } });
+export const getHistory = async (userId?: string): Promise<HistoryItem[]> => {
+  const res = await api.get(`/history`, { params: userId ? { userId } : {} });
   let data = res.data;
+  // Unwrap any level of stringification
   while (typeof data === "string") {
     try { data = JSON.parse(data); } catch { break; }
   }
@@ -165,7 +165,10 @@ export const createUser = async (data: {
   return res.data;
 };
 
-export const deleteUser = async (businessId: string, userId: string): Promise<void> => {
+export const deleteUser = async (
+  businessId: string,
+  userId: string
+): Promise<void> => {
   await api.delete(`/users/${userId}`, { params: { businessId } });
 };
 
@@ -190,6 +193,7 @@ export const updateUser = async (
   const res = await api.put(`/users/${userId}`, data);
   return res.data;
 };
+
 
 // =============== Invite User
 export interface InviteUserPayload {
@@ -332,15 +336,6 @@ export const publishToLinkedIn = async (payload: {
   createdAt?: string;
   businessId?: string;
 }): Promise<{ success: boolean; postId: string }> => {
-  const res = await api.post(`/social/linkedin/publish`, payload);
-  return res.data;
-};
-
-export const publishToFacebook = async (payload: {
-  text?: string;
-  image_key?: string;
-  businessId?: string;
-}): Promise<{ success: boolean; postId: string }> => {
   const res = await api.post(`/social/meta/publish`, payload);
   return res.data;
 };
@@ -382,26 +377,38 @@ export interface CrawlWebsiteResponse {
 }
 
 export const viewSchedule = async (schedule_id: string): Promise<Record<string, unknown>> => {
-  const res = await api.post(`/schedule`, { action: "view_schedule", body: { schedule_id } });
+  const res = await api.post(`/schedule`, {
+    action: "view_schedule",
+    body: { schedule_id },
+  });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   if (data.error) throw new Error(data.error);
   return data;
 };
 
 export const deleteSchedule = async (schedule_id: string): Promise<void> => {
-  const res = await api.post(`/schedule`, { action: "delete_schedule", body: { schedule_id } });
+  const res = await api.post(`/schedule`, {
+    action: "delete_schedule",
+    body: { schedule_id },
+  });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   if (data.error) throw new Error(data.error);
 };
 
 export const reactivateSchedule = async (schedule_id: string): Promise<void> => {
-  const res = await api.post(`/schedule`, { action: "reactivate_schedule", body: { schedule_id } });
+  const res = await api.post(`/schedule`, {
+    action: "reactivate_schedule",
+    body: { schedule_id },
+  });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   if (data.error) throw new Error(data.error);
 };
 
 export const inactiveSchedule = async (schedule_id: string): Promise<void> => {
-  const res = await api.post(`/schedule`, { action: "inactive_schedule", body: { schedule_id } });
+  const res = await api.post(`/schedule`, {
+    action: "inactive_schedule",
+    body: { schedule_id },
+  });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   if (data.error) throw new Error(data.error);
 };
@@ -411,7 +418,10 @@ export const updateSchedule = async (payload: {
   schedule_expression: string;
   timezone?: string;
 }): Promise<{ message: string; schedule_id: string }> => {
-  const res = await api.post(`/schedule`, { action: "update_schedule", body: payload });
+  const res = await api.post(`/schedule`, {
+    action: "update_schedule",
+    body: payload,
+  });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   if (data.error) throw new Error(data.error);
   return data;
@@ -431,21 +441,30 @@ export const createSchedule = async (payload: {
   connectionId?: string;
   createdByUserId?: string;
 }): Promise<{ message: string; schedule_id: string; schedule_name: string }> => {
-  const res = await api.post(`/schedule`, { action: "create_schedule", body: payload });
+  const res = await api.post(`/schedule`, {
+    action: "create_schedule",
+    body: payload,
+  });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   if (data.error) throw new Error(data.error);
   return data;
 };
 
 export const listSchedules = async (businessId: string): Promise<Record<string, unknown>[]> => {
-  const res = await api.post(`/schedule`, { action: "list_schedules", body: { businessId } });
+  const res = await api.post(`/schedule`, {
+    action: "list_schedules",
+    body: { businessId },
+  });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   if (data.error) throw new Error(data.error);
   return Array.isArray(data) ? data : [];
 };
 
 export const listScheduleLogs = async (businessId: string): Promise<Record<string, unknown>[]> => {
-  const res = await api.post(`/schedule`, { action: "list_logs", body: { businessId } });
+  const res = await api.post(`/schedule`, {
+    action: "list_logs",
+    body: { businessId },
+  });
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
   if (data.error) throw new Error(data.error);
   return Array.isArray(data) ? data : [];
@@ -465,3 +484,5 @@ export const crawlWebsite = async (
   });
   return res.data;
 };
+
+
