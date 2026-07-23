@@ -28,5 +28,4 @@ __pycache__/
 *.pyc
 *.pyo
 
-# AWS config (contains sensitive Cognito credentials)
-src/aws-config.ts
+
