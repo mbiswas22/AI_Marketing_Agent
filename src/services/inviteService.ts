@@ -30,6 +30,14 @@ export async function sendUserInvite(params: SendUserInviteParams): Promise<void
   await sendInviteEmail({
     toEmail: params.userEmail,
     subject: "You're invited to MarketingAI",
-    message: `Hi ${params.userName},\n\nYou've been invited to join MarketingAI as ${params.role}.\n\nAccept your invitation here: ${invitationLink}\n\nThis link expires in 24 hours.`,
+    message: `Hi ${params.userName},<br><br>
+You've been invited to join MarketingAI as a ${params.role}.<br><br>
+Your secure invitation link: <a href="${invitationLink}">${invitationLink}</a><br><br>
+This link expires in 24 hours.<br><br>
+If you experience any issues signing in, accessing your account, or completing setup, our IT Experts are ready to help.<br><br>
+<strong>IT Expert System, INC</strong><br>
+Address: 951 N Plum Grove Rd, Suite A, Schaumburg, IL 60173<br>
+Phone: (847) 350-9034<br>
+Hours: Monday to Saturday 7:45 AM – 9:00 PM, Sunday 9:00 AM – 5:00 PM`,
   });
 }
