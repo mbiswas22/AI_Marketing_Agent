@@ -100,7 +100,7 @@ function HistoryRow({
   const [publishingFacebook, setPublishingFacebook] = useState(false);
   const [publishingInstagram, setPublishingInstagram] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [scheduleBusinessId, setScheduleBusinessId] = useState("");
+  const [scheduleBusinessId, setScheduleBusinessId] = useState(businessId || "");
   const [schedulePlatform, setSchedulePlatform] = useState("linkedin");
   const [scheduling, setScheduling] = useState(false);
   const [scheduleId, setScheduleId] = useState<string | null>(null);
@@ -419,7 +419,7 @@ function HistoryRow({
               <Tooltip title="Schedule post" placement="top">
                 <IconButton
                   size="small"
-                  onClick={(e) => { e.stopPropagation(); setScheduleOpen(true); }}
+                  onClick={(e) => { e.stopPropagation(); setScheduleBusinessId(businessId || ""); setScheduleOpen(true); }}
                   sx={{ color: "#a78bfa", p: "6px", "&:hover": { bgcolor: "rgba(139,92,246,0.1)" } }}
                 >
                   <ScheduleIcon sx={{ fontSize: 18 }} />
