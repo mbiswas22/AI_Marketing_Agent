@@ -287,20 +287,22 @@ def lambda_handler(event, context):
 def generate_flyer_content(business, prompt, platforms):
     TEXT_MODEL = os.environ.get("TEXT_MODEL", "us.amazon.nova-micro-v1:0")
     platforms_str = ", ".join(platforms) if platforms else "social media"
-    marketing_prompt = f"""
-Create a professional marketing flyer.
-Business: {business}
-Campaign Details: {prompt}
-Target Platforms: {platforms_str}
-Return ONLY valid JSON:
-{{
-  "title":"Flyer headline",
-  "caption":"Marketing flyer content",
-  "offer":"Special offer text",
-  "call_to_action":"Short CTA",
-  "image_prompt":"Detailed flyer background image description"
-}}
-"""
+    marketing_prompt = (
+        f"You are an expert marketing copywriter. Create a professional marketing flyer "
+        f"based EXACTLY on the user's request below. Do NOT ignore the user's prompt.\n\n"
+        f"Business: {business}\n"
+        f"Target Platforms: {platforms_str}\n\n"
+        f"User's Request (this is the primary content driver — follow it precisely):\n"
+        f"{prompt}\n\n"
+        f"Return ONLY valid JSON:\n"
+        f'{{\n'
+        f'  "title": "Flyer headline directly based on the user request",\n'
+        f'  "caption": "Detailed marketing copy that addresses the user request",\n'
+        f'  "offer": "Special offer or value proposition from the user request",\n'
+        f'  "call_to_action": "Short CTA relevant to the user request",\n'
+        f'  "image_prompt": "Detailed visual description matching the user request"\n'
+        f'}}'
+    )
     response = bedrock_text.converse(
         modelId=TEXT_MODEL,
         messages=[{"role": "user", "content": [{"text": marketing_prompt}]}],

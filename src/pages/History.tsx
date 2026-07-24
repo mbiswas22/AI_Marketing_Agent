@@ -6,7 +6,7 @@ import {
   Box, Typography, Button, Paper,
   CircularProgress, Chip, Collapse, IconButton,
   Tooltip, Snackbar, Alert, Dialog, DialogContent,
-  DialogActions, TextField, Divider,
+  DialogActions, TextField, Divider, Select, MenuItem,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -28,6 +28,45 @@ import { getHistory, getSocialConnections, publishToLinkedIn, getMetaPages, publ
 import type { HistoryItem, Business } from "../services/api";
 import { getUserAttributes } from "../services/auth";
 import "../styles/history.css";
+
+const TIMEZONES = [
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Anchorage",
+  "Pacific/Honolulu",
+  "America/Toronto",
+  "America/Vancouver",
+  "America/Sao_Paulo",
+  "America/Argentina/Buenos_Aires",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Europe/Moscow",
+  "Africa/Lagos",
+  "Africa/Nairobi",
+  "Africa/Johannesburg",
+  "Asia/Dubai",
+  "Asia/Kolkata",
+  "Asia/Dhaka",
+  "Asia/Bangkok",
+  "Asia/Singapore",
+  "Asia/Shanghai",
+  "Asia/Tokyo",
+  "Asia/Seoul",
+  "Australia/Sydney",
+  "Pacific/Auckland",
+  "UTC",
+];
+
+const tzSelectSx = {
+  color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px", fontSize: 13,
+  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#383850" },
+  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
+  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
+  "& .MuiSelect-select": { py: "10px", px: "12px" },
+};
 
 const CONTENT_TYPE_ICONS: Record<string, ReactElement> = {
   flyer: <CampaignIcon sx={{ fontSize: 14 }} />,
@@ -107,11 +146,13 @@ function HistoryRow({
   // Campaign mode
   const [campaignMode, setCampaignMode] = useState(false);
   const [scheduleAt, setScheduleAt] = useState("");
+  const [scheduleTimezone, setScheduleTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [campaignDates, setCampaignDates] = useState<string[]>([]);
   const [campaignTime, setCampaignTime] = useState("09:00");
   const [campaignDateInput, setCampaignDateInput] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [editAt, setEditAt] = useState("");
+  const [editTimezone, setEditTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [editPlatform, setEditPlatform] = useState("linkedin");
   const [editing, setEditing] = useState(false);
   const navigate = useNavigate();
@@ -140,19 +181,19 @@ function HistoryRow({
     try {
       const results = await Promise.all(
         datesToSchedule.map((dateStr) => {
-          const dt = campaignMode
-            ? new Date(`${dateStr}T${campaignTime}:00`)
-            : new Date(dateStr);
+          const expression = campaignMode
+            ? `at(${dateStr}T${campaignTime}:00)`
+            : `at(${dateStr.slice(0, 16).replace("T", "T")}:00)`.replace(":00:00", ":00");
           return createSchedule({
             user_id: userId,
             businessId: scheduleBusinessId.trim(),
             platform: schedulePlatform,
             content_type: item.content_type || "social_caption",
-            schedule_expression: `at(${dt.toISOString().slice(0, 19)})`,
+            schedule_expression: expression,
             input_type: "text",
             input_value: item.prompt || item.input_value || item.caption || "marketing post",
             business: item.business || "My Business",
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            timezone: scheduleTimezone,
             createdByUserId: userId,
           });
         })
@@ -186,8 +227,8 @@ function HistoryRow({
     try {
       await updateSchedule({
         schedule_id: scheduleId,
-        schedule_expression: `at(${new Date(editAt).toISOString().slice(0, 19)})`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        schedule_expression: `at(${editAt.slice(0, 16)}:00)`,
+        timezone: editTimezone,
       });
       setEditOpen(false);
       onPublishResult(true, `Schedule updated to ${new Date(editAt).toLocaleString()}`);
@@ -647,6 +688,22 @@ function HistoryRow({
         )}
 
         {/* Platform */}
+        <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Timezone</Typography>
+        <Select
+          fullWidth
+          value={scheduleTimezone}
+          onChange={(e) => setScheduleTimezone(e.target.value)}
+          sx={{ ...tzSelectSx, mb: 2.5 }}
+          MenuProps={{ PaperProps: { sx: { bgcolor: "#141418", border: "0.5px solid #2a2a35", color: "#e0dcf8", maxHeight: 260 } } } as any}
+        >
+          {TIMEZONES.map((tz) => (
+            <MenuItem key={tz} value={tz} sx={{ fontSize: 13, "&:hover": { bgcolor: "rgba(124,109,240,0.1)" }, "&.Mui-selected": { bgcolor: "rgba(124,109,240,0.15)" } }}>
+              {tz}
+            </MenuItem>
+          ))}
+        </Select>
+
+        {/* Platform */}
         <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 1 }}>Platform</Typography>
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           {Object.entries(PLATFORM_INFO).map(([key, info]) => (
@@ -717,6 +774,20 @@ function HistoryRow({
             "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
           }}
         />
+        <Typography sx={{ color: "#34d399", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Timezone</Typography>
+        <Select
+          fullWidth
+          value={editTimezone}
+          onChange={(e) => setEditTimezone(e.target.value)}
+          sx={{ ...tzSelectSx, mb: 2.5 }}
+          MenuProps={{ PaperProps: { sx: { bgcolor: "#141418", border: "0.5px solid #2a2a35", color: "#e0dcf8", maxHeight: 260 } } } as any}
+        >
+          {TIMEZONES.map((tz) => (
+            <MenuItem key={tz} value={tz} sx={{ fontSize: 13, "&:hover": { bgcolor: "rgba(124,109,240,0.1)" }, "&.Mui-selected": { bgcolor: "rgba(124,109,240,0.15)" } }}>
+              {tz}
+            </MenuItem>
+          ))}
+        </Select>
         <Typography sx={{ color: "#34d399", fontSize: 13, fontWeight: 600, mb: 1 }}>Platform</Typography>
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           {Object.entries(PLATFORM_INFO).map(([key, info]) => (

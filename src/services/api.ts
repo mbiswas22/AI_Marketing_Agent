@@ -26,6 +26,9 @@ export interface GenerateCaptionResponse {
   title?: string;
   offer?: string;
   call_to_action?: string;
+  action_id?: string;
+  created_at?: string;
+  s3_prefix?: string;
 }
 
 export interface GenerateAssetResponse {
@@ -376,7 +379,7 @@ export interface CrawlWebsiteResponse {
     hours: string;
     contact: { phone: string; email: string; address: string };
   };
-  marketing: { caption?: string; hashtags?: string[]; image_prompt?: string; headline?: string; subheadline?: string; call_to_action?: string };
+  marketing: { caption?: string; hashtags?: string[]; image_prompt?: string; headline?: string; subheadline?: string; call_to_action?: string; title?: string; offer?: string };
   imageUrl?: string;
   image_url?: string;
 }
@@ -457,11 +460,19 @@ export const crawlWebsite = async (
   platforms: string[],
   businessId?: string
 ): Promise<CrawlWebsiteResponse> => {
-  const res = await api.post<CrawlWebsiteResponse>(`/crawl`, {
+  const res = await api.post(`/crawl`, {
     url,
     contentType,
     platforms,
     ...(businessId && { businessId }),
   });
-  return res.data;
+  let data = res.data;
+  // Unwrap Lambda proxy response if needed
+  if (data && typeof data.body === "string") {
+    try { data = JSON.parse(data.body); } catch { /* use as-is */ }
+  }
+  while (typeof data === "string") {
+    try { data = JSON.parse(data); } catch { break; }
+  }
+  return data as CrawlWebsiteResponse;
 };

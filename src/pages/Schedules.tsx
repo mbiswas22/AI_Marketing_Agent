@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Box, Typography, Button, Paper, CircularProgress,
   Chip, IconButton, Tooltip, Snackbar, Alert, Dialog,
-  DialogContent, DialogActions, TextField, Divider,
+  DialogContent, DialogActions, TextField, Divider, Select, MenuItem,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -52,6 +52,23 @@ interface ScheduleLog {
   created_at: string;
 }
 
+const TIMEZONES = [
+  "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+  "America/Anchorage", "Pacific/Honolulu", "America/Toronto", "America/Vancouver",
+  "America/Sao_Paulo", "America/Argentina/Buenos_Aires", "Europe/London", "Europe/Paris",
+  "Europe/Berlin", "Europe/Moscow", "Africa/Lagos", "Africa/Nairobi", "Africa/Johannesburg",
+  "Asia/Dubai", "Asia/Kolkata", "Asia/Dhaka", "Asia/Bangkok", "Asia/Singapore",
+  "Asia/Shanghai", "Asia/Tokyo", "Asia/Seoul", "Australia/Sydney", "Pacific/Auckland", "UTC",
+];
+
+const tzSelectSx = {
+  color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px", fontSize: 13,
+  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#383850" },
+  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
+  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
+  "& .MuiSelect-select": { py: "10px", px: "12px" },
+};
+
 const PLATFORM_INFO: Record<string, { icon: JSX.Element; color: string; label: string }> = {
   facebook:  { icon: <FacebookIcon sx={{ fontSize: 14 }} />,  color: "#1877f2", label: "Facebook" },
   instagram: { icon: <InstagramIcon sx={{ fontSize: 14 }} />, color: "#e1306c", label: "Instagram" },
@@ -91,6 +108,7 @@ export default function Schedules() {
   const [editOpen, setEditOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Schedule | null>(null);
   const [editAt, setEditAt] = useState("");
+  const [editTimezone, setEditTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [editing, setEditing] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<Schedule | null>(null);
@@ -161,8 +179,8 @@ export default function Schedules() {
     try {
       await updateSchedule({
         schedule_id: editTarget.schedule_id,
-        schedule_expression: `at(${new Date(editAt).toISOString().slice(0, 19)})`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        schedule_expression: `at(${editAt.slice(0, 16)}:00)`,
+        timezone: editTimezone,
       });
       setEditOpen(false);
       notify(true, "Schedule updated successfully");
@@ -332,7 +350,7 @@ export default function Schedules() {
                         <span>
                           <IconButton size="small"
                             disabled={s.status === "inactive"}
-                            onClick={() => { setEditTarget(s); setEditAt(""); setEditOpen(true); }}
+                            onClick={() => { setEditTarget(s); setEditAt(""); setEditTimezone(s.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone); setEditOpen(true); }}
                             sx={{ color: "#a78bfa", p: "6px", "&:hover": { bgcolor: "rgba(139,92,246,0.1)" }, "&.Mui-disabled": { color: "#2a2a3a" } }}>
                             <EditCalendarIcon sx={{ fontSize: 17 }} />
                           </IconButton>
@@ -492,6 +510,20 @@ export default function Schedules() {
               "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
             }}
           />
+          <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mt: 2, mb: 0.8 }}>Timezone</Typography>
+          <Select
+            fullWidth
+            value={editTimezone}
+            onChange={(e) => setEditTimezone(e.target.value)}
+            sx={tzSelectSx}
+            MenuProps={{ PaperProps: { sx: { bgcolor: "#141418", border: "0.5px solid #2a2a35", color: "#e0dcf8", maxHeight: 260 } } } as any}
+          >
+            {TIMEZONES.map((tz) => (
+              <MenuItem key={tz} value={tz} sx={{ fontSize: 13, "&:hover": { bgcolor: "rgba(124,109,240,0.1)" }, "&.Mui-selected": { bgcolor: "rgba(124,109,240,0.15)" } }}>
+                {tz}
+              </MenuItem>
+            ))}
+          </Select>
         </DialogContent>
         <Divider sx={{ borderColor: "#2e2e42" }} />
         <DialogActions sx={{ px: 3, py: 2, gap: 1.5 }}>

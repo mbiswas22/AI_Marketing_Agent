@@ -383,16 +383,17 @@ export default function Dashboard() {
           selectedPlatforms,
           businessId ?? undefined,
         );
-        setCaption(result.marketing.caption ?? null);
-        setHashtags(result.marketing.hashtags ?? []);
-        // handle both imageUrl and image_url from crawler
-        const crawlerImage =
-          result.imageUrl || (result as any).image_url || null;
+        const r = result as any;
+        setCaption(r.caption ?? result.marketing?.caption ?? null);
+        setHashtags(r.hashtags ?? result.marketing?.hashtags ?? []);
+        if (r.title ?? result.marketing?.title) setTitle(r.title ?? result.marketing?.title);
+        if (r.offer ?? result.marketing?.offer) setOffer(r.offer ?? result.marketing?.offer);
+        const cta = r.call_to_action ?? result.marketing?.call_to_action;
+        if (cta) setCallToAction(cta);
+        const crawlerImage = r.image_url || result.imageUrl || null;
         if (crawlerImage) setResultImageUrl(crawlerImage);
-        if ((result as any).action_id)
-          setResultActionId((result as any).action_id);
-        if ((result as any).created_at)
-          setResultCreatedAt((result as any).created_at);
+        if (r.action_id) setResultActionId(r.action_id);
+        if (r.created_at) setResultCreatedAt(r.created_at);
       } else if (contentType === "image") {
         if (!prompt.trim()) {
           setError("Please enter a prompt describing the image you want to generate.");
@@ -430,9 +431,8 @@ export default function Dashboard() {
         if ((response.data as any).created_at)
           setResultCreatedAt((response.data as any).created_at);
       } else if (config.type === "caption") {
-        const enrichedPrompt = `You are an expert marketing copywriter. Create detailed, compelling ${contentType} content for the business "${effectiveBusiness}". ${prompt}. Write at least 3-4 paragraphs with a strong headline, body copy, and a clear call to action. Be specific, persuasive and professional.`;
         const response = await generateCaption(
-          enrichedPrompt,
+          prompt,
           effectiveBusiness,
           contentType,
           selectedPlatforms,
@@ -442,14 +442,17 @@ export default function Dashboard() {
         );
         setCaption(response.data.caption ?? null);
         setHashtags(response.data.hashtags ?? []);
+        if (response.data.image_url) setResultImageUrl(response.data.image_url);
+        if ((response.data as any).title) setTitle((response.data as any).title);
+        if ((response.data as any).offer) setOffer((response.data as any).offer);
+        if ((response.data as any).call_to_action) setCallToAction((response.data as any).call_to_action);
         if ((response.data as any).action_id)
           setResultActionId((response.data as any).action_id);
         if ((response.data as any).created_at)
           setResultCreatedAt((response.data as any).created_at);
       } else {
-        const enrichedPrompt = `You are an expert marketing copywriter. Create detailed, compelling ${contentType} content for the business "${effectiveBusiness}". ${prompt}. Write at least 3-4 paragraphs with a strong headline, body copy, and a clear call to action. Be specific, persuasive and professional.`;
         const response = await generateMarketAsset(
-          enrichedPrompt,
+          prompt,
           effectiveBusiness,
           contentType,
           selectedFormat,
