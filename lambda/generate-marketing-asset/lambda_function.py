@@ -13,6 +13,7 @@ dynamodb = boto3.resource("dynamodb", region_name="us-east-2")
 table          = dynamodb.Table(os.environ["DYNAMO_TABLE"])
 artifact_table = dynamodb.Table("Artifact")
 audit_table    = dynamodb.Table("AuditEvent")
+job_table      = dynamodb.Table("Job")
 
 s3 = boto3.client("s3", region_name="us-east-2")
 BUCKET = os.environ.get("S3_BUCKET", "kushtest-marketing-ai-assets")
@@ -60,6 +61,35 @@ def write_artifact(action_id, artifact_type, s3_key, size_bytes=0, width=None, h
         print(f"Wrote artifact: {artifact_id} type={artifact_type} key={s3_key}")
     except Exception as e:
         print(f"Failed to write artifact: {str(e)}")
+
+
+def write_job(action_id, business_id, user_id, user_email, content_type, model_id,
+              input_prompt, input_param, requested_at, now, s3_prefix, source_job_id="none"):
+    try:
+        duration_ms = int((datetime.utcnow() - now).total_seconds() * 1000)
+        job_table.put_item(Item={
+            "action_id":     action_id,
+            "businessId":    business_id,
+            "userId":        user_id,
+            "useremail":     user_email,
+            "channel":       "web",
+            "contentType":   content_type,
+            "modelId":       model_id,
+            "inputprompt":   input_prompt,
+            "inputparam":    input_param,
+            "requestedAt":   requested_at,
+            "durationMs":    str(duration_ms),
+            "estimatedCost": "0.00",
+            "totalToken":    "0",
+            "accuracyScore": "0.00",
+            "s3prefix":      s3_prefix,
+            "sourcejobId":   source_job_id,
+            "status":        "success",
+            "createdAt":     datetime.utcnow().isoformat(),
+        })
+        print(f"Wrote job record: {action_id}")
+    except Exception as e:
+        print(f"Failed to write job record: {str(e)}")
 
 
 def write_audit_event(action, user_id, entity_id, result="SUCCESS", metadata=None):
@@ -258,11 +288,9 @@ def lambda_handler(event, context):
             print(f"Successfully uploaded metadata: {metadata_key}")
 
         def write_record():
-            duration_ms = int((datetime.utcnow() - now).total_seconds() * 1000)
             table.put_item(Item={
                 "action_id":     action_id,
                 "user_id":       user_id,
-                "useremail":     user_email,
                 "business":      business,
                 "business_id":   business_id,
                 "content_type":  content_type,
@@ -278,17 +306,6 @@ def lambda_handler(event, context):
                 "image_model":   image_model_id,
                 "status":        "draft",
                 "created_at":    created_at,
-                # Job table fields
-                "channel":       "web",
-                "modelId":       image_model_id,
-                "inputprompt":   original_prompt,
-                "inputparam":    body.get("output_format", "plain_text"),
-                "requestedAt":   requested_at,
-                "durationMs":    str(duration_ms),
-                "estimatedCost": "0.00",
-                "totalToken":    "0",
-                "accuracyScore": "0.00",
-                "sourcejobId":   body.get("sourceJobId", "none"),
             })
             print(f"Successfully wrote record to DynamoDB: {action_id}")
 
@@ -296,6 +313,21 @@ def lambda_handler(event, context):
             executor.submit(upload_graphic).result()
             executor.submit(upload_metadata).result()
             executor.submit(write_record).result()
+
+        write_job(
+            action_id=action_id,
+            business_id=business_id,
+            user_id=user_id,
+            user_email=user_email,
+            content_type=content_type,
+            model_id=image_model_id,
+            input_prompt=original_prompt,
+            input_param=output_format,
+            requested_at=requested_at,
+            now=now,
+            s3_prefix=job_prefix,
+            source_job_id=body.get("sourceJobId", "none"),
+        )
 
         write_audit_event(
             action="CREATE_JOB",

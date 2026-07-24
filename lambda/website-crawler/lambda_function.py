@@ -15,6 +15,7 @@ s3            = boto3.client("s3", region_name="us-east-2")
 table          = dynamodb.Table(os.environ.get("DYNAMO_TABLE", "kushtest-MarketingActions"))
 artifact_table = dynamodb.Table("Artifact")
 audit_table    = dynamodb.Table("AuditEvent")
+job_table      = dynamodb.Table("Job")
 
 S3_BUCKET  = os.environ.get("S3_BUCKET", "kushtest-marketing-ai-assets")
 TEXT_MODEL = os.environ.get("TEXT_MODEL", "us.amazon.nova-micro-v1:0")
@@ -70,6 +71,35 @@ def write_artifact(action_id, artifact_type, s3_key, size_bytes=0, width=None, h
         print(f"Wrote artifact: {artifact_id} type={artifact_type} key={s3_key}")
     except Exception as e:
         print(f"Failed to write artifact: {str(e)}")
+
+
+def write_job(action_id, business_id, user_id, user_email, content_type, model_id,
+              input_prompt, input_param, requested_at, now, s3_prefix, source_job_id="none"):
+    try:
+        duration_ms = int((datetime.utcnow() - now).total_seconds() * 1000)
+        job_table.put_item(Item={
+            "action_id":     action_id,
+            "businessId":    business_id,
+            "userId":        user_id or "unknown",
+            "useremail":     user_email,
+            "channel":       "web",
+            "contentType":   content_type,
+            "modelId":       model_id,
+            "inputprompt":   input_prompt,
+            "inputparam":    input_param,
+            "requestedAt":   requested_at,
+            "durationMs":    str(duration_ms),
+            "estimatedCost": "0.00",
+            "totalToken":    "0",
+            "accuracyScore": "0.00",
+            "s3prefix":      s3_prefix,
+            "sourcejobId":   source_job_id,
+            "status":        "success",
+            "createdAt":     datetime.utcnow().isoformat(),
+        })
+        print(f"Wrote job record: {action_id}")
+    except Exception as e:
+        print(f"Failed to write job record: {str(e)}")
 
 
 def write_audit_event(action, user_id, entity_id, result="SUCCESS", metadata=None):
@@ -293,11 +323,9 @@ def lambda_handler(event, context):
             ContentType="application/json"
         )
 
-        duration_ms = int((datetime.utcnow() - now).total_seconds() * 1000)
         table.put_item(Item={
             "action_id":     action_id,
             "user_id":       user_id,
-            "useremail":     user_email,
             "business_id":   business_id,
             "business":      business_type,
             "content_type":  content_type,
@@ -311,19 +339,23 @@ def lambda_handler(event, context):
             "s3_prefix":     job_prefix,
             "status":        "draft",
             "created_at":    created_at,
-            # Job table fields
-            "channel":       "web",
-            "modelId":       "stability.stable-image-core-v1:1",
-            "inputprompt":   url,
-            "inputparam":    content_type,
-            "requestedAt":   requested_at,
-            "durationMs":    str(duration_ms),
-            "estimatedCost": "0.00",
-            "totalToken":    "0",
-            "accuracyScore": "0.00",
-            "sourcejobId":   body.get("sourceJobId", "none"),
         })
         print(f"Wrote DynamoDB record: {action_id}")
+
+        write_job(
+            action_id=action_id,
+            business_id=business_id,
+            user_id=user_id,
+            user_email=user_email,
+            content_type=content_type,
+            model_id="stability.stable-image-core-v1:1",
+            input_prompt=url,
+            input_param=content_type,
+            requested_at=requested_at,
+            now=now,
+            s3_prefix=job_prefix,
+            source_job_id=body.get("sourceJobId", "none"),
+        )
 
         write_audit_event(
             action="CREATE_JOB",
