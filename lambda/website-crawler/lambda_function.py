@@ -193,11 +193,13 @@ def lambda_handler(event, context):
             }
 
         user_id     = get_user_id(event)
+        user_email  = ""
         business_id = body.get("businessId", user_id or "anonymous")
 
         action_id  = str(uuid.uuid4())
         now        = datetime.utcnow()
         created_at = now.isoformat()
+        requested_at = now.isoformat()
 
         job_prefix = build_job_prefix(
             business_id, user_id or "anonymous", content_type, action_id, now
@@ -291,9 +293,11 @@ def lambda_handler(event, context):
             ContentType="application/json"
         )
 
+        duration_ms = int((datetime.utcnow() - now).total_seconds() * 1000)
         table.put_item(Item={
             "action_id":     action_id,
             "user_id":       user_id,
+            "useremail":     user_email,
             "business_id":   business_id,
             "business":      business_type,
             "content_type":  content_type,
@@ -307,6 +311,17 @@ def lambda_handler(event, context):
             "s3_prefix":     job_prefix,
             "status":        "draft",
             "created_at":    created_at,
+            # Job table fields
+            "channel":       "web",
+            "modelId":       "stability.stable-image-core-v1:1",
+            "inputprompt":   url,
+            "inputparam":    content_type,
+            "requestedAt":   requested_at,
+            "durationMs":    str(duration_ms),
+            "estimatedCost": "0.00",
+            "totalToken":    "0",
+            "accuracyScore": "0.00",
+            "sourcejobId":   body.get("sourceJobId", "none"),
         })
         print(f"Wrote DynamoDB record: {action_id}")
 

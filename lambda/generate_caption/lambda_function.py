@@ -73,10 +73,12 @@ def lambda_handler(event, context):
         user = get_user(event)
         print(f"Generate_caption: User ID: {user}")
         user_id     = user['user_id']
+        user_email  = user.get('email', '')
         business_id = body.get("businessId", user_id)
 
         action_id     = str(uuid.uuid4())
         now           = datetime.utcnow()
+        requested_at  = now.isoformat()
         business      = body.get("business", "My Business")
         prompt        = body.get("prompt", "")
         platforms     = body.get("platforms", [])
@@ -173,9 +175,11 @@ def lambda_handler(event, context):
         )
 
         # Write DynamoDB record
+        duration_ms = int((datetime.utcnow() - now).total_seconds() * 1000)
         table.put_item(Item={
             "action_id":      action_id,
             "user_id":        user_id,
+            "useremail":      user_email,
             "business":       business,
             "business_id":    business_id,
             "prompt":         prompt,
@@ -195,6 +199,17 @@ def lambda_handler(event, context):
             "s3_key":         graphic_key,
             "status":         "generated",
             "created_at":     created_at,
+            # Job table fields
+            "channel":        "web",
+            "modelId":        IMAGE_MODEL,
+            "inputprompt":    prompt,
+            "inputparam":     output_format,
+            "requestedAt":    requested_at,
+            "durationMs":     str(duration_ms),
+            "estimatedCost":  "0.00",
+            "totalToken":     "0",
+            "accuracyScore":  "0.00",
+            "sourcejobId":    body.get("sourceJobId", "none"),
         })
         print(f"Wrote DynamoDB record: {action_id}")
 

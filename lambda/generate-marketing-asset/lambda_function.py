@@ -120,14 +120,16 @@ def lambda_handler(event, context):
         print(json.dumps(event, default=str))
         body = json.loads(event.get("body", "{}"))
 
-        action_id = str(uuid.uuid4())
-        now       = datetime.utcnow()
+        action_id    = str(uuid.uuid4())
+        now          = datetime.utcnow()
+        requested_at = now.isoformat()
 
         print(f"DEBUG body keys: {list(body.keys())}")
 
         user = get_user(event)
         print(f"Generate-marketing-asset: User ID: {user}")
         user_id     = user['user_id']
+        user_email  = user.get('email', '')
         business_id = body.get("businessId", user_id)
         print(f"Resolved user_id: {user_id}, business_id: {business_id}, action_id: {action_id}")
 
@@ -256,9 +258,11 @@ def lambda_handler(event, context):
             print(f"Successfully uploaded metadata: {metadata_key}")
 
         def write_record():
+            duration_ms = int((datetime.utcnow() - now).total_seconds() * 1000)
             table.put_item(Item={
                 "action_id":     action_id,
                 "user_id":       user_id,
+                "useremail":     user_email,
                 "business":      business,
                 "business_id":   business_id,
                 "content_type":  content_type,
@@ -274,6 +278,17 @@ def lambda_handler(event, context):
                 "image_model":   image_model_id,
                 "status":        "draft",
                 "created_at":    created_at,
+                # Job table fields
+                "channel":       "web",
+                "modelId":       image_model_id,
+                "inputprompt":   original_prompt,
+                "inputparam":    body.get("output_format", "plain_text"),
+                "requestedAt":   requested_at,
+                "durationMs":    str(duration_ms),
+                "estimatedCost": "0.00",
+                "totalToken":    "0",
+                "accuracyScore": "0.00",
+                "sourcejobId":   body.get("sourceJobId", "none"),
             })
             print(f"Successfully wrote record to DynamoDB: {action_id}")
 
