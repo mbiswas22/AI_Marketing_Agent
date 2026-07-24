@@ -30,7 +30,7 @@ export const CONTENT_TYPE_CATEGORY: Record<string, string> = {
   merchandise:         "image",
 };
 
-export const CONTENT_TILES = [
+export const CONTENT_TILES: { value: string; icon: string; name: string; desc: string; disabled?: boolean }[] = [
   { value: "flyer",               icon: "ti-speakerphone",   name: "Flyer",          desc: "Bold visual for print or digital" },
   { value: "blog",                icon: "ti-article",        name: "Blog",           desc: "Long-form SEO article or post" },
   { value: "email",               icon: "ti-mail",           name: "Email",          desc: "Campaign or newsletter copy" },
