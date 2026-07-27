@@ -1,4 +1,5 @@
 import { inviteUser, sendInviteEmail } from "./api";
+import { generateInvitationId } from "../utils/idUtils";
 
 export interface SendUserInviteParams {
   businessId: string;
@@ -11,7 +12,7 @@ export interface SendUserInviteParams {
 }
 
 export async function sendUserInvite(params: SendUserInviteParams): Promise<void> {
-  const token = params.userId ?? crypto.randomUUID();
+  const token = params.userId ?? generateInvitationId();
   const invitationLink = `${window.location.origin}/invite?token=${token}`;
 
   await inviteUser({
