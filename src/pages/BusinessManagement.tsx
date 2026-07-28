@@ -37,6 +37,7 @@ import {
   updateBusiness,
   deleteBusiness,
 } from "../services/api";
+import { getLoggedInUser } from "../services/auth";
 import type { Business } from "../services/api";
 
 const fieldInputSx = (hasError: boolean) => ({
@@ -130,12 +131,16 @@ export function BusinessManagementPanel() {
           status: form.status,
         });
       } else {
+        const businessId = `bz-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const currentUser = await getLoggedInUser();
         const result = await createBusiness({
+          businessId,
           businessName: form.businessName,
           businessType: effectiveType,
           ownerName: form.ownerName,
           ownerEmail: form.ownerEmail,
           status: form.status,
+          cognitoUserId: currentUser?.userId,
         });
         setCreatedBusinessId(result?.businessId ?? null);
       }
