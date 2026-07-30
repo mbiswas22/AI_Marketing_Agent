@@ -4,12 +4,10 @@ import boto3
 from boto3.dynamodb.conditions import Attr
 from auth import get_user
 from response import api_response
-from authorization import require_role
 
-
-dynamodb = boto3.resource('dynamodb')
+dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
 table = dynamodb.Table(os.environ['DYNAMO_TABLE'])
-s3 = boto3.client('s3')
+s3 = boto3.client('s3', region_name='us-east-2')
 BUCKET = os.environ['S3_BUCKET']
 
 
@@ -19,15 +17,24 @@ def lambda_handler(event, context):
         print(f"User ID: {user}")
         user_id = user['user_id']
 
-        response = table.scan(FilterExpression=Attr('user_id').eq(user_id))
-        items = response['Items']
+        params      = event.get('queryStringParameters') or {}
+        business_id = params.get('businessId')
+
+        # Filter by businessId if provided, otherwise fall back to user_id
+        if business_id:
+            filter_expr = Attr('business_id').eq(business_id)
+        else:
+            filter_expr = Attr('user_id').eq(user_id) | Attr('userId').eq(user_id)
+
+        response = table.scan(FilterExpression=filter_expr)
+        items = response.get('Items', [])
 
         while 'LastEvaluatedKey' in response:
             response = table.scan(
-                FilterExpression=Attr('user_id').eq(user_id),
+                FilterExpression=filter_expr,
                 ExclusiveStartKey=response['LastEvaluatedKey']
             )
-            items.extend(response['Items'])
+            items.extend(response.get('Items', []))
 
         for item in items:
             if item.get('image_key'):
@@ -35,6 +42,15 @@ def lambda_handler(event, context):
                     item['image_url'] = s3.generate_presigned_url(
                         'get_object',
                         Params={'Bucket': BUCKET, 'Key': item['image_key']},
+                        ExpiresIn=3600
+                    )
+                except Exception:
+                    pass
+            if item.get('s3_key') and not item.get('image_url'):
+                try:
+                    item['image_url'] = s3.generate_presigned_url(
+                        'get_object',
+                        Params={'Bucket': BUCKET, 'Key': item['s3_key']},
                         ExpiresIn=3600
                     )
                 except Exception:
@@ -51,21 +67,8 @@ def lambda_handler(event, context):
 
         items.sort(key=lambda x: x.get('created_at', ''), reverse=True)
 
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'GET,OPTIONS',
-                'Content-Type': 'application/json'
-            },
-            'body': json.dumps(items, default=str)
-        }
+        return api_response(200, json.dumps(items, default=str))
 
     except Exception as e:
         print(f"Error: {str(e)}")
-        return {
-            'statusCode': 500,
-            'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': str(e)})
-        }
+        return api_response(500, {'error': str(e)})

@@ -556,14 +556,16 @@ export function UserManagementPanel({
         onClose={() => setDialogOpen(false)}
         fullWidth
         maxWidth="sm"
-        PaperProps={{
-          sx: {
-            bgcolor: "#1a1a24",
-            border: "1px solid #32324a",
-            borderRadius: "16px",
-            boxShadow: "0 32px 80px rgba(0,0,0,0.7)",
-            mx: { xs: 2, sm: 3 },
-            width: { xs: "calc(100% - 32px)", sm: "100%" },
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: "#1a1a24",
+              border: "1px solid #32324a",
+              borderRadius: "16px",
+              boxShadow: "0 32px 80px rgba(0,0,0,0.7)",
+              mx: { xs: 2, sm: 3 },
+              width: { xs: "calc(100% - 32px)", sm: "100%" },
+            },
           },
         }}
       >
@@ -627,8 +629,7 @@ export function UserManagementPanel({
               value={form.email}
               onChange={(e) => handleFieldChange("email", e.target.value)}
               error={!!fieldErrors.email}
-              InputProps={{ sx: fieldInputSx(!!fieldErrors.email) }}
-              InputLabelProps={{ shrink: false }}
+              slotProps={{ input: { sx: fieldInputSx(!!fieldErrors.email) } }}
               sx={{
                 "& .MuiInputLabel-root": { display: "none" },
                 "& .MuiFormHelperText-root": {
@@ -653,8 +654,7 @@ export function UserManagementPanel({
               value={form.displayName}
               onChange={(e) => handleFieldChange("displayName", e.target.value)}
               error={!!fieldErrors.displayName}
-              InputProps={{ sx: fieldInputSx(!!fieldErrors.displayName) }}
-              InputLabelProps={{ shrink: false }}
+              slotProps={{ input: { sx: fieldInputSx(!!fieldErrors.displayName) } }}
               sx={{
                 "& .MuiInputLabel-root": { display: "none" },
                 "& .MuiFormHelperText-root": {
@@ -718,8 +718,7 @@ export function UserManagementPanel({
               value={form.businessId}
               onChange={(e) => handleFieldChange("businessId", e.target.value)}
               error={!!fieldErrors.businessId}
-              InputProps={{ sx: fieldInputSx(!!fieldErrors.businessId) }}
-              InputLabelProps={{ shrink: false }}
+              slotProps={{ input: { sx: fieldInputSx(!!fieldErrors.businessId) } }}
               sx={{
                 "& .MuiInputLabel-root": { display: "none" },
                 "& .MuiFormHelperText-root": {
@@ -746,8 +745,7 @@ export function UserManagementPanel({
               placeholder="e.g. +1 555 000 0000"
               value={form.phoneNumber}
               onChange={(e) => handleFieldChange("phoneNumber", e.target.value)}
-              InputProps={{ sx: fieldInputSx(false) }}
-              InputLabelProps={{ shrink: false }}
+              slotProps={{ input: { sx: fieldInputSx(false) } }}
               sx={{ "& .MuiInputLabel-root": { display: "none" } }}
             />
           </Box>

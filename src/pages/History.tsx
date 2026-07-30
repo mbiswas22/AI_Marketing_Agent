@@ -6,7 +6,7 @@ import {
   Box, Typography, Button, Paper,
   CircularProgress, Chip, Collapse, IconButton,
   Tooltip, Snackbar, Alert, Dialog, DialogContent,
-  DialogActions, TextField, Divider,
+  DialogActions, TextField, Divider, Select, MenuItem,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -28,6 +28,45 @@ import { getHistory, getSocialConnections, publishToLinkedIn, getMetaPages, publ
 import type { HistoryItem, Business } from "../services/api";
 import { getUserAttributes } from "../services/auth";
 import "../styles/history.css";
+
+const TIMEZONES = [
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Anchorage",
+  "Pacific/Honolulu",
+  "America/Toronto",
+  "America/Vancouver",
+  "America/Sao_Paulo",
+  "America/Argentina/Buenos_Aires",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Europe/Moscow",
+  "Africa/Lagos",
+  "Africa/Nairobi",
+  "Africa/Johannesburg",
+  "Asia/Dubai",
+  "Asia/Kolkata",
+  "Asia/Dhaka",
+  "Asia/Bangkok",
+  "Asia/Singapore",
+  "Asia/Shanghai",
+  "Asia/Tokyo",
+  "Asia/Seoul",
+  "Australia/Sydney",
+  "Pacific/Auckland",
+  "UTC",
+];
+
+const tzSelectSx = {
+  color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px", fontSize: 13,
+  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#383850" },
+  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
+  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#7c6df0" },
+  "& .MuiSelect-select": { py: "10px", px: "12px" },
+};
 
 const CONTENT_TYPE_ICONS: Record<string, ReactElement> = {
   flyer: <CampaignIcon sx={{ fontSize: 14 }} />,
@@ -100,18 +139,20 @@ function HistoryRow({
   const [publishingFacebook, setPublishingFacebook] = useState(false);
   const [publishingInstagram, setPublishingInstagram] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [scheduleBusinessId, setScheduleBusinessId] = useState("");
+  const [scheduleBusinessId, setScheduleBusinessId] = useState(businessId || "");
   const [schedulePlatform, setSchedulePlatform] = useState("linkedin");
   const [scheduling, setScheduling] = useState(false);
   const [scheduleId, setScheduleId] = useState<string | null>(null);
   // Campaign mode
   const [campaignMode, setCampaignMode] = useState(false);
   const [scheduleAt, setScheduleAt] = useState("");
+  const [scheduleTimezone, setScheduleTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [campaignDates, setCampaignDates] = useState<string[]>([]);
   const [campaignTime, setCampaignTime] = useState("09:00");
   const [campaignDateInput, setCampaignDateInput] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [editAt, setEditAt] = useState("");
+  const [editTimezone, setEditTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [editPlatform, setEditPlatform] = useState("linkedin");
   const [editing, setEditing] = useState(false);
   const navigate = useNavigate();
@@ -123,7 +164,7 @@ function HistoryRow({
     const image_key = item.image_key || item.s3_key;
     setPublishing(true);
     try {
-      await publishToLinkedIn({ text: text || undefined, image_key: image_key || undefined, businessId: businessId ?? "" });
+      await publishToLinkedIn({ text: text || undefined, image_key: image_key || undefined, businessId: businessId || undefined });
       onPublishResult(true, "Posted to LinkedIn successfully");
     } catch (err) {
       const msg = (err as any)?.response?.data?.error || "Failed to post to LinkedIn";
@@ -140,19 +181,19 @@ function HistoryRow({
     try {
       const results = await Promise.all(
         datesToSchedule.map((dateStr) => {
-          const dt = campaignMode
-            ? new Date(`${dateStr}T${campaignTime}:00`)
-            : new Date(dateStr);
+          const expression = campaignMode
+            ? `at(${dateStr}T${campaignTime}:00)`
+            : `at(${dateStr.slice(0, 16)}:00)`;
           return createSchedule({
             user_id: userId,
             businessId: scheduleBusinessId.trim(),
             platform: schedulePlatform,
             content_type: item.content_type || "social_caption",
-            schedule_expression: `at(${dt.toISOString().slice(0, 19)})`,
+            schedule_expression: expression,
             input_type: "text",
             input_value: item.prompt || item.input_value || item.caption || "marketing post",
             business: item.business || "My Business",
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            timezone: scheduleTimezone,
             createdByUserId: userId,
           });
         })
@@ -186,8 +227,8 @@ function HistoryRow({
     try {
       await updateSchedule({
         schedule_id: scheduleId,
-        schedule_expression: `at(${new Date(editAt).toISOString().slice(0, 19)})`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        schedule_expression: `at(${editAt.slice(0, 16)}:00)`,
+        timezone: editTimezone,
       });
       setEditOpen(false);
       onPublishResult(true, `Schedule updated to ${new Date(editAt).toLocaleString()}`);
@@ -204,7 +245,7 @@ function HistoryRow({
     const image_key = item.image_key || item.s3_key;
     setPublishingFacebook(true);
     try {
-      await publishToFacebook({ text: text || undefined, image_key: image_key || undefined, businessId: businessId ?? "" });
+      await publishToFacebook({ text: text || undefined, image_key: image_key || undefined, businessId: businessId || undefined });
       onPublishResult(true, "Posted to Facebook successfully");
     } catch (err) {
       const msg = (err as any)?.response?.data?.error || "Failed to post to Facebook";
@@ -224,7 +265,7 @@ function HistoryRow({
     }
     setPublishingInstagram(true);
     try {
-      const result = await publishToInstagram({ text: text || undefined, image_key });
+      const result = await publishToInstagram({ text: text || undefined, image_key, businessId: businessId || undefined });
       if (result.processing) {
         onPublishResult(false, result.error || "Instagram is still processing — try again shortly");
       } else {
@@ -419,7 +460,7 @@ function HistoryRow({
               <Tooltip title="Schedule post" placement="top">
                 <IconButton
                   size="small"
-                  onClick={(e) => { e.stopPropagation(); setScheduleOpen(true); }}
+                  onClick={(e) => { e.stopPropagation(); setScheduleBusinessId(businessId || ""); setScheduleOpen(true); }}
                   sx={{ color: "#a78bfa", p: "6px", "&:hover": { bgcolor: "rgba(139,92,246,0.1)" } }}
                 >
                   <ScheduleIcon sx={{ fontSize: 18 }} />
@@ -506,7 +547,7 @@ function HistoryRow({
     </Paper>
 
     <Dialog open={scheduleOpen} onClose={() => setScheduleOpen(false)} fullWidth maxWidth="xs"
-      PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } }}>
+      slotProps={{ paper: { sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } } }}>
       <Box sx={{ px: 3, pt: 3, pb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
         <ScheduleIcon sx={{ color: "#a78bfa", fontSize: 22 }} />
         <Box>
@@ -564,7 +605,7 @@ function HistoryRow({
               fullWidth
               value={scheduleAt}
               onChange={(e) => setScheduleAt(e.target.value)}
-              inputProps={{ min: new Date().toISOString().slice(0, 16) }}
+              slotProps={{ htmlInput: { min: new Date().toISOString().slice(0, 16) } }}
               sx={{
                 mb: 2.5,
                 "& .MuiOutlinedInput-root": {
@@ -606,7 +647,7 @@ function HistoryRow({
                 fullWidth
                 value={campaignDateInput}
                 onChange={(e) => setCampaignDateInput(e.target.value)}
-                inputProps={{ min: new Date().toISOString().slice(0, 10) }}
+                slotProps={{ htmlInput: { min: new Date().toISOString().slice(0, 10) } }}
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     color: "#e0dcf8", bgcolor: "#0d0d0f", borderRadius: "10px",
@@ -645,6 +686,22 @@ function HistoryRow({
             )}
           </>
         )}
+
+        {/* Platform */}
+        <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Timezone</Typography>
+        <Select
+          fullWidth
+          value={scheduleTimezone}
+          onChange={(e) => setScheduleTimezone(e.target.value)}
+          sx={{ ...tzSelectSx, mb: 2.5 }}
+          MenuProps={{ PaperProps: { sx: { bgcolor: "#141418", border: "0.5px solid #2a2a35", color: "#e0dcf8", maxHeight: 260 } } } as any}
+        >
+          {TIMEZONES.map((tz) => (
+            <MenuItem key={tz} value={tz} sx={{ fontSize: 13, "&:hover": { bgcolor: "rgba(124,109,240,0.1)" }, "&.Mui-selected": { bgcolor: "rgba(124,109,240,0.15)" } }}>
+              {tz}
+            </MenuItem>
+          ))}
+        </Select>
 
         {/* Platform */}
         <Typography sx={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, mb: 1 }}>Platform</Typography>
@@ -689,7 +746,7 @@ function HistoryRow({
     </Dialog>
 
     <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="xs"
-      PaperProps={{ sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } }}>
+      slotProps={{ paper: { sx: { bgcolor: "#1a1a24", border: "1px solid #32324a", borderRadius: "16px", boxShadow: "0 32px 80px rgba(0,0,0,0.7)" } } }}>
       <Box sx={{ px: 3, pt: 3, pb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
         <EditCalendarIcon sx={{ color: "#34d399", fontSize: 22 }} />
         <Box>
@@ -705,7 +762,7 @@ function HistoryRow({
           fullWidth
           value={editAt}
           onChange={(e) => setEditAt(e.target.value)}
-          inputProps={{ min: new Date().toISOString().slice(0, 16) }}
+          slotProps={{ htmlInput: { min: new Date().toISOString().slice(0, 16) } }}
           sx={{
             mb: 2.5,
             "& .MuiOutlinedInput-root": {
@@ -717,6 +774,20 @@ function HistoryRow({
             "& ::-webkit-calendar-picker-indicator": { filter: "invert(1)" },
           }}
         />
+        <Typography sx={{ color: "#34d399", fontSize: 13, fontWeight: 600, mb: 0.8 }}>Timezone</Typography>
+        <Select
+          fullWidth
+          value={editTimezone}
+          onChange={(e) => setEditTimezone(e.target.value)}
+          sx={{ ...tzSelectSx, mb: 2.5 }}
+          MenuProps={{ PaperProps: { sx: { bgcolor: "#141418", border: "0.5px solid #2a2a35", color: "#e0dcf8", maxHeight: 260 } } } as any}
+        >
+          {TIMEZONES.map((tz) => (
+            <MenuItem key={tz} value={tz} sx={{ fontSize: 13, "&:hover": { bgcolor: "rgba(124,109,240,0.1)" }, "&.Mui-selected": { bgcolor: "rgba(124,109,240,0.15)" } }}>
+              {tz}
+            </MenuItem>
+          ))}
+        </Select>
         <Typography sx={{ color: "#34d399", fontSize: 13, fontWeight: 600, mb: 1 }}>Platform</Typography>
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           {Object.entries(PLATFORM_INFO).map(([key, info]) => (
@@ -777,13 +848,13 @@ export default function History() {
 
   useEffect(() => {
     const userId = user?.userId ?? user?.username ?? "unknown";
-    getHistory(userId)
+    getHistory(userId, businessId ?? undefined)
       .then((items) =>
         setHistory([...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
       )
       .catch(() => setError("Failed to load history."))
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, businessId]);
 
   useEffect(() => {
     (async () => {
@@ -851,7 +922,7 @@ export default function History() {
               setLoading(true);
               setError(null);
               const userId = user?.userId ?? user?.username ?? "unknown";
-              getHistory(userId)
+              getHistory(userId, businessId ?? undefined)
                 .then((items) =>
                   setHistory([...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
                 )

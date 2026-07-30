@@ -13,8 +13,9 @@ from boto3.dynamodb.conditions import Key
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-dynamodb = boto3.resource("dynamodb", region_name="us-east-2")
-table = dynamodb.Table("social-connections")
+dynamodb    = boto3.resource("dynamodb", region_name="us-east-2")
+table       = dynamodb.Table("social-connections")
+audit_table = dynamodb.Table("AuditEvent")
 
 LINKEDIN_CLIENT_ID = os.environ["LINKEDIN_CLIENT_ID"]
 LINKEDIN_CLIENT_SECRET = os.environ["LINKEDIN_CLIENT_SECRET"]
@@ -27,6 +28,26 @@ CORS_HEADERS = {
     "Access-Control-Allow-Headers": "*",
     "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
 }
+
+
+def write_audit_event(action, user_id, entity_id, result="SUCCESS", metadata=None):
+    try:
+        import uuid
+        event_id = "EVT-" + str(uuid.uuid4())[:8].upper()
+        item = {
+            "eventId":   event_id,
+            "action":    action,
+            "userId":    user_id or "unknown",
+            "entityId":  entity_id,
+            "result":    result,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if metadata:
+            item["metadata"] = metadata
+        audit_table.put_item(Item=item)
+        logger.info("Wrote audit event: %s action=%s entity=%s", event_id, action, entity_id)
+    except Exception as e:
+        logger.error("Failed to write audit event: %s", str(e))
 
 
 def json_response(status_code, body):
@@ -207,6 +228,14 @@ def handle_callback(event):
         table.put_item(Item=item)
         logger.info("callback: saved linkedin connection for businessId=%s name=%s", business_id, linkedin_name)
 
+        write_audit_event(
+            action="ENABLE_CHANNEL",
+            user_id=business_id,
+            entity_id=business_id,
+            result="SUCCESS",
+            metadata={"platform": "linkedin", "linkedinName": linkedin_name}
+        )
+
         return redirect_response(f"{FRONTEND_URL}/settings?linkedin=success")
 
     except Exception as e:
@@ -259,6 +288,15 @@ def handle_delete_connection(event, platform):
     try:
         table.delete_item(Key={"businessId": business_id, "platform": platform})
         logger.info("delete_connection: deleted platform=%s for businessId=%s", platform, business_id)
+
+        write_audit_event(
+            action="DISABLE_CHANNEL",
+            user_id=business_id,
+            entity_id=business_id,
+            result="SUCCESS",
+            metadata={"platform": platform}
+        )
+
         return json_response(200, {"deleted": True})
 
     except Exception as e:

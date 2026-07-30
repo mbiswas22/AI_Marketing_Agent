@@ -28,10 +28,9 @@ export const CONTENT_TYPE_CATEGORY: Record<string, string> = {
   social_caption:      "text",
   image:               "image",
   merchandise:         "image",
-  whatsapp_sms:        "text",
 };
 
-export const CONTENT_TILES = [
+export const CONTENT_TILES: { value: string; icon: string; name: string; desc: string; disabled?: boolean }[] = [
   { value: "flyer",               icon: "ti-speakerphone",   name: "Flyer",          desc: "Bold visual for print or digital" },
   { value: "blog",                icon: "ti-article",        name: "Blog",           desc: "Long-form SEO article or post" },
   { value: "email",               icon: "ti-mail",           name: "Email",          desc: "Campaign or newsletter copy" },
@@ -40,7 +39,6 @@ export const CONTENT_TILES = [
   { value: "social_caption",      icon: "ti-hash",           name: "Social Caption", desc: "Caption and hashtags for social" },
   { value: "image",               icon: "ti-photo",          name: "Image",          desc: "AI-generated visual asset" },
   { value: "merchandise",         icon: "ti-shirt",          name: "Merchandise",    desc: "Product concept with visual" },
-  { value: "whatsapp_sms",        icon: "ti-brand-whatsapp", name: "WhatsApp / SMS", desc: "Short promo message", disabled: true },
 ];
 
 export const OUTPUT_FORMATS_BY_TYPE: Record<string, string[]> = {
@@ -52,7 +50,6 @@ export const OUTPUT_FORMATS_BY_TYPE: Record<string, string[]> = {
   social_caption:      ["plain_text"],
   image:               ["png", "jpeg", "pdf"],
   merchandise:         ["png", "jpeg", "pdf"],
-  whatsapp_sms:        [],
 };
 
 export const FORMAT_DEFS: Record<string, { icon: string; name: string; desc: string }> = {
