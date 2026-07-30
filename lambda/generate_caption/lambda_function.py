@@ -1,9 +1,11 @@
 import json
 import uuid
 import os
+import io
 import boto3
 import base64
 from datetime import datetime
+from PIL import Image, ImageDraw, ImageFont
 from auth import get_user
 from response import api_response
 
@@ -122,7 +124,8 @@ def lambda_handler(event, context):
         print(f"Job prefix: {job_prefix}")
 
         flyer       = generate_flyer_content(business, prompt, platforms)
-        image_bytes = generate_flyer_image(flyer["image_prompt"])
+        bg_bytes    = generate_flyer_image(flyer["image_prompt"])
+        image_bytes = composite_flyer(bg_bytes, business, flyer["title"], flyer["offer"], flyer["call_to_action"])
 
         created_at   = now.isoformat()
         graphic_key  = f"{job_prefix}/graphics/image-001.png"
@@ -284,23 +287,88 @@ def lambda_handler(event, context):
         return api_response(500, {"error": str(e)})
 
 
+def get_font(size):
+    """Load DejaVu font if available, else fall back to PIL default."""
+    font_path = "/var/task/fonts/DejaVuSans-Bold.ttf"
+    try:
+        return ImageFont.truetype(font_path, size)
+    except Exception:
+        return ImageFont.load_default()
+
+
+def draw_text_wrapped(draw, text, x, y, max_width, font, fill, line_spacing=8):
+    """Draw text wrapped to max_width, centered at x."""
+    words = text.split()
+    lines, current = [], ""
+    for word in words:
+        test = (current + " " + word).strip()
+        bbox = draw.textbbox((0, 0), test, font=font)
+        if bbox[2] - bbox[0] <= max_width:
+            current = test
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    for line in lines:
+        bbox = draw.textbbox((0, 0), line, font=font)
+        lw = bbox[2] - bbox[0]
+        draw.text((x - lw // 2, y), line, font=font, fill=fill)
+        y += (bbox[3] - bbox[1]) + line_spacing
+    return y
+
+
+def composite_flyer(bg_bytes, business, title, offer, cta):
+    """Overlay text onto background image and return PNG bytes."""
+    img = Image.open(io.BytesIO(bg_bytes)).convert("RGBA").resize((1080, 1080))
+    draw = ImageDraw.Draw(img)
+    cx = 540  # horizontal center
+
+    # Top banner
+    draw.rectangle([(0, 0), (1080, 120)], fill=(30, 30, 30, 210))
+    font_biz = get_font(52)
+    bbox = draw.textbbox((0, 0), business, font=font_biz)
+    draw.text((cx - (bbox[2] - bbox[0]) // 2, 30), business, font=font_biz, fill=(255, 255, 255))
+
+    # Headline with drop shadow
+    font_title = get_font(58)
+    draw.text((cx - 1, 300), title, font=font_title, fill=(0, 0, 0, 180))
+    draw_text_wrapped(draw, title, cx, 298, 960, font_title, (255, 255, 255))
+
+    # Offer box
+    font_offer = get_font(42)
+    offer_bbox = draw.textbbox((0, 0), offer, font=font_offer)
+    ow = offer_bbox[2] - offer_bbox[0] + 40
+    draw.rectangle([(cx - ow // 2, 620), (cx + ow // 2, 690)], fill=(255, 140, 0, 230))
+    draw.text((cx - (offer_bbox[2] - offer_bbox[0]) // 2, 628), offer, font=font_offer, fill=(255, 255, 255))
+
+    # Bottom banner
+    draw.rectangle([(0, 960), (1080, 1080)], fill=(30, 30, 30, 210))
+    font_cta = get_font(44)
+    cta_bbox = draw.textbbox((0, 0), cta, font=font_cta)
+    draw.text((cx - (cta_bbox[2] - cta_bbox[0]) // 2, 990), cta, font=font_cta, fill=(255, 220, 0))
+
+    out = io.BytesIO()
+    img.convert("RGB").save(out, format="PNG")
+    return out.getvalue()
+
+
 def generate_flyer_content(business, prompt, platforms):
     TEXT_MODEL = os.environ.get("TEXT_MODEL", "us.amazon.nova-micro-v1:0")
     platforms_str = ", ".join(platforms) if platforms else "social media"
     marketing_prompt = (
-        f"You are an expert marketing copywriter. Create a professional marketing flyer "
-        f"based EXACTLY on the user's request below. Do NOT ignore the user's prompt.\n\n"
-        f"Business: {business}\n"
-        f"Target Platforms: {platforms_str}\n\n"
-        f"User's Request (this is the primary content driver — follow it precisely):\n"
-        f"{prompt}\n\n"
+        f"You are an expert marketing copywriter. Create content for a marketing flyer based EXACTLY on the user's request.\n\n"
+        f"Business: {business}\nTarget Platforms: {platforms_str}\n\n"
+        f"User's Request:\n{prompt}\n\n"
         f"Return ONLY valid JSON:\n"
         f'{{\n'
-        f'  "title": "Flyer headline directly based on the user request",\n'
-        f'  "caption": "Detailed marketing copy that addresses the user request",\n'
-        f'  "offer": "Special offer or value proposition from the user request",\n'
-        f'  "call_to_action": "Short CTA relevant to the user request",\n'
-        f'  "image_prompt": "Detailed visual description matching the user request"\n'
+        f'  "title": "Bold eye-catching headline",\n'
+        f'  "caption": "Detailed marketing copy",\n'
+        f'  "offer": "Special offer or value proposition (keep under 60 chars)",\n'
+        f'  "call_to_action": "Short urgent CTA e.g. Call Now, Book Today",\n'
+        f'  "image_prompt": "Background scene only (no text, no banners, no overlays) related to: {prompt}. '
+        f'Vivid photorealistic scene, professional photography style, vibrant colors, high detail"\n'
         f'}}'
     )
     response = bedrock_text.converse(
