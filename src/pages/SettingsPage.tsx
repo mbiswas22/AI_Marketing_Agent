@@ -18,22 +18,13 @@ import LinkIcon from "@mui/icons-material/Link";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import FacebookIcon from "@mui/icons-material/Facebook";
-import InstagramIcon from "@mui/icons-material/Instagram";
 import {
   getSocialConnections,
   getLinkedInAuthUrl,
-  getMetaAuthUrl,
-  getMetaPages,
-  getInstagramStatus,
   disconnectSocialPlatform,
   getBusinesses,
 } from "../services/api";
-import type {
-  SocialConnection,
-  Business,
-  MetaPageInfo,
-  InstagramInfo,
-} from "../services/api";
+import type { SocialConnection, Business } from "../services/api";
 import { getUserAttributes } from "../services/auth";
 import { UserManagementPanel } from "./UserManagement";
 import { BusinessManagementPanel } from "./BusinessManagement";
@@ -53,14 +44,6 @@ export default function SettingsPage() {
   const [connectError, setConnectError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-
-  // ── Facebook / Meta state ──
-  const [facebookPage, setFacebookPage] = useState<MetaPageInfo | null>(null);
-  const [fbConnecting, setFbConnecting] = useState(false);
-  const [fbDisconnecting, setFbDisconnecting] = useState(false);
-
-  // ── Instagram state (reuses the Facebook connection, no separate connect flow) ──
-  const [instagramInfo, setInstagramInfo] = useState<InstagramInfo | null>(null);
 
   useEffect(() => {
     checkUrlParams();
@@ -133,14 +116,8 @@ export default function SettingsPage() {
     setConnectionsLoading(true);
     setConnectError(null);
     try {
-      const [conns, fbInfo, igInfo] = await Promise.all([
-        getSocialConnections(business.businessId),
-        getMetaPages(business.businessId),
-        getInstagramStatus(business.businessId),
-      ]);
+      const conns = await getSocialConnections(business.businessId);
       setConnections(conns);
-      setFacebookPage(fbInfo);
-      setInstagramInfo(igInfo);
     } catch {
       setConnectError("Failed to load connections.");
     } finally {
@@ -186,50 +163,10 @@ export default function SettingsPage() {
     }
   };
 
-  const handleFbConnect = async () => {
-    if (!business?.businessId) return;
-    setFbConnecting(true);
-    try {
-      const authUrl = await getMetaAuthUrl(business.businessId);
-      window.location.href = authUrl;
-    } catch {
-      setSnackbar({
-        open: true,
-        message: "Failed to initiate Facebook connection.",
-        severity: "error",
-      });
-      setFbConnecting(false);
-    }
-  };
-
-  const handleFbDisconnect = async () => {
-    if (!business?.businessId) return;
-    setFbDisconnecting(true);
-    try {
-      await disconnectSocialPlatform("facebook", business.businessId);
-      await fetchConnections();
-      setSnackbar({
-        open: true,
-        message: "Facebook Page disconnected.",
-        severity: "success",
-      });
-    } catch {
-      setSnackbar({
-        open: true,
-        message: "Failed to disconnect Facebook.",
-        severity: "error",
-      });
-    } finally {
-      setFbDisconnecting(false);
-    }
-  };
-
   const linkedinConnection =
     connections.find(
       (c) => c.platform === "linkedin" && c.status === "connected",
     ) ?? null;
-  const facebookConnected = facebookPage?.status === "connected";
-  const instagramConnected = instagramInfo?.status === "connected";
 
   return (
     <Box
@@ -469,141 +406,40 @@ export default function SettingsPage() {
                   )}
                 </Box>
 
-                {/* Meta / Facebook card */}
+                {/* Meta / Facebook card — connection is admin-configured, not self-serve */}
                 <Box
                   sx={{
-                    border: `0.5px solid ${facebookConnected ? "rgba(24,119,242,0.4)" : "#2a2a35"}`,
+                    border: "0.5px solid #2a2a35",
                     borderRadius: "12px",
                     p: { xs: 2, sm: 3 },
                     bgcolor: "#111118",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between",
                     gap: 2,
                     flexWrap: "wrap",
                   }}
                 >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                    <Box
-                      sx={{
-                        bgcolor: "rgba(24,119,242,0.1)",
-                        borderRadius: "10px",
-                        p: 1,
-                        border: "0.5px solid rgba(24,119,242,0.2)",
-                        display: "flex",
-                      }}
-                    >
-                      <FacebookIcon sx={{ color: "#1877f2", fontSize: 26 }} />
-                    </Box>
-                    <Box>
-                      <Typography
-                        sx={{ color: "#e0dcf8", fontWeight: 600, fontSize: 15 }}
-                      >
-                        Meta (Facebook / Instagram)
-                      </Typography>
-                      {facebookConnected ? (
-                        <>
-                          <Typography sx={{ color: "#a0b0c8", fontSize: 12 }}>
-                            Connected as {facebookPage?.pageName ?? "—"}
-                          </Typography>
-                          {facebookPage?.connectedAt && (
-                            <Typography
-                              sx={{ color: "#64748b", fontSize: 11, mt: 0.2 }}
-                            >
-                              Since{" "}
-                              {new Date(
-                                facebookPage.connectedAt,
-                              ).toLocaleDateString()}
-                            </Typography>
-                          )}
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5,
-                              mt: 0.5,
-                            }}
-                          >
-                            <InstagramIcon
-                              sx={{
-                                fontSize: 14,
-                                color: instagramConnected
-                                  ? "#e1306c"
-                                  : "#475569",
-                              }}
-                            />
-                            <Typography
-                              sx={{
-                                color: instagramConnected
-                                  ? "#e1306c"
-                                  : "#64748b",
-                                fontSize: 11.5,
-                              }}
-                            >
-                              {instagramConnected
-                                ? "Instagram linked"
-                                : "No Instagram Business account linked to this Page"}
-                            </Typography>
-                          </Box>
-                        </>
-                      ) : (
-                        <Typography sx={{ color: "#64748b", fontSize: 12 }}>
-                          Not connected
-                        </Typography>
-                      )}
-                    </Box>
+                  <Box
+                    sx={{
+                      bgcolor: "rgba(24,119,242,0.1)",
+                      borderRadius: "10px",
+                      p: 1,
+                      border: "0.5px solid rgba(24,119,242,0.2)",
+                      display: "flex",
+                    }}
+                  >
+                    <FacebookIcon sx={{ color: "#1877f2", fontSize: 26 }} />
                   </Box>
-                  {facebookConnected ? (
-                    <Button
-                      onClick={handleFbDisconnect}
-                      disabled={fbDisconnecting}
-                      variant="outlined"
-                      size="small"
-                      sx={{
-                        color: "#ef4444",
-                        borderColor: "rgba(239,68,68,0.4)",
-                        textTransform: "none",
-                        fontSize: 13,
-                        borderRadius: "8px",
-                        minWidth: 100,
-                        "&:hover": {
-                          bgcolor: "rgba(239,68,68,0.08)",
-                          borderColor: "#ef4444",
-                        },
-                      }}
+                  <Box>
+                    <Typography
+                      sx={{ color: "#e0dcf8", fontWeight: 600, fontSize: 15 }}
                     >
-                      {fbDisconnecting ? (
-                        <CircularProgress size={14} sx={{ color: "#ef4444" }} />
-                      ) : (
-                        "Disconnect"
-                      )}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={handleFbConnect}
-                      disabled={fbConnecting || !business?.businessId}
-                      variant="contained"
-                      size="small"
-                      sx={{
-                        bgcolor: "#1877f2",
-                        textTransform: "none",
-                        fontSize: 13,
-                        borderRadius: "8px",
-                        minWidth: 100,
-                        "&:hover": { bgcolor: "#1462cc" },
-                        "&.Mui-disabled": {
-                          bgcolor: "#0c2f60",
-                          color: "#2a5090",
-                        },
-                      }}
-                    >
-                      {fbConnecting ? (
-                        <CircularProgress size={14} sx={{ color: "#fff" }} />
-                      ) : (
-                        "Connect"
-                      )}
-                    </Button>
-                  )}
+                      Facebook
+                    </Typography>
+                    <Typography sx={{ color: "#a0b0c8", fontSize: 12 }}>
+                      Your page is connected to Facebook — an admin has configured your page for publishing.
+                    </Typography>
+                  </Box>
                 </Box>
               </Box>
             )}

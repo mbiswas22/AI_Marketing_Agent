@@ -24,7 +24,7 @@ import YouTubeIcon from "@mui/icons-material/YouTube";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
-import { getHistory, getSocialConnections, publishToLinkedIn, getMetaPages, publishToFacebook, getInstagramStatus, publishToInstagram, createSchedule, updateSchedule, getBusinesses } from "../services/api";
+import { getHistory, getSocialConnections, publishToLinkedIn, publishToFacebook, getInstagramStatus, publishToInstagram, createSchedule, updateSchedule, getBusinesses } from "../services/api";
 import type { HistoryItem, Business } from "../services/api";
 import { getUserAttributes } from "../services/auth";
 import "../styles/history.css";
@@ -120,7 +120,6 @@ const truncate = (text: string | undefined, max = 40) =>
 function HistoryRow({
   item,
   linkedinConnected,
-  facebookConnected,
   instagramConnected,
   onPublishResult,
   userId,
@@ -128,7 +127,6 @@ function HistoryRow({
 }: {
   item: HistoryItem;
   linkedinConnected: boolean;
-  facebookConnected: boolean;
   instagramConnected: boolean;
   onPublishResult: (success: boolean, msg: string) => void;
   userId: string;
@@ -477,17 +475,14 @@ function HistoryRow({
                   </IconButton>
                 </Tooltip>
               )}
-              <Tooltip
-                title={facebookConnected ? "Post to Facebook" : "Connect Facebook in Account Settings"}
-                placement="top"
-              >
+              <Tooltip title="Post to Facebook" placement="top">
                 <span>
                   <IconButton
                     size="small"
                     onClick={handleFacebookPublish}
-                    disabled={!facebookConnected || publishingFacebook}
+                    disabled={publishingFacebook}
                     sx={{
-                      color: facebookConnected ? "#1877f2" : "#334455",
+                      color: "#1877f2",
                       p: "6px",
                       "&:hover": { bgcolor: "rgba(24,119,242,0.12)" },
                       "&.Mui-disabled": { color: "#2a3a4a" },
@@ -835,7 +830,6 @@ export default function History() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
-  const [facebookConnected, setFacebookConnected] = useState(false);
   const [instagramConnected, setInstagramConnected] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({ open: false, message: "", severity: "success" });
@@ -878,9 +872,6 @@ export default function History() {
     if (!businessId) return;
     getSocialConnections(businessId)
       .then((conns) => setLinkedinConnected(conns.some((c) => c.platform === "linkedin" && c.status === "connected")))
-      .catch(() => {});
-    getMetaPages(businessId)
-      .then((info) => setFacebookConnected(info.status === "connected"))
       .catch(() => {});
     getInstagramStatus(businessId)
       .then((info) => setInstagramConnected(info.status === "connected"))
@@ -970,7 +961,6 @@ export default function History() {
                 key={item.action_id}
                 item={item}
                 linkedinConnected={linkedinConnected}
-                facebookConnected={facebookConnected}
                 instagramConnected={instagramConnected}
                 onPublishResult={handlePublishResult}
                 userId={user?.userId ?? user?.username ?? "unknown"}

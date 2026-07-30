@@ -30,7 +30,6 @@ import {
   getModels,
   getSocialConnections,
   publishToLinkedIn,
-  getMetaPages,
   publishToFacebook,
   getInstagramStatus,
   publishToInstagram,
@@ -94,7 +93,6 @@ export default function Dashboard() {
   const [fromHistoryBanner, setFromHistoryBanner] = useState(false);
   const [linkedinConnected, setLinkedinConnected] = useState(false);
   const [publishingToLinkedIn, setPublishingToLinkedIn] = useState(false);
-  const [facebookConnected, setFacebookConnected] = useState(false);
   const [publishingToFacebook, setPublishingToFacebook] = useState(false);
   const [instagramConnected, setInstagramConnected] = useState(false);
   const [publishingToInstagram, setPublishingToInstagram] = useState(false);
@@ -211,9 +209,6 @@ export default function Dashboard() {
           ),
         ),
       )
-      .catch(() => {});
-    getMetaPages(businessId)
-      .then((info) => setFacebookConnected(info.status === "connected"))
       .catch(() => {});
     getInstagramStatus(businessId)
       .then((info) => setInstagramConnected(info.status === "connected"))
@@ -1733,19 +1728,12 @@ ${hashtags.length > 0 ? `\\par\\par {\\cf1 ${hashtags.join(" ")}}` : ""}
                   </Tooltip>
                 )}
                 {caption && (
-                  <Tooltip
-                    title={
-                      facebookConnected
-                        ? ""
-                        : "Connect Facebook in Account Settings"
-                    }
-                    placement="top"
-                  >
+                  <Tooltip title="" placement="top">
                     <span>
                       <Button
                         variant="contained"
                         size="small"
-                        disabled={!facebookConnected || publishingToFacebook}
+                        disabled={publishingToFacebook}
                         onClick={handleFacebookPublish}
                         startIcon={
                           publishingToFacebook ? (

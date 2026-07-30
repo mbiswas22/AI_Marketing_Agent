@@ -175,7 +175,8 @@ def update_schedule(body, function_arn):
     new_timezone = body.get("timezone", item["timezone"])
     validate_schedule_expression(new_expression)
 
-    update_expr = "SET schedule_expression = :expr, timezone = :tz, updated_at = :u"
+    update_expr = "SET schedule_expression = :expr, #tz = :tz, updated_at = :u"
+    names = {"#tz": "timezone"}  # "timezone" is a DynamoDB reserved keyword
     values = {":expr": new_expression, ":tz": new_timezone, ":u": now_iso()}
     for field in ("input_type", "input_value", "business", "modelId", "content_type"):
         if field in body:
@@ -185,6 +186,7 @@ def update_schedule(body, function_arn):
     schedules_table.update_item(
         Key={"schedule_id": schedule_id},
         UpdateExpression=update_expr,
+        ExpressionAttributeNames=names,
         ExpressionAttributeValues=values,
     )
 
