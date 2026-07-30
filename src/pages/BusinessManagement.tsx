@@ -177,7 +177,6 @@ export function BusinessManagementPanel() {
           status: form.status,
         });
       } else {
-        const businessId = `bz-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const currentUser = await getLoggedInUser();
         const result = await createBusiness({
           businessId: generateBusinessId(),
