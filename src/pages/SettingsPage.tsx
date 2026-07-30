@@ -54,8 +54,6 @@ export default function SettingsPage() {
           getBusinesses(),
         ]);
         const email = (attrs as { email?: string })?.email;
-        // GET /business currently returns every business in the system, not just
-        // the caller's own — match by owner email instead of trusting businesses[0].
         const ownBusiness = businesses.find((b: Business) => b.ownerEmail === email);
         setBusiness(ownBusiness ?? businesses[0] ?? null);
       } catch {

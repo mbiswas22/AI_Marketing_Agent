@@ -181,7 +181,7 @@ function HistoryRow({
         datesToSchedule.map((dateStr) => {
           const expression = campaignMode
             ? `at(${dateStr}T${campaignTime}:00)`
-            : `at(${dateStr.slice(0, 16).replace("T", "T")}:00)`.replace(":00:00", ":00");
+            : `at(${dateStr.slice(0, 16)}:00)`;
           return createSchedule({
             user_id: userId,
             businessId: scheduleBusinessId.trim(),

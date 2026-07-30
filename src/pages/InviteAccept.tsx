@@ -149,13 +149,6 @@ export default function InviteAccept() {
       e.userName = "User name is required.";
       ok = false;
     }
-    if (!userEmail.trim()) {
-      e.userEmail = "Email is required.";
-      ok = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
-      e.userEmail = "Enter a valid email address.";
-      ok = false;
-    }
     setErrors(e);
     return ok;
   };
@@ -449,16 +442,9 @@ export default function InviteAccept() {
                     <TextField
                       fullWidth
                       type="email"
-                      placeholder="user@example.com"
                       value={userEmail}
-                      onChange={(e) => {
-                        setUserEmail(e.target.value);
-                        if (errors.userEmail)
-                          setErrors((p) => ({ ...p, userEmail: "" }));
-                      }}
-                      error={!!errors.userEmail}
-                      helperText={errors.userEmail}
-                      slotProps={{ input: { sx: inputSx(!!errors.userEmail) } }}
+                      disabled
+                      slotProps={{ input: { sx: { ...inputSx(false), opacity: 0.7, cursor: "not-allowed" } } }}
                       sx={fieldSx}
                     />
                   </Box>

@@ -270,6 +270,7 @@ export const createBusiness = async (payload: {
   ownerName?: string;
   ownerEmail?: string;
   status?: string;
+  cognitoUserId?: string;
 }): Promise<{ businessId?: string }> => {
   const res = await api.post(`/business`, payload);
   const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;

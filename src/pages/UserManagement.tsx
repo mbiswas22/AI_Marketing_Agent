@@ -31,6 +31,7 @@ import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
 import { getUsers, createUser, deleteUser, updateUser } from "../services/api";
 import type { User } from "../services/api";
 import { sendUserInvite } from "../services/inviteService";
+import { generateInvitationId } from "../utils/idUtils";
 
 const HARDCODED_BUSINESS_ID = "BUS001";
 
@@ -168,7 +169,7 @@ export function UserManagementPanel({
         // const userId =
         //   (attrs as any)?.sub ??
         //   "USR-" + Math.random().toString(36).slice(2, 8).toUpperCase();
-        const token = crypto.randomUUID();
+        const token = generateInvitationId();
         const userId = token;
         await createUser({
           ...form,

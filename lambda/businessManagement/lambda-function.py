@@ -1,38 +1,27 @@
 import os
 import json
-import uuid
-import random
 from datetime import datetime
 
 import boto3
 from boto3.dynamodb.conditions import Key
 
-# ───────────────────────────────────────────────────────────────
-# AWS clients & tables
-# ───────────────────────────────────────────────────────────────
 dynamodb = boto3.resource("dynamodb")
 
-BUSINESS_TABLE_NAME = os.environ["BUSINESS_TABLE"]
-USER_TABLE_NAME = os.environ["USER_TABLE"]
-CHANNEL_TABLE_NAME = os.environ["CHANNEL_TABLE"]
-CONTENT_TYPE_TABLE_NAME = os.environ["CONTENT_TYPE_TABLE"]
-MODEL_TABLE_NAME = os.environ["MODEL_TABLE"]
-
-business_table = dynamodb.Table(BUSINESS_TABLE_NAME)
-user_table = dynamodb.Table(USER_TABLE_NAME)
-channel_table = dynamodb.Table(CHANNEL_TABLE_NAME)
-content_type_table = dynamodb.Table(CONTENT_TYPE_TABLE_NAME)
-model_table = dynamodb.Table(MODEL_TABLE_NAME)
-
-# ───────────────────────────────────────────────────────────────
-# HTTP helpers
-# ───────────────────────────────────────────────────────────────
 HEADERS = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "*",
     "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
 }
+
+def get_tables():
+    return (
+        dynamodb.Table(os.environ["BUSINESS_TABLE"]),
+        dynamodb.Table(os.environ["USER_TABLE"]),
+        dynamodb.Table(os.environ["CHANNEL_TABLE"]),
+        dynamodb.Table(os.environ["CONTENT_TYPE_TABLE"]),
+        dynamodb.Table(os.environ["MODEL_TABLE"]),
+    )
 
 def response(status, body):
     return {
@@ -75,15 +64,11 @@ def get_sub_from_claims(event):
              .get("sub")
     )
 
-# ───────────────────────────────────────────────────────────────
-# Router
-# ───────────────────────────────────────────────────────────────
 def lambda_handler(event, context):
     method = get_http_method(event)
 
     if method == "OPTIONS":
         return response(200, {})
-
     if method == "POST":
         return create_business(event)
     if method == "GET":
@@ -95,11 +80,9 @@ def lambda_handler(event, context):
 
     return response(405, {"error": f"Method {method} not allowed"})
 
-# ───────────────────────────────────────────────────────────────
-# POST /business — Create Business + First User + Defaults
-# ───────────────────────────────────────────────────────────────
 def create_business(event):
     try:
+        business_table, user_table, channel_table, content_type_table, model_table = get_tables()
         body = parse_json_body(event)
 
         required = ["businessName", "ownerEmail", "ownerName", "businessId"]
@@ -107,13 +90,12 @@ def create_business(event):
         if missing:
             return response(400, {"error": f"Missing required fields: {', '.join(missing)}"})
 
-        # business_id = f"bz-{random.randint(100, 999)}"
-        business_id = body.get("businessId", "")
+        business_id = body["businessId"]
         created_at = datetime.utcnow().isoformat()
 
         business_item = {
-            "parentBusinessId": body.get("businessId", ""),
-            "businessId": business_id, # TODO:generate proper bussiness ID
+            "parentBusinessId": business_id,
+            "businessId": business_id,
             "businessType": body.get("businessType", ""),
             "businessName": body["businessName"],
             "createdAt": created_at,
@@ -121,28 +103,24 @@ def create_business(event):
             "phone": body.get("phone", ""),
             "region": body.get("region", ""),
             "status": "ACTIVE",
-
-            # NEW FIELDS ADDED
             "ownerName": body["ownerName"],
-            "ownerEmail": body["ownerEmail"]
+            "ownerEmail": body["ownerEmail"],
         }
 
         business_table.put_item(Item=business_item)
 
-        # Create first admin user
-        # user_id = str(uuid.uuid4())
-        # user_item = {
-        #     "businessId": business_id,
-        #     "userId": user_id,
-        #     "createdAt": created_at,
-        #     "displayName": body["ownerName"],
-        #     "email": body["ownerEmail"],
-        #     "role": "admin",
-        #     "status": "active",
-        # }
-        # user_table.put_item(Item=user_item)
+        cognito_user_id = body.get("cognitoUserId")
+        if cognito_user_id:
+            user_table.put_item(Item={
+                "businessId": business_id,
+                "userId": cognito_user_id,
+                "createdAt": created_at,
+                "displayName": body["ownerName"],
+                "email": body["ownerEmail"],
+                "role": "admin",
+                "status": "active",
+            })
 
-        # Default channels
         channels = [
             {"id": "web", "name": "website"},
             {"id": "robot", "name": "robot"},
@@ -157,7 +135,6 @@ def create_business(event):
                 "enabled": True,
             })
 
-        # Default content types
         content_types = [
             {"name": "image", "model": "titan-image", "format": "png"},
             {"name": "video", "model": "titan-video", "format": "mp4"},
@@ -173,7 +150,6 @@ def create_business(event):
                 "outputFormat": ct["format"],
             })
 
-        # Default models
         models = [
             {"name": "claude-sonnet", "bedrock": "model#nova-2", "cost": "0.20"},
             {"name": "titan-image", "bedrock": "stability.stable-image-core-v1:1", "cost": "0.10"},
@@ -188,12 +164,6 @@ def create_business(event):
                 "enabled": True,
             })
 
-        # return response(201, {
-        #     "message": "Business created successfully",
-        #     "business": business_item,
-        #     "ownerUser": user_item,
-        # })
-
         return response(201, {
             "message": "Business created successfully",
             "business": business_item,
@@ -203,12 +173,9 @@ def create_business(event):
         print("[create_business] Error:", e)
         return response(500, {"error": "Internal server error"})
 
-# ───────────────────────────────────────────────────────────────
-# GET /business              → list all businesses
-# GET /business?businessId=  → get single business
-# ───────────────────────────────────────────────────────────────
 def get_business(event):
     try:
+        business_table, user_table, _, _, _ = get_tables()
         business_id = get_query_param(event, "businessId")
 
         if business_id:
@@ -217,40 +184,41 @@ def get_business(event):
                 return response(404, {"error": "Business not found"})
             return response(200, {"business": result["Item"]})
         else:
-            # Only return businesses the caller actually belongs to, via the
-            # user table's userId-index GSI (real Cognito sub -> membership
-            # rows) — previously this scanned and returned every business in
-            # the system unfiltered, which breaks for any business with more
-            # than one real admin (whoever's ownerEmail matched "won").
             sub = get_sub_from_claims(event)
             if not sub:
                 return response(200, [])
 
+            # Check if user is admin in any business
             memberships = user_table.query(
                 IndexName="userId-index",
                 KeyConditionExpression=Key("userId").eq(sub),
             ).get("Items", [])
 
-            businesses = []
-            for m in memberships:
-                biz_id = m.get("businessId")
-                if not biz_id:
-                    continue
-                biz = business_table.get_item(Key={"businessId": biz_id}).get("Item")
-                if biz:
-                    businesses.append(biz)
+            is_admin = any(m.get("role", "").lower() == "admin" for m in memberships)
 
-            return response(200, businesses)
+            if is_admin:
+                # Return all businesses
+                result = business_table.scan()
+                return response(200, result.get("Items", []))
+            else:
+                # Return only businesses the user belongs to
+                businesses = []
+                for m in memberships:
+                    biz_id = m.get("businessId")
+                    if not biz_id:
+                        continue
+                    biz = business_table.get_item(Key={"businessId": biz_id}).get("Item")
+                    if biz:
+                        businesses.append(biz)
+                return response(200, businesses)
 
     except Exception as e:
         print("[get_business] Error:", e)
         return response(500, {"error": "Internal server error"})
 
-# ───────────────────────────────────────────────────────────────
-# PUT /business/{businessId} — FULL FIELD UPDATE
-# ───────────────────────────────────────────────────────────────
 def update_business(event):
     try:
+        business_table, _, _, _, _ = get_tables()
         body = parse_json_body(event)
         business_id = resolve_business_id(event, body)
 
@@ -285,11 +253,9 @@ def update_business(event):
         print("[update_business] Error:", e)
         return response(500, {"error": "Internal server error"})
 
-# ───────────────────────────────────────────────────────────────
-# DELETE /business/{businessId} — FULL MULTI-TABLE DELETE
-# ───────────────────────────────────────────────────────────────
 def deactivate_business(event):
     try:
+        business_table, user_table, channel_table, content_type_table, model_table = get_tables()
         body = parse_json_body(event)
         business_id = resolve_business_id(event, body)
 

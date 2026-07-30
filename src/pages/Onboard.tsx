@@ -17,12 +17,8 @@ import SendIcon from "@mui/icons-material/Send";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import type { InviteUserPayload } from "../services/api";
 import { sendUserInvite } from "../services/inviteService";
+import { generateUserId, generateBusinessId } from "../utils/idUtils";
 import "../styles/onboard.css";
-
-const generateUserId = () =>
-  "USR-" + Math.random().toString(36).slice(2, 8).toUpperCase();
-const generateBusinessId = () =>
-  "BIZ-" + Math.random().toString(36).slice(2, 8).toUpperCase();
 
 // ── Dynamic input sx (depends on error state) ─────────────────────────────────
 const inputSx = (hasError: boolean) => ({
