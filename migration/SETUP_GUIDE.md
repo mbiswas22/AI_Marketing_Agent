@@ -50,7 +50,7 @@ Give the resulting role ARN to whoever runs `create-destination.sh` — it's a r
 
 ## Step 3 — Register your own OAuth apps and gather secrets
 
-You need 6 values before running the create script. Put them in a file (call it `secrets.env`, don't commit it to git):
+You need 8 values before running the create script. Put them in a file (call it `secrets.env`, don't commit it to git):
 
 ```
 LINKEDIN_CLIENT_ID=...
@@ -59,6 +59,8 @@ META_APP_ID=...
 META_APP_SECRET=...
 META_CONFIG_ID=...
 SENDGRID_API_KEY=...
+MAKE_WEBHOOK_URL=...
+MAKE_WEBHOOK_SECRET=...
 ```
 
 ### LinkedIn
@@ -81,6 +83,14 @@ SENDGRID_API_KEY=...
 1. Sign up at sendgrid.com, verify a sender email address.
 2. Create an API key with "Mail Send" permission.
 3. Put it in `secrets.env` as `SENDGRID_API_KEY`.
+
+### Make.com (Facebook publishing)
+Facebook publishing doesn't go through a self-serve Meta OAuth flow — it's routed through a Make.com scenario/webhook (see `lambda/social-publish-handler-new/adapters/facebook_make.py` and the main `README.md`).
+1. Sign up at make.com, build (or import) the scenario that handles Facebook publishing for this app.
+2. Add a webhook trigger to that scenario — Make.com gives you a unique webhook URL for it.
+3. Put the webhook URL in `secrets.env` as `MAKE_WEBHOOK_URL`.
+4. Configure a shared secret the Lambda sends and the scenario validates (e.g. a header or payload field you check in the scenario) — put that value in `secrets.env` as `MAKE_WEBHOOK_SECRET`.
+5. **Known gap**: neither this migration package nor this guide includes an exported/importable copy of the actual Make.com scenario — you're rebuilding the scenario's logic from scratch or from the source team's Make.com account, not just plugging in a URL.
 
 ---
 

@@ -37,6 +37,8 @@
 #   META_APP_SECRET=...
 #   META_CONFIG_ID=...
 #   SENDGRID_API_KEY=...
+#   MAKE_WEBHOOK_URL=...
+#   MAKE_WEBHOOK_SECRET=...
 
 set -euo pipefail
 
@@ -96,7 +98,13 @@ AWS="aws --profile $PROFILE"
 # LINKEDIN_CLIENT_ID, aren't cryptographic secrets by name but are still tied
 # to the SOURCE account's own developer app registrations and must not be
 # reused - your team registers your own Meta and LinkedIn developer apps).
-REQUIRED_SECRETS=(LINKEDIN_CLIENT_ID LINKEDIN_CLIENT_SECRET META_APP_ID META_APP_SECRET META_CONFIG_ID SENDGRID_API_KEY)
+# MAKE_WEBHOOK_URL/MAKE_WEBHOOK_SECRET are required unconditionally (not just
+# "if present in the export") because Facebook publishing was moved to route
+# through a Make.com webhook after the captured migration package was last
+# exported - an old package's config.json won't have these keys at all, so
+# build_env_json force-adds them for social-publish-handler-new below rather
+# than only overriding keys the export happened to already contain.
+REQUIRED_SECRETS=(LINKEDIN_CLIENT_ID LINKEDIN_CLIENT_SECRET META_APP_ID META_APP_SECRET META_CONFIG_ID SENDGRID_API_KEY MAKE_WEBHOOK_URL MAKE_WEBHOOK_SECRET)
 
 declare -A SECRET_VALUES
 while IFS='=' read -r K V; do
@@ -152,6 +160,23 @@ run() {
 
 SOURCE_BUCKET_NAME="kushtest-marketing-ai-assets"  # for env var substitution only
 
+# A local working-directory subfolder for scratch JSON files, instead of the
+# OS temp dir (mktemp/`/tmp`) - system temp-dir resolution has proven
+# inconsistent across bash/python on some Windows+Git-Bash setups (the two
+# don't always agree on the real filesystem path behind `/tmp`), and this
+# script needs to run reliably on whatever machine the operator has, not
+# just the one it was written on. A plain subfolder of the current directory
+# behaves identically everywhere.
+# Ask python for its own view of the current directory rather than using
+# bash's $(pwd) - on Windows+Git Bash, pwd returns MSYS-style paths
+# (/c/Users/...) that native Windows python.exe/aws.exe don't understand,
+# which is exactly what broke this the first time. Asking python directly
+# guarantees whatever we build here is something python itself can read back.
+TMP_DIR="$(python3 -c "import os; print(os.getcwd().replace(chr(92), '/'))")/.create-destination-tmp"
+mkdir -p "$TMP_DIR"
+cleanup_tmp_dir() { rm -rf "$TMP_DIR"; }
+trap cleanup_tmp_dir EXIT
+
 # ─────────────────────────────────────────────────────────────────────────
 # 1. S3
 # ─────────────────────────────────────────────────────────────────────────
@@ -163,13 +188,15 @@ else
     --create-bucket-configuration "LocationConstraint=$REGION" || true
 fi
 
-CORS_JSON="$(python3 -c "
+# Write the CORS JSON straight to a file from Python (no bash-variable
+# round-trip), inside TMP_DIR - see the note above on why not mktemp/`/tmp`.
+CORS_FILE="$TMP_DIR/cors.json"
+python3 -c "
 import json
 cfg = json.load(open('$PACKAGE_DIR/s3/bucket-config.json'))
-print(json.dumps(cfg['CORS']))
-" | tr -d '\r')"
-echo "$CORS_JSON" > /tmp/_cors.json 2>/dev/null || echo "$CORS_JSON" > "${TMPDIR:-.}/_cors.json"
-CORS_FILE="/tmp/_cors.json"; [[ -f "$CORS_FILE" ]] || CORS_FILE="${TMPDIR:-.}/_cors.json"
+with open('$CORS_FILE', 'w') as f:
+    json.dump(cfg['CORS'], f)
+"
 run "apply CORS to $BUCKET_NAME" $AWS s3api put-bucket-cors --bucket "$BUCKET_NAME" --cors-configuration "file://$CORS_FILE"
 
 run "block public access on $BUCKET_NAME" $AWS s3api put-public-access-block --bucket "$BUCKET_NAME" \
@@ -267,10 +294,10 @@ echo "--- 4/6 Lambda functions ---"
 # Amplify URLs actually exist.
 build_env_json() {
   local fn_name="$1"
-  python3 - "$PACKAGE_DIR/lambdas/$fn_name/config.json" "$SOURCE_BUCKET_NAME" "$BUCKET_NAME" <<'PYEOF' "${SECRET_VALUES[LINKEDIN_CLIENT_ID]:-}" "${SECRET_VALUES[LINKEDIN_CLIENT_SECRET]:-}" "${SECRET_VALUES[META_APP_ID]:-}" "${SECRET_VALUES[META_APP_SECRET]:-}" "${SECRET_VALUES[META_CONFIG_ID]:-}" "${SECRET_VALUES[SENDGRID_API_KEY]:-}"
+  python3 - "$PACKAGE_DIR/lambdas/$fn_name/config.json" "$SOURCE_BUCKET_NAME" "$BUCKET_NAME" "$fn_name" <<'PYEOF' "${SECRET_VALUES[LINKEDIN_CLIENT_ID]:-}" "${SECRET_VALUES[LINKEDIN_CLIENT_SECRET]:-}" "${SECRET_VALUES[META_APP_ID]:-}" "${SECRET_VALUES[META_APP_SECRET]:-}" "${SECRET_VALUES[META_CONFIG_ID]:-}" "${SECRET_VALUES[SENDGRID_API_KEY]:-}" "${SECRET_VALUES[MAKE_WEBHOOK_URL]:-}" "${SECRET_VALUES[MAKE_WEBHOOK_SECRET]:-}"
 import json, sys
-cfg_path, old_bucket, new_bucket = sys.argv[1], sys.argv[2], sys.argv[3]
-linkedin_id, linkedin_secret, meta_id, meta_secret, meta_config_id, sendgrid_key = sys.argv[4:10]
+cfg_path, old_bucket, new_bucket, fn_name = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+linkedin_id, linkedin_secret, meta_id, meta_secret, meta_config_id, sendgrid_key, make_webhook_url, make_webhook_secret = sys.argv[5:13]
 
 cfg = json.load(open(cfg_path))
 env = dict(cfg.get("EnvironmentVariables") or {})
@@ -293,6 +320,16 @@ overrides = {
 for k, v in overrides.items():
     if k in env and v:
         env[k] = v
+
+# MAKE_WEBHOOK_URL/MAKE_WEBHOOK_SECRET: force-added (not just overridden) for
+# social-publish-handler-new specifically, since a migration package exported
+# before Facebook-via-Make.com shipped won't have these keys in its config.json
+# at all - the "if k in env" pattern above would silently skip them.
+if fn_name == "social-publish-handler-new":
+    if make_webhook_url:
+        env["MAKE_WEBHOOK_URL"] = make_webhook_url
+    if make_webhook_secret:
+        env["MAKE_WEBHOOK_SECRET"] = make_webhook_secret
 
 print(json.dumps({"Variables": env}))
 PYEOF
@@ -467,17 +504,24 @@ if [[ $DRY_RUN -eq 1 ]]; then
   echo "     META_REDIRECT_URI=$META_REDIRECT_URI"
   echo "     LINKEDIN_REDIRECT_URI=$LINKEDIN_REDIRECT_URI"
 else
-  CURRENT_ENV="$($AWS lambda get-function-configuration --function-name social-auth-handler --region "$REGION" --query 'Environment.Variables' --output json)"
-  PATCHED_ENV="$(python3 -c "
-import json
-env = json.loads('''$CURRENT_ENV''')
-env['FRONTEND_URL'] = '$FRONTEND_URL'
-env['META_REDIRECT_URI'] = '$META_REDIRECT_URI'
-env['LINKEDIN_REDIRECT_URI'] = '$LINKEDIN_REDIRECT_URI'
-print(json.dumps({'Variables': env}))
-" | tr -d '\r')"
+  CURRENT_ENV_FILE="$TMP_DIR/current-env.json"
+  $AWS lambda get-function-configuration --function-name social-auth-handler --region "$REGION" \
+    --query 'Environment.Variables' --output json > "$CURRENT_ENV_FILE"
+
+  PATCHED_ENV_FILE="$TMP_DIR/patched-env.json"
+  python3 - "$CURRENT_ENV_FILE" "$FRONTEND_URL" "$META_REDIRECT_URI" "$LINKEDIN_REDIRECT_URI" "$PATCHED_ENV_FILE" <<'PYEOF'
+import json, sys
+env_path, frontend_url, meta_uri, linkedin_uri, out_path = sys.argv[1:6]
+with open(env_path) as f:
+    env = json.load(f)
+env['FRONTEND_URL'] = frontend_url
+env['META_REDIRECT_URI'] = meta_uri
+env['LINKEDIN_REDIRECT_URI'] = linkedin_uri
+with open(out_path, 'w') as f:
+    json.dump({'Variables': env}, f)
+PYEOF
   $AWS lambda update-function-configuration --function-name social-auth-handler --region "$REGION" \
-    --environment "$PATCHED_ENV" >/dev/null
+    --environment "file://$PATCHED_ENV_FILE" >/dev/null
   $AWS lambda wait function-updated --function-name social-auth-handler --region "$REGION"
 fi
 echo
