@@ -83,11 +83,14 @@ def create_schedule(body, function_arn):
     platform = body["platform"].lower()
     connection_id = body.get("connectionId", "primary")
 
-    connection = connections_table.get_item(
-        Key={"businessId": business_id, "platform": f"{platform}#{connection_id}"}
-    ).get("Item")
-    if not connection:
-        raise ValueError(f"{platform} is not connected for this business")
+    # Facebook no longer needs a stored connection — it publishes via Make.com
+    # keyed on businessId alone, configured on Make's side by an admin.
+    if platform != "facebook":
+        connection = connections_table.get_item(
+            Key={"businessId": business_id, "platform": f"{platform}#{connection_id}"}
+        ).get("Item")
+        if not connection:
+            raise ValueError(f"{platform} is not connected for this business")
 
     validate_schedule_expression(body["schedule_expression"])
 

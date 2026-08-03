@@ -50,12 +50,14 @@ marketing-ai/
 │   ├── generate_caption/
 │   ├── get_history/
 │   ├── get_models/
+│   ├── website-crawler/
 │   ├── onboarding-business/
+│   ├── cognito-post-auth-trigger/
 │   ├── send-email/
-│   ├── social-oauth-handler/
-│   ├── social-meta-handler/
-│   ├── social-meta-publish-handler/
-│   └── social-publish-handler/
+│   ├── social-auth-handler/        # OAuth connect/disconnect (LinkedIn, Instagram — Facebook no longer self-serve, see below)
+│   ├── social-publish-handler-new/ # Publish LinkedIn/Instagram/Facebook — Facebook routes through Make.com
+│   ├── marketing-scheduler/        # Schedule CRUD + EventBridge-Scheduler-invoked execution
+│   └── (legacy, superseded)/       # social-oauth-handler, social-meta-handler, social-meta-publish-handler, social-publish-handler
 └── public/
 ```
 
@@ -209,7 +211,69 @@ Key endpoints:
 
 ---
 
-## 8. User Invitation Flow
+## 8. Facebook Publishing via Make.com
+
+Facebook is the one platform that does **not** publish directly against Meta's Graph API from this app. Instead, `social-publish-handler-new`'s `FacebookMakeAdapter` (`lambda/social-publish-handler-new/adapters/facebook_make.py`) POSTs a JSON payload to a [Make.com](https://www.make.com/) webhook, and a Make.com scenario does the actual Facebook posting using its own native Facebook connection. LinkedIn and Instagram are unaffected — they still call their platform APIs directly.
+
+There is intentionally **no self-serve "Connect Facebook" flow in this app anymore** — a business's Facebook Page is wired up by an admin directly in the Make.com scenario, not via OAuth in Settings. This section documents that admin setup.
+
+### 8.1 Lambda environment variables
+
+Set these on the `social-publish-handler-new` Lambda (both required — the Lambda will fail to import without them):
+
+| Variable | Description |
+| --- | --- |
+| `MAKE_WEBHOOK_URL` | The Make.com scenario's Custom Webhook URL |
+| `MAKE_WEBHOOK_SECRET` | A shared secret string, checked by the scenario's `Check secret` filter to reject unauthorized calls |
+
+### 8.2 Webhook payload contract
+
+The Lambda POSTs this JSON to `MAKE_WEBHOOK_URL`:
+
+```json
+{
+  "secret": "<MAKE_WEBHOOK_SECRET>",
+  "message": "<post caption text>",
+  "businessId": "<this app's business ID>",
+  "imageUrl": "<presigned S3 URL — omitted entirely for text-only posts>"
+}
+```
+
+`imageUrl` is **omitted from the JSON body**, not sent as `null`/empty, when there's no image — the scenario's Router should branch on whether that key is *present*, not on its value.
+
+### 8.3 Required Make.com scenario structure
+
+Build the scenario as:
+
+```
+Webhooks (Custom webhook)
+  → filter: Check secret            (reject if body.secret ≠ your shared secret)
+  → Router
+      ├─ route 1: filter "has imageUrl"  → HTTP "Download a file" → Facebook Pages "Upload a Photo" → Webhooks "Webhook response"
+      └─ route 2: Fallback route (NOT another "has image" filter — it must be the Router's actual
+                    Fallback route, or a filter checking imageUrl does NOT exist, otherwise text-only
+                    posts match neither branch and silently get dropped)
+                                       → Facebook Pages "Create a Post" → Webhooks "Webhook response"
+```
+
+Each **Webhook response** module should return JSON, e.g. `{"postId": "<the ID from that branch's Facebook Pages module>"}` on success (map the actual output field from the Facebook module — don't hardcode it). The Lambda parses this response synchronously and returns the real `postId` to the app, matching Instagram/LinkedIn's response shape.
+
+### 8.4 Critical scenario settings (easy to miss)
+
+- **The scenario must be turned ON (Active)**, not just saved. If you're mid-edit, click **Finish update** to reactivate it.
+- **"Immediately as data arrives" must be enabled** (bottom-left toggle, next to "Run once"). If it's off, the scenario only runs on manual "Run once" clicks — real webhook calls get acknowledged but never actually processed, so nothing publishes even though our Lambda sees an HTTP 200.
+- Without a **Webhook response** module present and reachable on every path, Make auto-responds `200 Accepted` (plain text) the instant it receives the request, before the scenario runs — the Lambda would then never learn the real `postId` or whether the post actually succeeded.
+
+### 8.5 Associating a business with its Facebook Page
+
+The payload includes `businessId`, not a Facebook Page ID — the scenario needs its own mapping from one to the other. Two approaches:
+
+- **Per-business Router branch** (simplest for a handful of businesses): add a filter branch per business (`businessId` equals `BIZ-XXXX`), each ending in a Facebook Pages module connected to that business's specific Page. Adding a business means manually adding a new branch — doesn't scale automatically, but is fine at small scale.
+- **Data Store lookup** (more scalable, needs one Facebook connection with access to all Pages): create a Make Data Store mapping `businessId → pageId`, add a "Search Records" step right after `Check secret`, and map the Facebook Pages module's **Page** field to the looked-up value instead of a fixed dropdown selection.
+
+---
+
+## 9. User Invitation Flow
 
 1. An ADMIN invites a user from **Settings → Team Members**
 2. An invitation record is created in DynamoDB and an email is sent via SendGrid
@@ -219,7 +283,7 @@ Key endpoints:
 
 ---
 
-## 9. Run the App
+## 10. Run the App
 
 ```bash
 npm run dev
@@ -237,7 +301,7 @@ npm run lint     # run ESLint
 
 ---
 
-## 10. Making Changes & Committing
+## 11. Making Changes & Committing
 
 ```bash
 # Check status
@@ -252,7 +316,7 @@ git commit -m "short description of what you changed"
 
 ---
 
-## 11. Push Your Branch
+## 12. Push Your Branch
 
 ```bash
 git push origin your-branch-name
@@ -266,7 +330,7 @@ git push -u origin your-branch-name
 
 ---
 
-## 12. Stay in Sync
+## 13. Stay in Sync
 
 Always pull the latest `master` before pushing to avoid conflicts:
 
@@ -278,6 +342,6 @@ Resolve any merge conflicts, then push your branch.
 
 ---
 
-## 13. Open a Pull Request
+## 14. Open a Pull Request
 
 Once pushed, go to `https://github.com/mbiswas22/AI_Marketing_Agent` and open a **Pull Request** from your branch into `master`.
