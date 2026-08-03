@@ -4,14 +4,14 @@ A React + TypeScript + Vite web application with AWS Cognito authentication and 
 
 ## Pages
 
-| Route            | Description                                                        |
-| ---------------- | ------------------------------------------------------------------ |
-| `/login`         | Sign in / Sign up via AWS Cognito (Amplify UI)                     |
-| `/welcome`       | Landing screen after login with a "Get Started" CTA                |
-| `/dashboard`     | Generate marketing content via prompt, URL, or image upload        |
-| `/history`       | Table of past AI-generated content with status indicators          |
-| `/settings`      | Manage team members, businesses, and connected social platforms    |
-| `/onboard`       | Business onboarding flow for new admin users                       |
+| Route            | Description                                                           |
+| ---------------- | --------------------------------------------------------------------- |
+| `/login`         | Sign in / Sign up via AWS Cognito (Amplify UI)                        |
+| `/welcome`       | Landing screen after login with a "Get Started" CTA                   |
+| `/dashboard`     | Generate marketing content via prompt, URL, or image upload           |
+| `/history`       | Table of past AI-generated content with status indicators             |
+| `/settings`      | Manage team members, businesses, and connected social platforms       |
+| `/onboard`       | Business onboarding flow for new admin users                          |
 | `/invite-accept` | Invitation acceptance flow for new users joining an existing business |
 
 All routes except `/login` and `/invite-accept` are protected — unauthenticated users are redirected to `/login` automatically.
@@ -60,6 +60,69 @@ marketing-ai/
 │   └── (legacy, superseded)/       # social-oauth-handler, social-meta-handler, social-meta-publish-handler, social-publish-handler
 └── public/
 ```
+
+---
+
+## Features
+
+### Content Generation
+
+- Generate marketing content via **text prompt**, **website URL crawl**, or **image upload**
+- Supported content types: Flyer, Social Caption, Blog Post, Email, Ad Copy, Image
+- Multiple output formats: PDF, HTML, DOCX, TXT, PNG, JPEG
+- Powered by **AWS Bedrock** — select from top 5 models per content category
+- Download generated content in the selected format
+- Copy generated text to clipboard
+
+### Social Media Publishing
+
+- Publish directly to **LinkedIn**, **Facebook**, and **Instagram** from the Dashboard
+- Connect / disconnect social platforms from Settings → Connected Services
+- OAuth flow for LinkedIn and Meta (Facebook / Instagram)
+- `businessId` is scoped per publish call for multi-business support
+
+### Content Scheduling
+
+- Create automated recurring content schedules per platform
+- View, edit, activate, deactivate, and delete schedules
+- View schedule execution logs per business
+- Schedules are scoped by `businessId`
+
+### History
+
+- View all past AI-generated content per business
+- Re-open any history item back into the Dashboard to edit and regenerate
+
+### User Management
+
+- Invite team members by email with role assignment (ADMIN / EDITOR / VIEWER)
+- Edit and delete users
+- Invitation flow via email link with 24-hour expiry
+- Cognito user ID linked to existing user record on invite acceptance
+
+### Business Management
+
+- Create, edit, and delete businesses
+- Auto-generated `BIZ-XXXXXX` business IDs via shared `idUtils`
+- Business ID displayed and copyable after creation
+
+### Invitation Flow
+
+- ADMIN role: full onboarding form (create business + user) on invite acceptance
+- Non-ADMIN roles: Cognito ID linked silently, redirected to dashboard
+- Invitation marked `Accepted` regardless of role after completion
+
+---
+
+## Shared Utilities
+
+`src/utils/idUtils.ts` — shared ID generation used across the app:
+
+| Function                 | Output format | Used in                              |
+| ------------------------ | ------------- | ------------------------------------ |
+| `generateUserId()`       | `USR-XXXXXX`  | Onboard.tsx                          |
+| `generateBusinessId()`   | `BIZ-XXXXXX`  | Onboard.tsx, BusinessManagement.tsx  |
+| `generateInvitationId()` | UUID          | UserManagement.tsx, inviteService.ts |
 
 ---
 
@@ -191,23 +254,35 @@ https://<api-id>.execute-api.us-east-2.amazonaws.com/dev
 
 Key endpoints:
 
-| Method | Endpoint                        | Description                        |
-| ------ | ------------------------------- | ---------------------------------- |
-| GET    | `/users?businessId=`            | List users for a business          |
-| POST   | `/users`                        | Create a user                      |
-| PUT    | `/users/{userId}`               | Update a user (businessId in body) |
-| DELETE | `/users/{userId}?businessId=`   | Delete a user                      |
-| GET    | `/business`                     | List all businesses                |
-| POST   | `/business`                     | Create a business                  |
-| PUT    | `/business/{businessId}`        | Update a business                  |
-| DELETE | `/business/{businessId}`        | Delete a business                  |
-| GET    | `/invitations/{invitationId}`   | Get an invitation                  |
-| POST   | `/invitations`                  | Create an invitation               |
-| PUT    | `/invitations/{invitationId}`   | Update invitation status           |
-| POST   | `/generate`                     | Generate marketing content         |
-| GET    | `/history`                      | Get generation history             |
-| GET    | `/models`                       | List available Bedrock models      |
-| POST   | `/send-email`                   | Send invitation email              |
+| Method | Endpoint                         | Description                        |
+| ------ | -------------------------------- | ---------------------------------- |
+| GET    | `/users?businessId=`             | List users for a business          |
+| POST   | `/users`                         | Create a user                      |
+| PUT    | `/users/{userId}`                | Update a user (businessId in body) |
+| DELETE | `/users/{userId}?businessId=`    | Delete a user                      |
+| GET    | `/business`                      | List all businesses                |
+| POST   | `/business`                      | Create a business                  |
+| PUT    | `/business/{businessId}`         | Update a business                  |
+| DELETE | `/business/{businessId}`         | Delete a business                  |
+| GET    | `/invitations/{invitationId}`    | Get an invitation                  |
+| POST   | `/invitations`                   | Create an invitation               |
+| PUT    | `/invitations/{invitationId}`    | Update invitation status           |
+| POST   | `/generate`                      | Generate marketing content (text)  |
+| POST   | `/image`                         | Generate marketing image           |
+| POST   | `/crawl`                         | Crawl website and generate content |
+| GET    | `/history`                       | Get generation history             |
+| GET    | `/models`                        | List available Bedrock models      |
+| POST   | `/send-email`                    | Send invitation email              |
+| GET    | `/social/connections`            | List social connections            |
+| GET    | `/social/linkedin/authorize`     | Get LinkedIn OAuth URL             |
+| POST   | `/social/linkedin/publish`       | Publish to LinkedIn                |
+| GET    | `/social/meta/authorize`         | Get Meta OAuth URL                 |
+| GET    | `/social/meta/pages`             | Get connected Facebook page        |
+| POST   | `/social/meta/publish`           | Publish to Facebook                |
+| GET    | `/social/meta/instagram`         | Get Instagram connection status    |
+| POST   | `/social/meta/instagram/publish` | Publish to Instagram               |
+| DELETE | `/social/connections/{platform}` | Disconnect a social platform       |
+| POST   | `/schedule`                      | Create / manage content schedules  |
 
 ---
 
@@ -221,9 +296,9 @@ There is intentionally **no self-serve "Connect Facebook" flow in this app anymo
 
 Set these on the `social-publish-handler-new` Lambda (both required — the Lambda will fail to import without them):
 
-| Variable | Description |
-| --- | --- |
-| `MAKE_WEBHOOK_URL` | The Make.com scenario's Custom Webhook URL |
+| Variable              | Description                                                                                          |
+| --------------------- | ---------------------------------------------------------------------------------------------------- |
+| `MAKE_WEBHOOK_URL`    | The Make.com scenario's Custom Webhook URL                                                           |
 | `MAKE_WEBHOOK_SECRET` | A shared secret string, checked by the scenario's `Check secret` filter to reject unauthorized calls |
 
 ### 8.2 Webhook payload contract
@@ -239,7 +314,7 @@ The Lambda POSTs this JSON to `MAKE_WEBHOOK_URL`:
 }
 ```
 
-`imageUrl` is **omitted from the JSON body**, not sent as `null`/empty, when there's no image — the scenario's Router should branch on whether that key is *present*, not on its value.
+`imageUrl` is **omitted from the JSON body**, not sent as `null`/empty, when there's no image — the scenario's Router should branch on whether that key is _present_, not on its value.
 
 ### 8.3 Required Make.com scenario structure
 
