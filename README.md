@@ -4,15 +4,14 @@ A React + TypeScript + Vite web application with AWS Cognito authentication and 
 
 ## Pages
 
-| Route            | Description                                                           |
-| ---------------- | --------------------------------------------------------------------- |
-| `/login`         | Sign in / Sign up via AWS Cognito (Amplify UI)                        |
-| `/welcome`       | Landing screen after login with a "Get Started" CTA                   |
-| `/dashboard`     | Generate marketing content via prompt, URL, or image upload           |
-| `/history`       | Table of past AI-generated content with status indicators             |
-| `/schedules`     | View, manage, and create automated content publishing schedules       |
-| `/settings`      | Manage team members, businesses, and connected social platforms       |
-| `/onboard`       | Business onboarding flow for new admin users                          |
+| Route            | Description                                                        |
+| ---------------- | ------------------------------------------------------------------ |
+| `/login`         | Sign in / Sign up via AWS Cognito (Amplify UI)                     |
+| `/welcome`       | Landing screen after login with a "Get Started" CTA                |
+| `/dashboard`     | Generate marketing content via prompt, URL, or image upload        |
+| `/history`       | Table of past AI-generated content with status indicators          |
+| `/settings`      | Manage team members, businesses, and connected social platforms    |
+| `/onboard`       | Business onboarding flow for new admin users                       |
 | `/invite-accept` | Invitation acceptance flow for new users joining an existing business |
 
 All routes except `/login` and `/invite-accept` are protected — unauthenticated users are redirected to `/login` automatically.
@@ -24,12 +23,11 @@ All routes except `/login` and `/invite-accept` are protected — unauthenticate
 ```
 marketing-ai/
 ├── src/
-│   ├── pages/
+│   ├── pages/              # All page components
 │   │   ├── Login.tsx
 │   │   ├── Welcome.tsx
 │   │   ├── Dashboard.tsx
 │   │   ├── History.tsx
-│   │   ├── Schedules.tsx
 │   │   ├── Onboard.tsx
 │   │   ├── SettingsPage.tsx
 │   │   ├── UserManagement.tsx
@@ -41,9 +39,7 @@ marketing-ai/
 │   │   └── inviteService.ts
 │   ├── constants/
 │   │   └── dashboardConstants.ts
-│   ├── utils/
-│   │   └── idUtils.ts      # Shared ID generation utilities
-│   ├── aws-config.ts       # Amplify / Cognito configuration (git-ignored)
+│   ├── aws-config.ts       # Amplify / Cognito configuration
 │   ├── App.tsx             # Routes and auth guard
 │   └── main.tsx
 ├── lambda/                 # AWS Lambda functions (Python)
@@ -67,67 +63,15 @@ marketing-ai/
 
 ---
 
-## Features
-
-### Content Generation
-- Generate marketing content via **text prompt**, **website URL crawl**, or **image upload**
-- Supported content types: Flyer, Social Caption, Blog Post, Email, Ad Copy, Image
-- Multiple output formats: PDF, HTML, DOCX, TXT, PNG, JPEG
-- Powered by **AWS Bedrock** — select from top 5 models per content category
-- Download generated content in the selected format
-- Copy generated text to clipboard
-
-### Social Media Publishing
-- Publish directly to **LinkedIn**, **Facebook**, and **Instagram** from the Dashboard
-- Connect / disconnect social platforms from Settings → Connected Services
-- OAuth flow for LinkedIn and Meta (Facebook / Instagram)
-- `businessId` is scoped per publish call for multi-business support
-
-### Content Scheduling
-- Create automated recurring content schedules per platform
-- View, edit, activate, deactivate, and delete schedules
-- View schedule execution logs per business
-- Schedules are scoped by `businessId`
-
-### History
-- View all past AI-generated content per business
-- Re-open any history item back into the Dashboard to edit and regenerate
-
-### User Management
-- Invite team members by email with role assignment (ADMIN / EDITOR / VIEWER)
-- Edit and delete users
-- Invitation flow via email link with 24-hour expiry
-- Cognito user ID linked to existing user record on invite acceptance
-
-### Business Management
-- Create, edit, and delete businesses
-- Auto-generated `BIZ-XXXXXX` business IDs via shared `idUtils`
-- Business ID displayed and copyable after creation
-
-### Invitation Flow
-- ADMIN role: full onboarding form (create business + user) on invite acceptance
-- Non-ADMIN roles: Cognito ID linked silently, redirected to dashboard
-- Invitation marked `Accepted` regardless of role after completion
-
----
-
-## Shared Utilities
-
-`src/utils/idUtils.ts` — shared ID generation used across the app:
-
-| Function               | Output format   | Used in                              |
-| ---------------------- | --------------- | ------------------------------------ |
-| `generateUserId()`     | `USR-XXXXXX`    | Onboard.tsx                          |
-| `generateBusinessId()` | `BIZ-XXXXXX`    | Onboard.tsx, BusinessManagement.tsx  |
-| `generateInvitationId()` | UUID          | UserManagement.tsx, inviteService.ts |
-
----
-
 ## Prerequisites
+
+Make sure the following are installed before getting started:
 
 - [Node.js](https://nodejs.org/) v18 or higher
 - npm (comes with Node.js)
 - [Git](https://git-scm.com/)
+
+Verify your installations:
 
 ```bash
 node -v
@@ -138,6 +82,8 @@ git --version
 ---
 
 ## 1. Create Your Branch on GitHub
+
+Before cloning, create your personal branch on GitHub:
 
 1. Go to `https://github.com/mbiswas22/AI_Marketing_Agent`
 2. Click the branch dropdown (shows `master`)
@@ -160,9 +106,17 @@ cd AI_Marketing_Agent
 git checkout your-branch-name
 ```
 
+Or create and switch in one step if you didn't create it on GitHub:
+
+```bash
+git checkout -b your-branch-name
+```
+
 ---
 
 ## 4. Pull Latest Changes
+
+Always pull the latest changes from `master` before starting work:
 
 ```bash
 git pull origin master
@@ -175,6 +129,8 @@ git pull origin master
 ```bash
 npm install
 ```
+
+This installs all required packages, including:
 
 | Package                              | Purpose                                     |
 | ------------------------------------ | ------------------------------------------- |
@@ -192,17 +148,15 @@ npm install
 > npm install @rolldown/binding-win32-x64-msvc
 > ```
 
-> **Note:** Peer dependency warnings about `@xstate/react` requiring React 16-18 are harmless — the app works correctly with React 19.
+> **Note:** You may see peer dependency warnings about `@xstate/react` requiring React 16-18 while this project uses React 19. These warnings are harmless — the app works correctly.
 
 ---
 
 ## 6. AWS Cognito Setup
 
-The config lives in `src/aws-config.ts` (git-ignored — create it locally):
+Authentication uses AWS Cognito. The config lives in `src/aws-config.ts`:
 
 ```ts
-import { Amplify } from "aws-amplify";
-
 Amplify.configure({
   Auth: {
     Cognito: {
@@ -213,7 +167,7 @@ Amplify.configure({
 });
 ```
 
-**Important:** The App Client must be a **Public client** with **no client secret**. Create one via CLI if needed:
+**Important:** The App Client must be a **Public client** with **no client secret**. If your client has a secret, Amplify will throw a `SECRET_HASH was not received` error. To fix it, create a new App Client in the AWS Console with "Generate a client secret" unchecked, or via CLI:
 
 ```bash
 aws cognito-idp create-user-pool-client \
@@ -223,45 +177,37 @@ aws cognito-idp create-user-pool-client \
   --region us-east-2
 ```
 
+Then update `userPoolClientId` in `src/aws-config.ts` with the new client ID.
+
 ---
 
 ## 7. API Gateway
 
-All frontend API calls go through `src/services/api.ts`:
+All frontend API calls go through `src/services/api.ts` to the base URL:
 
 ```
 https://<api-id>.execute-api.us-east-2.amazonaws.com/dev
 ```
 
-| Method | Endpoint                            | Description                        |
-| ------ | ----------------------------------- | ---------------------------------- |
-| GET    | `/users?businessId=`                | List users for a business          |
-| POST   | `/users`                            | Create a user                      |
-| PUT    | `/users/{userId}`                   | Update a user (businessId in body) |
-| DELETE | `/users/{userId}?businessId=`       | Delete a user                      |
-| GET    | `/business`                         | List all businesses                |
-| POST   | `/business`                         | Create a business                  |
-| PUT    | `/business/{businessId}`            | Update a business                  |
-| DELETE | `/business/{businessId}`            | Delete a business                  |
-| GET    | `/invitations/{invitationId}`       | Get an invitation                  |
-| POST   | `/invitations`                      | Create an invitation               |
-| PUT    | `/invitations/{invitationId}`       | Update invitation status           |
-| POST   | `/generate`                         | Generate marketing content (text)  |
-| POST   | `/image`                            | Generate marketing image           |
-| POST   | `/crawl`                            | Crawl website and generate content |
-| GET    | `/history`                          | Get generation history             |
-| GET    | `/models`                           | List available Bedrock models      |
-| POST   | `/send-email`                       | Send invitation email              |
-| GET    | `/social/connections`               | List social connections            |
-| GET    | `/social/linkedin/authorize`        | Get LinkedIn OAuth URL             |
-| POST   | `/social/linkedin/publish`          | Publish to LinkedIn                |
-| GET    | `/social/meta/authorize`            | Get Meta OAuth URL                 |
-| GET    | `/social/meta/pages`                | Get connected Facebook page        |
-| POST   | `/social/meta/publish`              | Publish to Facebook                |
-| GET    | `/social/meta/instagram`            | Get Instagram connection status    |
-| POST   | `/social/meta/instagram/publish`    | Publish to Instagram               |
-| DELETE | `/social/connections/{platform}`    | Disconnect a social platform       |
-| POST   | `/schedule`                         | Create / manage content schedules  |
+Key endpoints:
+
+| Method | Endpoint                        | Description                        |
+| ------ | ------------------------------- | ---------------------------------- |
+| GET    | `/users?businessId=`            | List users for a business          |
+| POST   | `/users`                        | Create a user                      |
+| PUT    | `/users/{userId}`               | Update a user (businessId in body) |
+| DELETE | `/users/{userId}?businessId=`   | Delete a user                      |
+| GET    | `/business`                     | List all businesses                |
+| POST   | `/business`                     | Create a business                  |
+| PUT    | `/business/{businessId}`        | Update a business                  |
+| DELETE | `/business/{businessId}`        | Delete a business                  |
+| GET    | `/invitations/{invitationId}`   | Get an invitation                  |
+| POST   | `/invitations`                  | Create an invitation               |
+| PUT    | `/invitations/{invitationId}`   | Update invitation status           |
+| POST   | `/generate`                     | Generate marketing content         |
+| GET    | `/history`                      | Get generation history             |
+| GET    | `/models`                       | List available Bedrock models      |
+| POST   | `/send-email`                   | Send invitation email              |
 
 ---
 
@@ -332,7 +278,7 @@ The payload includes `businessId`, not a Facebook Page ID — the scenario needs
 1. An ADMIN invites a user from **Settings → Team Members**
 2. An invitation record is created in DynamoDB and an email is sent via SendGrid
 3. The invitee clicks the link → `/invite-accept?token=<invitationId>`
-4. **Non-ADMIN roles**: Cognito ID linked to existing user record, invitation marked `Accepted`, redirected to dashboard
+4. **Non-ADMIN roles**: Cognito ID is linked to the existing user record, invitation marked `Accepted`, redirected to dashboard
 5. **ADMIN role**: Full onboarding form shown — creates business + user, then marks invitation `Accepted`
 
 ---
@@ -343,7 +289,9 @@ The payload includes `businessId`, not a Facebook Page ID — the scenario needs
 npm run dev
 ```
 
-Available at `http://localhost:5173`
+The app will be available at `http://localhost:5173`
+
+Other available scripts:
 
 ```bash
 npm run build    # production build
@@ -356,8 +304,13 @@ npm run lint     # run ESLint
 ## 11. Making Changes & Committing
 
 ```bash
+# Check status
 git status
+
+# Stage files
 git add .
+
+# Commit
 git commit -m "short description of what you changed"
 ```
 
@@ -369,7 +322,7 @@ git commit -m "short description of what you changed"
 git push origin your-branch-name
 ```
 
-First push:
+If it's your first push on this branch:
 
 ```bash
 git push -u origin your-branch-name
@@ -379,12 +332,16 @@ git push -u origin your-branch-name
 
 ## 13. Stay in Sync
 
+Always pull the latest `master` before pushing to avoid conflicts:
+
 ```bash
 git pull origin master
 ```
+
+Resolve any merge conflicts, then push your branch.
 
 ---
 
 ## 14. Open a Pull Request
 
-Go to `https://github.com/mbiswas22/AI_Marketing_Agent` and open a **Pull Request** from your branch into `master`.
+Once pushed, go to `https://github.com/mbiswas22/AI_Marketing_Agent` and open a **Pull Request** from your branch into `master`.
